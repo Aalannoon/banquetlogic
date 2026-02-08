@@ -1,226 +1,114 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Seniority Scheduler</title>
-
 <style>
-body {
-  font-family: Arial, sans-serif;
-  background: #f4f6f8;
-  margin: 0;
-  padding: 20px;
-}
-
-h1, h2 {
-  margin-top: 0;
-}
-
-section {
-  background: white;
-  padding: 15px;
-  margin-bottom: 20px;
-  border-radius: 6px;
-}
-
-input, select, button {
-  padding: 6px;
-  margin: 4px 0;
-}
-
-button {
-  cursor: pointer;
-}
-
-table {
-  border-collapse: collapse;
-  width: 100%;
-  table-layout: fixed;
-}
-
-th, td {
-  border: 1px solid #ccc;
-  padding: 6px;
-  text-align: center;
-  font-size: 13px;
-}
-
-th {
-  background: #eee;
-}
-
-.employee-row {
-  background: #fafafa;
-  font-weight: bold;
-}
-
-.shift-4 { background: #6fcf97; }
-.shift-6 { background: #f2994a; }
-.shift-8 { background: #f2c94c; }
-.shift-ot { background: #bb6bd9; color: white; }
-
-.vacation {
-  background: #ddd;
-  font-style: italic;
-}
-
-.sick {
-  background: #bdbdbd;
-  font-style: italic;
-}
-
-.hidden {
-  display: none;
-}
+body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:0;background:#f5f7fa}
+header{padding:12px 16px;background:#1f2937;color:#fff}
+h1{margin:0;font-size:20px}
+nav{display:flex;gap:8px;margin-top:8px}
+nav button{padding:8px 12px;border:none;border-radius:6px;cursor:pointer}
+nav button.active{background:#2563eb;color:#fff}
+section{display:none;padding:16px}
+section.active{display:block}
+.card{background:#fff;border-radius:8px;padding:12px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+label{display:block;font-size:12px;margin-top:8px}
+input,select,button{margin-top:4px;padding:6px;border-radius:4px;border:1px solid #ccc}
+button.primary{background:#2563eb;color:#fff;border:none}
+button.danger{background:#dc2626;color:#fff;border:none}
+button.small{padding:4px 8px;font-size:12px}
+.table{overflow-x:auto}
+table{border-collapse:collapse;width:100%}
+th,td{border:1px solid #ddd;padding:6px;text-align:center;font-size:12px}
+th{background:#f1f5f9}
+.employee-row{border-top:2px solid #000}
+.shift.green{background:#bbf7d0}
+.shift.yellow{background:#fde68a}
+.shift.orange{background:#fdba74}
+.shift.purple{background:#e9d5ff}
+.shift.gray{background:#e5e7eb}
+.badge{display:inline-block;padding:2px 6px;border-radius:4px;font-size:11px}
+.badge.sick{background:#fecaca}
+.badge.vacation{background:#bfdbfe}
+@media print{nav,button,input,select{display:none}body{background:#fff}}
 </style>
 </head>
-
 <body>
-
+<header>
 <h1>Seniority Scheduler</h1>
+<nav>
+<button onclick="showTab('employees')" class="active">Employees</button>
+<button onclick="showTab('events')">Events</button>
+<button onclick="showTab('schedule')">Schedule</button>
+</nav>
+</header>
 
-<section>
-<h2>Add Employee</h2>
-<input id="empName" placeholder="Name">
-<select id="empType">
-  <option value="full">Full Time</option>
-  <option value="part">Part Time</option>
-</select>
-<select id="empPref">
-  <option value="morning">Morning</option>
-  <option value="mid">Midday</option>
-  <option value="night">Night</option>
-</select>
-<button onclick="addEmployee()">Add</button>
+<section id="employees" class="active">
+<div class="card">
+<h3>Add Employee</h3>
+<label>Name<input id="empName"></label>
+<label>Seniority<input type="number" id="empSeniority"></label>
+<label>Status<select id="empStatus"><option value="FT">FT</option><option value="PT">PT</option></select></label>
+<label>Preferred Start (24h)<input type="number" id="empPref" placeholder="15 = 3pm"></label>
+<button class="primary" onclick="addEmployee()">Add</button>
+</div>
+<div class="card table">
+<table id="empTable"><thead><tr><th>Name</th><th>Seniority</th><th>Status</th><th>Pref</th><th>Actions</th></tr></thead><tbody></tbody></table>
+</div>
 </section>
 
-<section>
-<h2>Add Event (Manager)</h2>
-<input type="date" id="eventDate">
-<input placeholder="Event Name (manager only)" id="eventName">
-<input type="number" id="guestCount" placeholder="Guests">
-<input type="number" id="staffNeeded" placeholder="Servers Needed">
-<button onclick="addEvent()">Add Event</button>
+<section id="events">
+<div class="card">
+<h3>Add Event (Manager)</h3>
+<label>Name<input id="eventName"></label>
+<label>Date<input type="date" id="eventDate"></label>
+<label>Start Time<input type="time" id="eventStart"></label>
+<label>End Time<input type="time" id="eventEnd"></label>
+<label>Guests<input type="number" id="eventGuests"></label>
+<label>Event Type<select id="eventType"><option value="banquet">Banquet</option><option value="buffet">Buffet</option><option value="wedding">Wedding</option></select></label>
+<label>Staff Needed (editable)<input type="number" id="eventStaff"></label>
+<div id="recommend"></div>
+<button class="primary" onclick="addEvent()">Add Event</button>
+</div>
+<div class="card table">
+<table id="eventTable"><thead><tr><th>Name</th><th>Date</th><th>Time</th><th>Guests</th><th>Staff Needed</th><th>Actions</th></tr></thead><tbody></tbody></table>
+</div>
 </section>
 
-<section>
-<h2>Generate Schedule</h2>
-<button onclick="generateSchedule()">Generate</button>
-</section>
-
-<section>
-<h2>Weekly Schedule</h2>
-<div id="schedule"></div>
+<section id="schedule">
+<div class="card">
+<button class="primary" onclick="generateSchedule()">Generate Schedule</button>
+<button onclick="window.print()">Export PDF</button>
+</div>
+<div class="card table" id="scheduleTable"></div>
 </section>
 
 <script>
-let employees = JSON.parse(localStorage.getItem("employees")) || [];
-let events = JSON.parse(localStorage.getItem("events")) || [];
-let schedule = {};
+let employees = JSON.parse(localStorage.getItem('employees')||'[]');
+let events = JSON.parse(localStorage.getItem('events')||'[]');
+let schedule = [];
 
-function save() {
-  localStorage.setItem("employees", JSON.stringify(employees));
-  localStorage.setItem("events", JSON.stringify(events));
-}
+function save(){localStorage.setItem('employees',JSON.stringify(employees));localStorage.setItem('events',JSON.stringify(events));}
+function showTab(id){document.querySelectorAll('section').forEach(s=>s.classList.remove('active'));document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));document.getElementById(id).classList.add('active');event.target.classList.add('active');}
 
-function addEmployee() {
-  employees.push({
-    id: Date.now(),
-    name: empName.value,
-    type: empType.value,
-    pref: empPref.value,
-    seniority: employees.length + 1,
-    retired: false
-  });
-  save();
-  render();
-}
+function addEmployee(){employees.push({name:empName.value,seniority:+empSeniority.value,status:empStatus.value,pref:+empPref.value||15});save();renderEmployees();}
+function renderEmployees(){let tb=document.querySelector('#empTable tbody');tb.innerHTML='';employees.sort((a,b)=>b.seniority-a.seniority).forEach((e,i)=>{tb.innerHTML+=`<tr><td>${e.name}</td><td>${e.seniority}</td><td>${e.status}</td><td>${e.pref}:00+</td><td><button class="small danger" onclick="employees.splice(${i},1);save();renderEmployees()">X</button></td></tr>`})}
 
-function addEvent() {
-  events.push({
-    id: Date.now(),
-    date: eventDate.value,
-    name: eventName.value,
-    guests: +guestCount.value,
-    staff: +staffNeeded.value
-  });
-  save();
-  render();
-}
+function recommendStaff(type,guests){if(type==='wedding')return Math.ceil(guests/15);if(type==='buffet')return Math.ceil(guests/25);return Math.ceil(guests/20)}
 
-function generateSchedule() {
-  schedule = {};
-  const week = getWeek();
+function addEvent(){let rec=recommendStaff(eventType.value,+eventGuests.value);events.push({name:eventName.value,date:eventDate.value,start:eventStart.value,end:eventEnd.value,guests:+eventGuests.value,type:eventType.value,staff:+eventStaff.value||rec});save();renderEvents();}
+function renderEvents(){let tb=document.querySelector('#eventTable tbody');tb.innerHTML='';events.forEach((e,i)=>{tb.innerHTML+=`<tr><td>${e.name}</td><td>${e.date}</td><td>${e.start}-${e.end}</td><td>${e.guests}</td><td>${e.staff}</td><td><button class="small danger" onclick="events.splice(${i},1);save();renderEvents()">X</button></td></tr>`})}
 
-  week.forEach(day => {
-    schedule[day] = [];
-    let todaysEvents = events.filter(e => e.date === day);
+function generateSchedule(){schedule=[];let week=[...Array(7).keys()].map(d=>{let x=new Date();x.setDate(x.getDate()-x.getDay()+1+d);return x});employees.sort((a,b)=>b.seniority-a.seniority);
+week.forEach(day=>{let dayStr=day.toISOString().slice(0,10);let dayEvents=events.filter(e=>e.date===dayStr);dayEvents.forEach(ev=>{let assigned=0;employees.forEach(emp=>{if(assigned>=ev.staff)return;if(schedule.find(s=>s.emp===emp.name&&s.date===dayStr))return;let startH=parseInt(ev.start);if(startH<emp.pref)return;let hours=Math.max(4,Math.round((new Date(`1970-01-01T${ev.end}`)-new Date(`1970-01-01T${ev.start}`))/36e5));let paid=hours===8?8.5:hours;schedule.push({emp:emp.name,date:dayStr,hours:paid});assigned++;})})});renderSchedule();}
 
-    let needed = todaysEvents.reduce((a, e) => a + e.staff, 0);
-    let available = [...employees]
-      .filter(e => !e.retired)
-      .sort((a, b) => {
-        if (a.type !== b.type) return a.type === "full" ? -1 : 1;
-        return a.seniority - b.seniority;
-      });
+function renderSchedule(){let cont=document.getElementById('scheduleTable');let week=[...Array(7).keys()].map(d=>{let x=new Date();x.setDate(x.getDate()-x.getDay()+1+d);return x});let html='<table><thead><tr><th>Employee</th>';
+week.forEach(d=>html+=`<th>${d.toLocaleDateString(undefined,{weekday:'short',day:'numeric'})}</th>`);html+='</tr></thead><tbody>';
+employees.forEach(emp=>{html+=`<tr class="employee-row"><td>${emp.name}</td>`;week.forEach(d=>{let ds=d.toISOString().slice(0,10);let s=schedule.find(x=>x.emp===emp.name&&x.date===ds);if(!s){html+='<td></td>'}else{let cls=s.hours>=8?'yellow':s.hours>=6?'orange':'green';html+=`<td class="shift ${cls}">${s.hours}h</td>`}});html+='</tr>'});html+='</tbody></table>';cont.innerHTML=html}
 
-    let used = new Set();
-
-    for (let emp of available) {
-      if (used.size >= needed) break;
-      used.add(emp.id);
-
-      let hours = 8;
-      schedule[day].push({
-        empId: emp.id,
-        hours
-      });
-    }
-  });
-
-  render();
-}
-
-function getWeek() {
-  const today = new Date();
-  const monday = new Date(today);
-  monday.setDate(today.getDate() - today.getDay() + 1);
-
-  return [...Array(7)].map((_, i) => {
-    const d = new Date(monday);
-    d.setDate(monday.getDate() + i);
-    return d.toISOString().slice(0, 10);
-  });
-}
-
-function render() {
-  let week = getWeek();
-  let html = `<table><tr><th>Employee</th>`;
-  week.forEach(d => html += `<th>${new Date(d).toDateString()}</th>`);
-  html += `</tr>`;
-
-  employees.forEach(emp => {
-    html += `<tr><td class="employee-row">${emp.name}</td>`;
-    week.forEach(day => {
-      let shift = schedule[day]?.find(s => s.empId === emp.id);
-      if (!shift) {
-        html += `<td></td>`;
-      } else {
-        let cls = shift.hours === 4 ? "shift-4" :
-                  shift.hours === 6 ? "shift-6" :
-                  shift.hours === 8 ? "shift-8" : "shift-ot";
-        html += `<td class="${cls}">${shift.hours} hrs</td>`;
-      }
-    });
-    html += `</tr>`;
-  });
-
-  html += `</table>`;
-  document.getElementById("schedule").innerHTML = html;
-}
-
-render();
+renderEmployees();renderEvents();
 </script>
-
 </body>
 </html>
