@@ -2,12 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>Seniority Scheduler</title>
+<title>Seniority Scheduler Dashboard</title>
 
 <style>
-/* =========================
-   DARK MODE & MODERN UI
-========================= */
 body {
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   margin: 20px;
@@ -15,136 +12,64 @@ body {
   color: #f0f0f0;
   transition: background 0.3s, color 0.3s;
 }
-
-/* Light mode override */
-body.light-mode {
-  background: #f8f9fa;
-  color: #333;
-}
+body.light-mode { background:#f8f9fa; color:#333; }
 
 h1 { font-size:28px; margin-bottom:10px; }
 h2 { margin-top:20px; margin-bottom:10px; }
 
-/* =========================
-   TABS
-========================= */
+/* TABS */
 .tabs { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; }
-.tabs button {
-  padding:8px 14px; cursor:pointer; border:none; border-radius:8px;
-  font-weight:bold; transition:0.2s;
-}
+.tabs button { padding:8px 14px; cursor:pointer; border:none; border-radius:8px; font-weight:bold; transition:0.2s;}
 .tabs button.active { background:#4e9af1; color:#fff; }
-
 body.dark-mode .tabs button { background:#2e2e3d; color:#ccc; }
 body.dark-mode .tabs button.active { background:#4e9af1; color:#fff; }
 
-/* =========================
-   INPUTS & BUTTONS
-========================= */
-input, select, button {
-  margin-right:6px; margin-bottom:6px; padding:6px 10px;
-  border-radius:6px; border:none; font-size:14px;
-}
+/* INPUTS & BUTTONS */
+input, select, button { margin-right:6px; margin-bottom:6px; padding:6px 10px; border-radius:6px; border:none; font-size:14px; }
 button { font-weight:bold; background:#4e9af1; color:#fff; transition:0.2s; }
 button:hover { opacity:0.85; transform: translateY(-2px); }
-
 body.light-mode button { background:#007bff; color:#fff; }
 
-/* =========================
-   TABLES
-========================= */
-table { border-collapse:collapse; width:100%; margin-top:10px;
-        border-radius:8px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.3); table-layout: fixed; }
+/* TABLES */
+table { border-collapse:collapse; width:100%; margin-top:10px; border-radius:8px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.3); table-layout: fixed; }
 th, td { padding:10px; text-align:center; border-bottom:1px solid #444; transition:0.3s; }
 th { background:#4e9af1; color:#fff; position:sticky; top:0; z-index:2; }
 tr:nth-child(even) { background: rgba(255,255,255,0.05); }
 
 /* Fixed first column */
 .schedule-table-container { overflow-x:auto; position: relative; }
-#scheduleTable th:first-child,
-#scheduleTable td:first-child {
-  position: sticky;
-  left: 0;
-  background: #3a3a50;
-  z-index:3;
-}
-body.light-mode #scheduleTable th:first-child,
-body.light-mode #scheduleTable td:first-child {
-  background: #ddd;
-  color: #333;
-}
+#scheduleTable th:first-child, #scheduleTable td:first-child { position: sticky; left:0; background:#3a3a50; z-index:3; }
+body.light-mode #scheduleTable th:first-child, body.light-mode #scheduleTable td:first-child { background:#ddd; color:#333; }
 
 /* Employee row separation */
 .employee-row td { border-top:3px solid #888; }
 
-/* =========================
-   SHIFT COLORS
-========================= */
+/* SHIFT COLORS */
 .shift-4 { background: #2ecc71; color: #fff; }
 .shift-6 { background: #e67e22; color: #fff; }
 .shift-8 { background: #f1c40f; color: #000; }
 .shift-ot { background: #9b59b6; color: #fff; }
 
-/* =========================
-   VACATION / SICK
-========================= */
+/* VACATION / SICK */
 .status-vacation { background: #7f8c8d; color:#fff; font-weight:bold; font-style:italic; }
 .status-sick { background: #c0392b; color:#fff; font-weight:bold; font-style:italic; }
 
-/* =========================
-   VISUAL ENHANCEMENTS (#6)
-========================= */
-td:hover {
-  transform: scale(1.05);
-  transition: transform 0.15s ease-in-out, box-shadow 0.15s;
-  box-shadow: 0 3px 6px rgba(0,0,0,0.3);
-  z-index: 1;
-  position: relative;
-}
+/* VISUAL ENHANCEMENTS */
+td:hover { transform: scale(1.05); transition: transform 0.15s ease-in-out, box-shadow 0.15s; box-shadow: 0 3px 6px rgba(0,0,0,0.3); z-index:1; position: relative; }
+.employee-row:hover { background: rgba(255,255,255,0.08); box-shadow: 0 4px 6px rgba(0,0,0,0.2); }
+.tab { opacity:0; transform: translateY(10px); transition: opacity 0.3s ease, transform 0.3s ease; display:none; }
+.tab.active { display:block; opacity:1; transform:translateY(0); }
 
-.employee-row {
-  transition: background 0.2s, box-shadow 0.2s;
-  border-radius: 6px;
-  margin-bottom: 4px;
-  display: table-row;
-}
-
-.employee-row:hover {
-  background: rgba(255,255,255,0.08);
-  box-shadow: 0 4px 6px rgba(0,0,0,0.2);
-}
-
-.tab {
-  opacity: 0;
-  transform: translateY(10px);
-  transition: opacity 0.3s ease, transform 0.3s ease;
-  display: none;
-}
-
-.tab.active {
-  display: block;
-  opacity: 1;
-  transform: translateY(0);
-}
-
-/* =========================
-   RESPONSIVENESS
-========================= */
+/* RESPONSIVENESS */
 table { display:block; }
 
-/* =========================
-   PRINT / PDF
-========================= */
-@media print {
-  body { margin:0; }
-  .tabs, button { display:none; }
-}
+/* PRINT/PDF */
+@media print { body{margin:0;} .tabs, button{display:none;} }
 </style>
 </head>
 
 <body>
 <h1 id="weekHeader"></h1>
-
 <button id="toggleDarkMode" onclick="toggleDarkMode()">Toggle Dark Mode</button>
 
 <div class="tabs">
@@ -154,28 +79,24 @@ table { display:block; }
   <button onclick="window.print()">Export PDF</button>
 </div>
 
+<!-- EMPLOYEES TAB -->
 <div id="employeesTab" class="tab">
   <h2>Employees</h2>
   <input id="empName" placeholder="Name" />
-  <select id="empType">
-    <option value="FT">FT</option>
-    <option value="PT">PT</option>
-  </select>
-  <input id="empSeniority" type="number" placeholder="Seniority (1 = highest)" />
+  <select id="empType"><option value="FT">FT</option><option value="PT">PT</option></select>
+  <input id="empSeniority" type="number" placeholder="Seniority (1=highest)" />
   <input id="empPrefTime" type="time" />
   <button onclick="addEmployee()">Add Employee</button>
 
   <table>
     <thead>
-      <tr>
-        <th>Name</th><th>Type</th><th>Seniority</th>
-        <th>Pref Start</th><th>Vacation</th><th>Sick</th>
-      </tr>
+      <tr><th>Name</th><th>Type</th><th>Seniority</th><th>Pref Start</th><th>Vacation</th><th>Sick</th></tr>
     </thead>
     <tbody id="employeesTable"></tbody>
   </table>
 </div>
 
+<!-- EVENTS TAB -->
 <div id="eventsTab" class="tab">
   <h2>Events (Manager Only)</h2>
   <input id="eventName" placeholder="Event Name" />
@@ -187,14 +108,13 @@ table { display:block; }
 
   <table>
     <thead>
-      <tr>
-        <th>Name</th><th>Date</th><th>Guests</th><th>Staff Needed</th><th>Hours</th>
-      </tr>
+      <tr><th>Name</th><th>Date</th><th>Guests</th><th>Staff Needed</th><th>Hours</th></tr>
     </thead>
     <tbody id="eventsTable"></tbody>
   </table>
 </div>
 
+<!-- SCHEDULE TAB -->
 <div id="scheduleTab" class="tab">
   <h2>Schedule</h2>
   <button onclick="generateSchedule()">Generate Schedule</button>
@@ -207,18 +127,18 @@ table { display:block; }
 // DATA
 let employees = JSON.parse(localStorage.getItem("employees") || "[]");
 let events = JSON.parse(localStorage.getItem("events") || "[]");
+
 function saveData(){ localStorage.setItem("employees", JSON.stringify(employees)); localStorage.setItem("events", JSON.stringify(events)); }
 
-// TAB CONTROL
+// TABS
 function showTab(id){
   document.querySelectorAll(".tab").forEach(t=>t.style.display="none");
   document.getElementById(id).style.display="block";
+  document.querySelectorAll('.tabs button').forEach(btn=>btn.classList.remove('active'));
+  if(id==='employeesTab') document.getElementById('tabEmpBtn').classList.add('active');
+  if(id==='eventsTab') document.getElementById('tabEvBtn').classList.add('active');
+  if(id==='scheduleTab') document.getElementById('tabSchBtn').classList.add('active');
 }
-
-// DATE HELPERS
-function getWeekStart(date=new Date()){ const d = new Date(date); const day = d.getDay() || 7; if(day!==1) d.setDate(d.getDate()-day+1); return d;}
-function formatDateISO(date){ return date.toISOString().split("T")[0]; }
-function getWeekDays(){ const start=getWeekStart(); const days=[]; for(let i=0;i<7;i++){ const d=new Date(start); d.setDate(start.getDate()+i); days.push(d);} return days;}
 
 // EMPLOYEES
 function addEmployee(){
@@ -228,14 +148,10 @@ function addEmployee(){
   const prefStart=document.getElementById("empPrefTime").value;
   if(!name||!seniority) return alert("Enter name and seniority");
   employees.push({name,type,seniority,prefStart,vacation:false,sick:false});
-  saveData(); renderEmployees();
-  document.getElementById("empName").value="";
-  document.getElementById("empSeniority").value="";
-  document.getElementById("empPrefTime").value="";
+  saveData(); renderEmployees(); document.getElementById("empName").value=""; document.getElementById("empSeniority").value=""; document.getElementById("empPrefTime").value="";
 }
 function renderEmployees(){
-  const tbody=document.getElementById("employeesTable");
-  tbody.innerHTML="";
+  const tbody=document.getElementById("employeesTable"); tbody.innerHTML="";
   employees.sort((a,b)=>a.seniority-b.seniority).forEach((e,i)=>{
     const row=document.createElement("tr"); row.className="employee-row";
     row.innerHTML=`<td>${e.name}</td><td>${e.type}</td><td>${e.seniority}</td>
@@ -254,17 +170,11 @@ function addEvent(){
   const staffNeeded=Number(document.getElementById("eventStaffNeeded").value);
   const hours=Number(document.getElementById("eventHours").value);
   if(!name||!date||!guests||!staffNeeded||!hours)return alert("Fill all event fields");
-  events.push({name,date,guests,staffNeeded,hours});
-  saveData(); renderEvents();
-  document.getElementById("eventName").value="";
-  document.getElementById("eventDate").value="";
-  document.getElementById("eventGuests").value="";
-  document.getElementById("eventStaffNeeded").value="";
-  document.getElementById("eventHours").value="";
+  events.push({name,date,guests,staffNeeded,hours}); saveData(); renderEvents();
+  document.getElementById("eventName").value=""; document.getElementById("eventDate").value=""; document.getElementById("eventGuests").value=""; document.getElementById("eventStaffNeeded").value=""; document.getElementById("eventHours").value="";
 }
 function renderEvents(){
-  const tbody=document.getElementById("eventsTable");
-  tbody.innerHTML="";
+  const tbody=document.getElementById("eventsTable"); tbody.innerHTML="";
   events.forEach((ev)=>{const row=document.createElement("tr");
     row.innerHTML=`<td>${ev.name}</td><td>${ev.date}</td><td>${ev.guests}</td><td>${ev.staffNeeded}</td><td>${ev.hours}</td>`;
     tbody.appendChild(row);
@@ -272,61 +182,44 @@ function renderEvents(){
 }
 
 // PREFERENCE LOGIC
-function filterByPreference(employee,eventHour){
-  if(!employee.prefStart) return true;
-  const prefH=Number(employee.prefStart.split(":")[0]);
-  return eventHour>=prefH;
-}
+function filterByPreference(employee,eventHour){ if(!employee.prefStart) return true; const prefH=Number(employee.prefStart.split(":")[0]); return eventHour>=prefH; }
 
-// SCHEDULING
+// SCHEDULE
+function getWeekStart(date=new Date()){ const d=new Date(date); const day=d.getDay()||7; if(day!==1)d.setDate(d.getDate()-day+1); return d;}
+function formatDateISO(date){ return date.toISOString().split("T")[0]; }
+function getWeekDays(){ const start=getWeekStart(); const days=[]; for(let i=0;i<7;i++){ const d=new Date(start); d.setDate(start.getDate()+i); days.push(d);} return days;}
+
 function generateSchedule(){
-  const table=document.getElementById("scheduleTable");
-  table.innerHTML="";
+  const table=document.getElementById("scheduleTable"); table.innerHTML="";
   const weekDays=getWeekDays();
   weekHeader.innerText=weekDays[0].toLocaleString('default',{month:'long', year:'numeric'});
-  let header="<tr><th>Employee</th>";
-  weekDays.forEach(d=>header+=`<th>${d.toLocaleDateString(undefined,{weekday:'short', day:'numeric'})}</th>`);
-  header+="</tr>"; table.innerHTML+=header;
+  let header="<tr><th>Employee</th>"; weekDays.forEach(d=>header+=`<th>${d.toLocaleDateString(undefined,{weekday:'short', day:'numeric'})}</th>`); header+="</tr>"; table.innerHTML+=header;
   const sortedEmps=[...employees].sort((a,b)=>a.seniority-b.seniority);
   sortedEmps.forEach(emp=>{
     let row=`<tr class="employee-row"><td>${emp.name}</td>`;
     weekDays.forEach(day=>{
       const dayISO=formatDateISO(day);
-      if(emp.vacation){row+='<td class="status-vacation">Vacation</td>'; return;}
-      if(emp.sick){row+='<td class="status-sick">Sick</td>'; return;}
+      if(emp.vacation){row+='<td class="status-vacation" title="Vacation">Vacation</td>'; return;}
+      if(emp.sick){row+='<td class="status-sick" title="Sick">Sick</td>'; return;}
       const dayEvents=events.filter(ev=>ev.date===dayISO);
       if(dayEvents.length===0){row+='<td></td>'; return;}
-      const ev=dayEvents[0];
-      if(emp.shiftAssigned){row+='<td></td>'; return;}
-      const startH=Number(ev.hours);
-      if(!filterByPreference(emp,startH)){row+='<td></td>'; return;}
+      const ev=dayEvents[0]; if(emp.shiftAssigned){row+='<td></td>'; return;}
+      const startH=Number(ev.hours); if(!filterByPreference(emp,startH)){row+='<td></td>'; return;}
       let hours=Math.max(4,ev.hours); if(hours===8) hours=8.5;
       let cls=hours<=4?'shift-4':hours<=6?'shift-6':hours<=8.5?'shift-8':'shift-ot';
-      row+=`<td class="${cls}">${hours}h</td>`; emp.shiftAssigned=true;
+      row+=`<td class="${cls}" title="Event: ${ev.name}, Staff Needed: ${ev.staffNeeded}">${hours}h</td>`;
+      emp.shiftAssigned=true;
     });
     row+="</tr>"; table.innerHTML+=row;
   });
   sortedEmps.forEach(e=>delete e.shiftAssigned);
 }
 
-// ACTIVE TAB & DARK MODE
-function setActiveTabButton(tabId){
-  document.querySelectorAll('.tabs button').forEach(btn=>btn.classList.remove('active'));
-  if(tabId==='employeesTab') document.getElementById('tabEmpBtn').classList.add('active');
-  if(tabId==='eventsTab') document.getElementById('tabEvBtn').classList.add('active');
-  if(tabId==='scheduleTab') document.getElementById('tabSchBtn').classList.add('active');
-}
-const oldShowTab=showTab;
-showTab=function(tabId){ oldShowTab(tabId); setActiveTabButton(tabId); };
-window.addEventListener('DOMContentLoaded',()=>setActiveTabButton('employeesTab'));
-
+// DARK MODE
 function toggleDarkMode(){ document.body.classList.toggle('dark-mode'); document.body.classList.toggle('light-mode'); }
 
 // INITIAL RENDER
-renderEmployees();
-renderEvents();
-showTab('employeesTab');
+renderEmployees(); renderEvents(); showTab('employeesTab'); generateSchedule();
 </script>
-
 </body>
 </html>
