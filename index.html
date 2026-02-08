@@ -45,7 +45,7 @@ th, td {
   padding:8px;
   text-align:center;
   border-bottom:2px solid #444;
-  border-right:2px solid #555;
+  border-right:2px solid #555; /* vertical lines */
 }
 th:first-child, td:first-child {
   border-right:4px solid #888;
@@ -84,6 +84,7 @@ th { background:#4e9af1; color:#fff; }
 <!-- EMPLOYEES -->
 <div id="employeesTab" class="tab">
 <h2>Employees</h2>
+
 <input id="empName" placeholder="Name" />
 <select id="empType"><option>FT</option><option>PT</option></select>
 <input id="empSeniority" type="number" placeholder="Seniority" />
@@ -121,7 +122,7 @@ th { background:#4e9af1; color:#fff; }
   <option>Coffee Break</option>
 </select>
 <input id="eventStaff" type="number" placeholder="Staff Needed" />
-<button onclick="addEvent()">Add Event</button>
+<button onclick="addEvent()">Save Event</button>
 
 <table>
 <thead>
@@ -172,8 +173,10 @@ function addEmployee(){
     vacation:false,
     sick:false
   });
-  save(); renderEmployees();
+  save();
+  renderEmployees();
 }
+
 function renderEmployees(){
   employeesTable.innerHTML="";
   employees.sort((a,b)=>a.seniority-b.seniority).forEach((e,i)=>{
@@ -184,9 +187,9 @@ function renderEmployees(){
       <td>${e.seniority}</td>
       <td>${e.pref||"-"}</td>
       <td><input type="checkbox" ${e.vacation?"checked":""}
-        onchange="employees[${i}].vacation=this.checked;save()"></td>
+        onchange="employees[${i}].vacation=this.checked;save();generateSchedule()"></td>
       <td><input type="checkbox" ${e.sick?"checked":""}
-        onchange="employees[${i}].sick=this.checked;save()"></td>
+        onchange="employees[${i}].sick=this.checked;save();generateSchedule()"></td>
     </tr>`;
   });
 }
@@ -194,14 +197,15 @@ function renderEmployees(){
 /* EVENTS */
 function addEvent(){
   if(editingEventId){
-    const ev = events.find(e=>e.id===editingEventId);
-    Object.assign(ev, readEventForm());
+    Object.assign(events.find(e=>e.id===editingEventId), readEventForm());
     editingEventId=null;
   } else {
     events.push({ id: crypto.randomUUID(), ...readEventForm() });
   }
   clearEventForm();
-  save(); renderEvents(); generateSchedule();
+  save();
+  renderEvents();
+  generateSchedule();
 }
 
 function readEventForm(){
@@ -223,7 +227,6 @@ function clearEventForm(){
   eventEnd.value="";
   eventGuests.value="";
   eventStaff.value="";
-  editingEventId=null;
 }
 
 function renderEvents(){
@@ -233,7 +236,7 @@ function renderEvents(){
     <tr>
       <td>${ev.name}</td>
       <td>${ev.date}</td>
-      <td>${ev.start}–${ev.end}</td>
+      <td>${ev.start} – ${ev.end}</td>
       <td>${ev.guests}</td>
       <td>${ev.service}</td>
       <td>${ev.staff}</td>
@@ -246,7 +249,7 @@ function renderEvents(){
 function editEvent(id){
   const ev = events.find(e=>e.id===id);
   editingEventId=id;
-  Object.assign(eventName, {value:ev.name});
+  eventName.value=ev.name;
   eventDate.value=ev.date;
   eventStart.value=ev.start;
   eventEnd.value=ev.end;
@@ -258,7 +261,9 @@ function editEvent(id){
 function deleteEvent(id){
   if(!confirm("Delete this event?")) return;
   events = events.filter(e=>e.id!==id);
-  save(); renderEvents(); generateSchedule();
+  save();
+  renderEvents();
+  generateSchedule();
 }
 
 /* WEEK */
@@ -272,12 +277,14 @@ function getWeekStart(d=new Date()){
 function getWeekDays(){
   const s=getWeekStart();
   return Array.from({length:7},(_,i)=>{
-    const d=new Date(s); d.setDate(s.getDate()+i); return d;
+    const d=new Date(s);
+    d.setDate(s.getDate()+i);
+    return d;
   });
 }
 const iso=d=>d.toISOString().split("T")[0];
 
-/* HOURS */
+/* HOURS + LUNCH LOGIC */
 function normalizeHours(start,end){
   const diff=(new Date(`1970-01-01T${end}`)-new Date(`1970-01-01T${start}`))/3600000;
   if(diff<=4) return {h:4,cls:"shift-4"};
@@ -301,14 +308,17 @@ function generateSchedule(){
     let row=`<tr><td>${emp.name}</td>`;
 
     days.forEach(d=>{
-      const ev = events.find(e=>e.date===iso(d));
-      if(emp.vacation) return row+=`<td class="status-vacation">Vacation</td>`;
-      if(emp.sick) return row+=`<td class="status-sick">Sick</td>`;
-      if(!ev || !ev.start || !ev.end) return row+="<td></td>";
+      if(emp.vacation) { row+=`<td class="status-vacation">Vacation</td>`; return; }
+      if(emp.sick) { row+=`<td class="status-sick">Sick</td>`; return; }
 
-      const startHour=parseInt(ev.start);
-      if(emp.pref==="AM" && startHour>=12) return row+="<td></td>";
-      if(emp.pref==="PM" && startHour<12) return row+="<td></td>";
+      const dayEvents = events.filter(e=>e.date===iso(d));
+      if(dayEvents.length===0){ row+="<td></td>"; return; }
+
+      const ev = dayEvents[0]; // base version
+      const startHour=parseInt(ev.start.split(":")[0]);
+
+      if(emp.pref==="AM" && startHour>=12){ row+="<td></td>"; return; }
+      if(emp.pref==="PM" && startHour<12){ row+="<td></td>"; return; }
 
       const shift=normalizeHours(ev.start,ev.end);
       total+=shift.h;
