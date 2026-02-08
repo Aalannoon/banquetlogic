@@ -1,5 +1,6 @@
 let employees = [];
 let events = [];
+let vacations = [];
 
 const staffingRatios = {
   cocktail: 30,
@@ -8,47 +9,91 @@ const staffingRatios = {
   vip: 10
 };
 
-// Preference fallback order
-const shiftPriority = {
-  morning: ["morning", "midday", "night"],
-  midday: ["midday", "night", "morning"],
-  night: ["night", "midday", "morning"]
-};
-
-// EMPLOYEES
+// ---------------- EMPLOYEES ----------------
 function addEmployee() {
   employees.push({
+    id: Date.now(),
     name: empName.value,
-    seniority: Number(empSeniority.value), // 1 = highest
+    hireDate: empHireDate.value,
     maxHours: Number(empMaxHours.value),
     preference: empPreference.value,
+    active: true,
     hours: 0
   });
 
   empName.value = "";
-  empSeniority.value = "";
+  empHireDate.value = "";
   empMaxHours.value = "";
 
+  recalcSeniority();
   renderEmployees();
 }
 
+function recalcSeniority() {
+  const active = employees.filter(e => e.active && e.hireDate);
+  active.sort((a, b) => new Date(a.hireDate) - new Date(b.hireDate));
+  active.forEach((e, i) => e.seniority = i + 1);
+}
+
+function deactivateEmployee(id) {
+  const emp = employees.find(e => e.id === id);
+  emp.active = false;
+  emp.seniority = null;
+  recalcSeniority();
+  renderEmployees();
+}
+
+// ---------------- VACATIONS ----------------
+function addVacation() {
+  vacations.push({
+    empId: Number(vacEmployee.value),
+    start: vacStart.value,
+    end: vacEnd.value
+  });
+
+  vacStart.value = "";
+  vacEnd.value = "";
+
+  renderVacations();
+}
+
+function isOnVacation(empId, date) {
+  return vacations.some(v =>
+    v.empId === empId &&
+    date >= v.start &&
+    date <= v.end
+  );
+}
+
+// ---------------- RENDER EMPLOYEES ----------------
 function renderEmployees() {
   employeeTable.innerHTML = "";
+  vacEmployee.innerHTML = "";
+
   employees
-    .sort((a, b) => a.seniority - b.seniority) // LOWER = MORE SENIOR
+    .sort((a, b) => (a.seniority || 999) - (b.seniority || 999))
     .forEach(e => {
       employeeTable.innerHTML += `
-        <tr>
+        <tr class="${!e.active ? "inactive" : ""}">
           <td>${e.name}</td>
-          <td>${e.seniority}</td>
-          <td>${e.maxHours}</td>
+          <td>${e.seniority ?? "-"}</td>
+          <td>${e.hireDate || "-"}</td>
           <td>${e.preference}</td>
-          <td>${e.hours}</td>
-        </tr>`;
+          <td>${e.maxHours}</td>
+          <td>${e.active ? "Active" : "Retired"}</td>
+          <td>
+            ${e.active ? `<button onclick="deactivateEmployee(${e.id})">Retire</button>` : ""}
+          </td>
+        </tr>
+      `;
+
+      if (e.active) {
+        vacEmployee.innerHTML += `<option value="${e.id}">${e.name}</option>`;
+      }
     });
 }
 
-// EVENTS
+// ---------------- EVENTS ----------------
 function recommendStaff() {
   const guests = Number(eventGuests.value);
   if (!guests) return;
@@ -71,15 +116,6 @@ function addEvent() {
     cleanup: Number(cleanupStaff.value)
   });
 
-  eventName.value = "";
-  eventDate.value = "";
-  eventGuests.value = "";
-  eventStart.value = "";
-  eventEnd.value = "";
-  setupStaff.value = "";
-  eventStaff.value = "";
-  cleanupStaff.value = "";
-
   renderEvents();
 }
 
@@ -94,63 +130,64 @@ function renderEvents() {
         <td>${e.setup}</td>
         <td>${e.event}</td>
         <td>${e.cleanup}</td>
-      </tr>`;
+      </tr>
+    `;
   });
 }
 
-// TIMELINE + WARNINGS
+// ---------------- TIMELINE ----------------
 function renderTimeline() {
   const date = timelineDate.value;
-  const container = document.getElementById("timeline");
-  const warnings = document.getElementById("warnings");
-
-  container.innerHTML = "";
+  timeline.innerHTML = "";
   warnings.innerHTML = "";
 
   const dayEvents = events.filter(e => e.date === date);
   if (!dayEvents.length) {
-    container.innerHTML = "<p>No events scheduled.</p>";
+    timeline.innerHTML = "<p>No events scheduled.</p>";
     return;
   }
 
-  generateWarnings();
+  const availableStaff = employees.filter(
+    e => e.active && !isOnVacation(e.id, date)
+  );
+
+  if (availableStaff.length < 5) {
+    warnings.innerHTML += `<div class="warning">⚠ Low staff available due to vacations</div>`;
+  }
 
   dayEvents.forEach(e => {
-    container.innerHTML += `
+    timeline.innerHTML += `
       <h3>${e.name}</h3>
 
       <div class="block setup">
-        🛠 Setup (${e.setup} servers)
-        <textarea placeholder="Manager notes"></textarea>
+        🛠 Setup (${e.setup})
+        <textarea placeholder="Setup notes"></textarea>
       </div>
 
       <div class="block event">
-        🎉 Event ${e.start}–${e.end} (${e.event} servers)
-        <textarea placeholder="Manager notes"></textarea>
+        🎉 Event ${e.start}–${e.end} (${e.event})
+        <textarea placeholder="Event notes"></textarea>
       </div>
 
       <div class="block cleanup">
-        🧹 Cleanup (${e.cleanup} servers)
-        <textarea placeholder="Manager notes"></textarea>
+        🧹 Cleanup (${e.cleanup})
+        <textarea placeholder="Cleanup notes"></textarea>
       </div>
     `;
   });
 }
 
-// WARNINGS (non-blocking)
-function generateWarnings() {
-  const warnings = document.getElementById("warnings");
-
-  employees.forEach(e => {
-    if (e.hours > e.maxHours) {
-      warnings.innerHTML += `
-        <div class="warning">⚠ ${e.name} exceeds max hours</div>`;
-    }
-
-    // Senior staff = low rank number
-    if (e.seniority <= 3 && e.hours < e.maxHours * 0.5) {
-      warnings.innerHTML += `
-        <div class="warning">⚠ Senior staff ${e.name} is underutilized</div>`;
-    }
+// ---------------- VACATION TABLE ----------------
+function renderVacations() {
+  vacationTable.innerHTML = "";
+  vacations.forEach(v => {
+    const emp = employees.find(e => e.id === v.empId);
+    vacationTable.innerHTML += `
+      <tr>
+        <td>${emp?.name}</td>
+        <td>${v.start}</td>
+        <td>${v.end}</td>
+      </tr>
+    `;
   });
 }
