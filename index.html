@@ -20,6 +20,7 @@ th { background:#eee; }
 .shift-6 { background:#ffd59e; }
 .shift-8 { background:#fff3a0; }
 .shift-ot { background:#d5b3ff; }
+.shift-sick { background:#b3d9ff; font-weight:bold; }
 
 .vacation { background:#ddd; color:#666; font-style:italic; }
 
@@ -51,10 +52,24 @@ th { background:#eee; }
 </div>
 
 <div id="editor">
-<h3>Edit Shift</h3>
+<h3>Edit Day</h3>
+
+<label>
+<input type="radio" name="dayType" value="shift" checked>
+Shift
+</label>
+<label>
+<input type="radio" name="dayType" value="sick">
+Sick
+</label>
+
+<div id="shiftEditor">
 Start <input type="time" id="editStart"><br>
 End <input type="time" id="editEnd"><br>
-<label><input type="checkbox" id="editOT"> Overtime</label><br><br>
+<label><input type="checkbox" id="editOT"> Overtime</label>
+</div>
+
+<br>
 <button onclick="saveEdit()">Save</button>
 <button onclick="closeEditor()">Cancel</button>
 </div>
@@ -64,15 +79,12 @@ const { jsPDF } = window.jspdf;
 
 let employees = JSON.parse(localStorage.getItem("employees")) || [];
 let events = JSON.parse(localStorage.getItem("events")) || [];
-let scheduleData = {};
+let scheduleData = JSON.parse(localStorage.getItem("scheduleData")) || {};
+
 let editTarget = null;
 
 function saveAll(){
   localStorage.setItem("scheduleData",JSON.stringify(scheduleData));
-}
-
-function loadSchedule(){
-  scheduleData = JSON.parse(localStorage.getItem("scheduleData")) || {};
 }
 
 function generateSchedule(){
@@ -85,6 +97,7 @@ function generateSchedule(){
     sorted.forEach(emp=>{
       if(need<=0) return;
       if(emp.vacations?.some(v=>ev.date>=v.start&&ev.date<=v.end)) return;
+
       if(!scheduleData[emp.name]) scheduleData[emp.name]={};
       if(scheduleData[emp.name][ev.date]) return;
 
@@ -94,6 +107,7 @@ function generateSchedule(){
       let schedH=paid>4?paid+0.5:paid;
 
       scheduleData[emp.name][ev.date]={
+        type:"shift",
         start:ev.start,
         end:ev.end,
         paid,
@@ -119,6 +133,7 @@ function getWeek(){
 }
 
 function shiftClass(sh){
+  if(sh.type==="sick") return "shift-sick";
   if(sh.ot) return "shift-ot";
   if(sh.paid>=8) return "shift-8";
   if(sh.paid>=6) return "shift-6";
@@ -142,11 +157,16 @@ function renderSchedule(){
     week.forEach(d=>{
       const sh=scheduleData?.[emp.name]?.[d];
       if(sh){
-        html+=`<td class="${shiftClass(sh)}"
-          onclick="openEditor('${emp.name}','${d}')">
-          ${sh.start}-${sh.end}<br>${sh.schedH}h
-        </td>`;
-      } else html+="<td></td>";
+        if(sh.type==="sick"){
+          html+=`<td class="shift-sick" onclick="openEditor('${emp.name}','${d}')">SICK</td>`;
+        } else {
+          html+=`<td class="${shiftClass(sh)}" onclick="openEditor('${emp.name}','${d}')">
+            ${sh.start}-${sh.end}<br>${sh.schedH}h
+          </td>`;
+        }
+      } else {
+        html+=`<td onclick="openEditor('${emp.name}','${d}')"></td>`;
+      }
     });
     html+="</tr>";
   });
@@ -156,10 +176,22 @@ function renderSchedule(){
 
 function openEditor(name,date){
   editTarget={name,date};
+
+  if(!scheduleData[name]) scheduleData[name]={};
+
   const sh=scheduleData[name][date];
-  editStart.value=sh.start;
-  editEnd.value=sh.end;
-  editOT.checked=sh.ot;
+
+  if(sh?.type==="sick"){
+    document.querySelector('input[value="sick"]').checked=true;
+    shiftEditor.style.display="none";
+  } else {
+    document.querySelector('input[value="shift"]').checked=true;
+    shiftEditor.style.display="block";
+    editStart.value=sh?.start||"";
+    editEnd.value=sh?.end||"";
+    editOT.checked=sh?.ot||false;
+  }
+
   editor.style.display="block";
 }
 
@@ -169,15 +201,25 @@ function closeEditor(){
 }
 
 function saveEdit(){
-  const sh=scheduleData[editTarget.name][editTarget.date];
-  sh.start=editStart.value;
-  sh.end=editEnd.value;
-  sh.ot=editOT.checked;
+  const type=document.querySelector('input[name="dayType"]:checked').value;
 
-  const s=new Date("2000-01-01T"+sh.start);
-  const e=new Date("2000-01-01T"+sh.end);
-  sh.paid=Math.max(4,(e-s)/3600000);
-  sh.schedH=sh.paid>4?sh.paid+0.5:sh.paid;
+  if(type==="sick"){
+    scheduleData[editTarget.name][editTarget.date]={ type:"sick" };
+  } else {
+    const s=new Date("2000-01-01T"+editStart.value);
+    const e=new Date("2000-01-01T"+editEnd.value);
+    let paid=Math.max(4,(e-s)/3600000);
+    let schedH=paid>4?paid+0.5:paid;
+
+    scheduleData[editTarget.name][editTarget.date]={
+      type:"shift",
+      start:editStart.value,
+      end:editEnd.value,
+      paid,
+      schedH,
+      ot:editOT.checked
+    };
+  }
 
   saveAll();
   closeEditor();
@@ -192,7 +234,6 @@ function exportPDF(){
   });
 }
 
-loadSchedule();
 renderSchedule();
 </script>
 
