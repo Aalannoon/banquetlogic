@@ -40,7 +40,7 @@ th, td { border:1px solid #ccc; padding:6px; text-align:center; }
 <h1>Seniority Scheduler</h1>
 
 <!-- EMPLOYEES -->
-<h2>Add Employee</h2>
+<h2>Employees</h2>
 <input id="empName" placeholder="Name">
 <select id="empType">
   <option value="full">Full Time</option>
@@ -64,12 +64,11 @@ th, td { border:1px solid #ccc; padding:6px; text-align:center; }
 </table>
 
 <!-- EVENTS -->
-<h2>Add Event</h2>
+<h2>Events</h2>
 <input id="eventName" placeholder="Event name">
 <input type="date" id="eventDate">
 <input type="time" id="eventStart">
 <input type="time" id="eventEnd">
-
 <input type="number" id="eventGuests" placeholder="Guests">
 
 <select id="eventType">
@@ -96,7 +95,8 @@ th, td { border:1px solid #ccc; padding:6px; text-align:center; }
 
 <!-- SCHEDULE -->
 <h2>Weekly Schedule</h2>
-<button onclick="generateSchedule()">Generate Schedule</button>
+<button onclick="generateSchedule()">Generate</button>
+<button onclick="exportCSV()">Export CSV</button>
 
 <table>
 <thead>
@@ -108,17 +108,36 @@ th, td { border:1px solid #ccc; padding:6px; text-align:center; }
 <tbody id="scheduleTable"></tbody>
 </table>
 
+<!-- EVENT EDIT MODAL -->
+<div class="modal" id="eventModal">
+<div class="modal-content">
+<h3>Edit Event</h3>
+<input id="editEventName">
+<input type="date" id="editEventDate">
+<input type="time" id="editEventStart">
+<input type="time" id="editEventEnd">
+<input type="number" id="editEventGuests">
+<select id="editEventType">
+  <option value="seated">Seated Dinner</option>
+  <option value="buffet">Buffet</option>
+  <option value="cocktail">Cocktail</option>
+  <option value="wedding">Wedding / Formal</option>
+  <option value="conference">Conference</option>
+</select>
+<input type="number" id="editEventServers">
+<br><br>
+<button onclick="saveEvent()">Save</button>
+<button onclick="deleteEvent()">Delete</button>
+<button onclick="closeEventModal()">Cancel</button>
+</div>
+</div>
+
 <script>
 let employees = JSON.parse(localStorage.getItem("employees")||"[]");
 let events = JSON.parse(localStorage.getItem("events")||"[]");
+let editEventIndex = null;
 
-const ratios = {
-  seated:20,
-  buffet:30,
-  cocktail:40,
-  wedding:15,
-  conference:25
-};
+const ratios = { seated:20, buffet:30, cocktail:40, wedding:15, conference:25 };
 
 function saveAll(){
   localStorage.setItem("employees",JSON.stringify(employees));
@@ -133,10 +152,8 @@ function reorderSeniority(){
 }
 
 function addEmployee(){
-  if(!empName.value) return;
   employees.push({name:empName.value,type:empType.value,pref:empPref.value,vacation:false});
-  reorderSeniority(); saveAll(); renderEmployees();
-  empName.value="";
+  reorderSeniority(); saveAll(); renderEmployees(); empName.value="";
 }
 
 function renderEmployees(){
@@ -157,13 +174,11 @@ function renderEmployees(){
   });
 }
 
-function recommendedServers(guests,type){
-  if(!guests) return 0;
+function recommended(guests,type){
   return Math.ceil(guests / ratios[type]);
 }
 
 function addEvent(){
-  const rec = recommendedServers(eventGuests.value, eventType.value);
   events.push({
     name:eventName.value,
     date:eventDate.value,
@@ -171,15 +186,15 @@ function addEvent(){
     end:eventEnd.value,
     guests:+eventGuests.value,
     type:eventType.value,
-    servers:+eventServers.value || rec
+    servers:+eventServers.value || recommended(eventGuests.value,eventType.value)
   });
   saveAll(); renderEvents();
 }
 
 function renderEvents(){
   eventTable.innerHTML="";
-  events.forEach(e=>{
-    const rec = recommendedServers(e.guests, e.type);
+  events.forEach((e,i)=>{
+    const rec = recommended(e.guests,e.type);
     const tr=document.createElement("tr");
     if(e.servers < rec) tr.classList.add("warning");
     tr.innerHTML=`
@@ -189,24 +204,60 @@ function renderEvents(){
       <td>${e.guests}</td>
       <td>${rec}</td>
       <td>${e.servers}</td>
-      <td></td>
+      <td>
+        <button onclick="openEvent(${i})">Edit</button>
+      </td>
     `;
     eventTable.appendChild(tr);
   });
+}
+
+function openEvent(i){
+  editEventIndex=i;
+  const e=events[i];
+  editEventName.value=e.name;
+  editEventDate.value=e.date;
+  editEventStart.value=e.start;
+  editEventEnd.value=e.end;
+  editEventGuests.value=e.guests;
+  editEventType.value=e.type;
+  editEventServers.value=e.servers;
+  eventModal.style.display="flex";
+}
+
+function closeEventModal(){ eventModal.style.display="none"; }
+
+function saveEvent(){
+  Object.assign(events[editEventIndex],{
+    name:editEventName.value,
+    date:editEventDate.value,
+    start:editEventStart.value,
+    end:editEventEnd.value,
+    guests:+editEventGuests.value,
+    type:editEventType.value,
+    servers:+editEventServers.value
+  });
+  saveAll(); renderEvents(); closeEventModal();
+}
+
+function deleteEvent(){
+  if(!confirm("Delete this event?")) return;
+  events.splice(editEventIndex,1);
+  saveAll(); renderEvents(); closeEventModal();
 }
 
 function hoursBetween(a,b){
   return (new Date("1970-01-01T"+b)-new Date("1970-01-01T"+a))/36e5;
 }
 
+function weekday(d){
+  return ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][new Date(d).getDay()];
+}
+
 function hourClass(h){
   if(h>8) return "hour-ot";
   if(h<4) return "hour-low";
   return "hour-"+Math.round(h);
-}
-
-function weekday(d){
-  return ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][new Date(d).getDay()];
 }
 
 function generateSchedule(){
@@ -228,6 +279,18 @@ function generateSchedule(){
       scheduleTable.appendChild(tr);
     }
   });
+}
+
+function exportCSV(){
+  let rows=[["Date","Day","Event","Time","Employee","Hours"]];
+  document.querySelectorAll("#scheduleTable tr").forEach(tr=>{
+    rows.push([...tr.children].map(td=>td.innerText));
+  });
+  let csv=rows.map(r=>r.join(",")).join("\n");
+  let a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([csv]));
+  a.download="schedule.csv";
+  a.click();
 }
 
 renderEmployees();
