@@ -10,73 +10,52 @@ body {
   margin: 20px;
   background: #1e1e2f;
   color: #f0f0f0;
-  transition: background 0.3s, color 0.3s;
 }
 body.light-mode { background:#f8f9fa; color:#333; }
 
 h1 { font-size:28px; margin-bottom:10px; }
 h2 { margin-top:20px; margin-bottom:10px; }
 
-/* TABS */
-.tabs { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; }
+.tabs { display:flex; gap:6px; margin-bottom:12px; }
 .tabs button {
   padding:8px 14px;
-  cursor:pointer;
   border:none;
   border-radius:8px;
   font-weight:bold;
-  transition:0.2s;
+  cursor:pointer;
+  background:#4e9af1;
+  color:#fff;
 }
-.tabs button.active { background:#4e9af1; color:#fff; }
-body.dark-mode .tabs button { background:#2e2e3d; color:#ccc; }
-body.dark-mode .tabs button.active { background:#4e9af1; color:#fff; }
 
-/* INPUTS & BUTTONS */
 input, select, button {
-  margin-right:6px;
-  margin-bottom:6px;
+  margin:4px;
   padding:6px 10px;
   border-radius:6px;
   border:none;
-  font-size:14px;
 }
-button {
-  font-weight:bold;
-  background:#4e9af1;
-  color:#fff;
-  transition:0.2s;
-}
-button:hover { opacity:0.85; transform: translateY(-2px); }
 
-/* TABLES */
 table {
   border-collapse:collapse;
   width:100%;
   margin-top:10px;
 }
 th, td {
-  padding:10px;
-  text-align:center;
+  padding:8px;
   border-bottom:1px solid #444;
+  text-align:center;
 }
-th {
-  background:#4e9af1;
-  color:#fff;
-}
+th { background:#4e9af1; color:#fff; }
 
-/* STATUS */
+.tab { display:none; }
+.tab.active { display:block; }
+
 .status-vacation { background:#7f8c8d; color:#fff; font-weight:bold; }
 .status-sick { background:#c0392b; color:#fff; font-weight:bold; }
 
-/* SHIFTS */
 .shift-4 { background:#2ecc71; color:#fff; }
 .shift-6 { background:#e67e22; color:#fff; }
 .shift-65 { background:#f1c40f; color:#000; }
 .shift-85 { background:#9b59b6; color:#fff; }
-
-/* TAB VISIBILITY */
-.tab { display:none; }
-.tab.active { display:block; }
 </style>
 </head>
 
@@ -85,9 +64,9 @@ th {
 <button onclick="toggleDarkMode()">Toggle Dark Mode</button>
 
 <div class="tabs">
-  <button id="tabEmpBtn" onclick="showTab('employeesTab')">Employees</button>
-  <button id="tabEvBtn" onclick="showTab('eventsTab')">Events</button>
-  <button id="tabSchBtn" onclick="showTab('scheduleTab')">Schedule</button>
+  <button onclick="showTab('employeesTab')">Employees</button>
+  <button onclick="showTab('eventsTab')">Events</button>
+  <button onclick="showTab('scheduleTab')">Schedule</button>
 </div>
 
 <!-- EMPLOYEES -->
@@ -155,7 +134,6 @@ function save(){
   localStorage.setItem("events",JSON.stringify(events));
 }
 
-/* TABS */
 function showTab(id){
   document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
   document.getElementById(id).classList.add("active");
@@ -218,21 +196,48 @@ function renderEvents(){
   });
 }
 
-/* 🔒 MINIMUM 4-HOUR RULE (FIX) */
+/* WEEK LOGIC – FIXED */
+function getWeekStart(date=new Date()){
+  const d=new Date(date);
+  const day=d.getDay();
+  const diff=day===0?-6:1-day;
+  d.setDate(d.getDate()+diff);
+  d.setHours(0,0,0,0);
+  return d;
+}
+function getWeekDays(){
+  const start=getWeekStart();
+  return Array.from({length:7},(_,i)=>{
+    const d=new Date(start);
+    d.setDate(start.getDate()+i);
+    return d;
+  });
+}
+function iso(d){ return d.toISOString().split("T")[0]; }
+
+/* HOURS */
 function normalizeHours(start,end){
   const diff=(new Date(`1970-01-01T${end}`)-new Date(`1970-01-01T${start}`))/3600000;
-
-  if(diff <= 4) return {h:4, cls:"shift-4"};
-  if(diff < 6) return {h:6, cls:"shift-6"};
-  if(diff < 8) return {h:6.5, cls:"shift-65"};
-  return {h:8.5, cls:"shift-85"};
+  if(diff<=4) return {h:4,cls:"shift-4"};
+  if(diff<6) return {h:6,cls:"shift-6"};
+  if(diff<8) return {h:6.5,cls:"shift-65"};
+  return {h:8.5,cls:"shift-85"};
 }
 
 /* SCHEDULE */
 function generateSchedule(){
   scheduleTable.innerHTML="";
-  const days=[...new Set(events.map(e=>e.date))];
-  scheduleTable.innerHTML="<tr><th>Employee</th>"+days.map(d=>`<th>${d}</th>`).join("")+"<th>Total</th></tr>";
+  const days=getWeekDays();
+
+  weekHeader.innerText=
+    days[0].toLocaleDateString(undefined,{month:"long",day:"numeric"})+
+    " – "+
+    days[6].toLocaleDateString(undefined,{month:"long",day:"numeric",year:"numeric"});
+
+  scheduleTable.innerHTML=
+    "<tr><th>Employee</th>"+
+    days.map(d=>`<th>${d.toLocaleDateString(undefined,{weekday:"short",day:"numeric"})}</th>`).join("")+
+    "<th>Total</th></tr>";
 
   employees.forEach(emp=>{
     let total=0;
@@ -242,7 +247,7 @@ function generateSchedule(){
       if(emp.vacation) return row+=`<td class="status-vacation">Vacation</td>`;
       if(emp.sick) return row+=`<td class="status-sick">Sick</td>`;
 
-      const ev=events.find(e=>e.date===d);
+      const ev=events.find(e=>e.date===iso(d));
       if(!ev) return row+="<td></td>";
 
       const startHour=parseInt(ev.start);
@@ -259,12 +264,10 @@ function generateSchedule(){
   });
 }
 
-/* DARK MODE */
 function toggleDarkMode(){
   document.body.classList.toggle("light-mode");
 }
 
-/* INIT */
 renderEmployees();
 renderEvents();
 showTab("employeesTab");
