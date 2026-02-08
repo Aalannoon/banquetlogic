@@ -296,27 +296,38 @@ function generateSchedule(){
   scheduleTable.innerHTML="";
   const days=getWeekDays();
   weekHeader.innerText=days[0].toLocaleString('default',{month:'long',year:'numeric'});
-  scheduleTable.innerHTML="<tr><th>Employee</th>"+days.map(d=>`<th>${d.toLocaleDateString(undefined,{weekday:'short',day:'numeric'})}</th>`).join("")+"</tr>";
+
+  scheduleTable.innerHTML =
+    "<tr><th>Employee</th>" +
+    days.map(d=>`<th>${d.toLocaleDateString(undefined,{weekday:'short',day:'numeric'})}</th>`).join("") +
+    "<th>Total</th></tr>";
 
   [...employees].sort((a,b)=>a.seniority-b.seniority).forEach(emp=>{
+    let total = 0;
     let row=`<tr class="employee-row"><td>${emp.name}</td>`;
+
     days.forEach(d=>{
       const iso=formatDateISO(d);
       if(emp.vacation) return row+=`<td class="status-vacation">Vacation</td>`;
       if(emp.sick) return row+=`<td class="status-sick">Sick</td>`;
+
       const ev=events.find(e=>e.date===iso);
       if(!ev||emp.assigned) return row+="<td></td>";
 
       const eventHours = Number(ev.hours);
       if(isNaN(eventHours)) return row+="<td></td>";
-
       if(!filterByPreference(emp,eventHours)) return row+="<td></td>";
+
       let h=Math.max(4,eventHours);
       emp.assigned=true;
+      total += h;
+
       const cls=h<=4?'shift-4':h<=6?'shift-6':h<=8.5?'shift-8':'shift-ot';
       row+=`<td class="${cls}" title="${ev.name}">${h}h</td>`;
     });
+
     delete emp.assigned;
+    row+=`<td><strong>${total}h</strong></td>`;
     scheduleTable.innerHTML+=row+"</tr>";
   });
 }
