@@ -5,60 +5,38 @@
 <title>Seniority Scheduler Dashboard</title>
 
 <style>
-:root {
-  --bg:#1e1e2f;
-  --panel:#2a2a40;
-  --accent:#4e9af1;
-  --text:#f0f0f0;
-  --muted:#999;
-}
-body.light {
-  --bg:#f4f6f8;
-  --panel:#ffffff;
-  --accent:#007bff;
-  --text:#222;
-  --muted:#666;
-}
-
 body {
-  background:var(--bg);
-  color:var(--text);
-  font-family:Segoe UI, sans-serif;
-  margin:20px;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  margin: 20px;
+  background: #1e1e2f;
+  color: #f0f0f0;
 }
+body.light-mode { background:#f8f9fa; color:#333; }
 
-h1,h2 { margin:10px 0; }
+h1 { font-size:28px; margin-bottom:10px; }
+h2 { margin-top:20px; margin-bottom:10px; }
 
-.tabs { display:flex; gap:8px; margin-bottom:12px; }
+/* TABS */
+.tabs { display:flex; gap:6px; margin-bottom:12px; }
 .tabs button {
   padding:8px 14px;
   border:none;
   border-radius:8px;
-  background:var(--panel);
-  color:var(--text);
-  cursor:pointer;
   font-weight:bold;
-}
-.tabs button.active {
-  background:var(--accent);
-  color:white;
-}
-
-button {
-  padding:6px 12px;
-  border:none;
-  border-radius:6px;
-  background:var(--accent);
-  color:white;
   cursor:pointer;
 }
-input, select {
-  padding:6px;
+.tabs button.active { background:#4e9af1; color:#fff; }
+
+/* INPUTS */
+input, select, button {
+  padding:6px 10px;
   border-radius:6px;
   border:none;
-  margin-right:6px;
+  margin:4px;
 }
+button { background:#4e9af1; color:#fff; font-weight:bold; }
 
+/* TABLES */
 table {
   width:100%;
   border-collapse:collapse;
@@ -69,43 +47,50 @@ th, td {
   text-align:center;
   border-bottom:1px solid #444;
 }
-th { background:var(--accent); color:white; }
+th { background:#4e9af1; color:#fff; }
 
+.employee-row td { border-top:3px solid #888; }
+
+/* SHIFT COLORS */
+.shift-4 { background:#2ecc71; }
+.shift-6 { background:#e67e22; }
+.shift-8 { background:#f1c40f; color:#000; }
+.shift-ot { background:#9b59b6; }
+
+/* STATUS */
+.status-vacation { background:#7f8c8d; font-style:italic; }
+.status-sick { background:#c0392b; font-style:italic; }
+
+/* TABS */
 .tab { display:none; }
 .tab.active { display:block; }
-
-.shift-4 { background:#2ecc71; color:white; }
-.shift-6 { background:#e67e22; color:white; }
-.shift-65 { background:#f1c40f; color:black; }
-.shift-85 { background:#9b59b6; color:white; }
-
-.status-sick { background:#c0392b; color:white; font-weight:bold; }
-.status-vacation { background:#7f8c8d; color:white; font-weight:bold; }
-
 </style>
 </head>
 
 <body>
+
 <h1 id="weekHeader"></h1>
-<button onclick="toggleTheme()">Toggle Dark Mode</button>
+<button onclick="toggleDarkMode()">Toggle Dark Mode</button>
 
 <div class="tabs">
-  <button id="empTabBtn" onclick="showTab('employees')">Employees</button>
-  <button id="eventTabBtn" onclick="showTab('events')">Events</button>
-  <button id="schedTabBtn" onclick="showTab('schedule')">Schedule</button>
+  <button id="tabEmpBtn" onclick="showTab('employeesTab')">Employees</button>
+  <button id="tabEvBtn" onclick="showTab('eventsTab')">Events</button>
+  <button id="tabSchBtn" onclick="showTab('scheduleTab')">Schedule</button>
   <button onclick="window.print()">Export PDF</button>
 </div>
 
 <!-- EMPLOYEES -->
-<div id="employees" class="tab">
+<div id="employeesTab" class="tab">
 <h2>Employees</h2>
+
 <input id="empName" placeholder="Name">
 <select id="empType">
-  <option>FT</option><option>PT</option>
+  <option value="FT">FT</option>
+  <option value="PT">PT</option>
 </select>
 <input id="empSeniority" type="number" placeholder="Seniority">
 <select id="empPref">
-  <option value="">No Pref</option>
+  <option value="">No Preference</option>
   <option value="AM">AM</option>
   <option value="PM">PM</option>
 </select>
@@ -113,54 +98,62 @@ th { background:var(--accent); color:white; }
 
 <table>
 <thead>
-<tr><th>Name</th><th>Type</th><th>Seniority</th><th>Pref</th><th>Vacation</th><th>Sick</th></tr>
+<tr>
+<th>Name</th><th>Type</th><th>Seniority</th><th>Pref</th><th>Vac</th><th>Sick</th>
+</tr>
 </thead>
-<tbody id="empTable"></tbody>
+<tbody id="employeesTable"></tbody>
 </table>
 </div>
 
 <!-- EVENTS -->
-<div id="events" class="tab">
-<h2>Events (Manager)</h2>
-<input id="evName" placeholder="Event Name">
-<input id="evDate" type="date">
-<input id="evStart" type="time">
-<input id="evEnd" type="time">
-<input id="evGuests" type="number" placeholder="Guests">
-<select id="evService">
-  <option>Plated</option>
-  <option>Buffet</option>
-  <option>Reception</option>
-  <option>Coffee Break</option>
+<div id="eventsTab" class="tab">
+<h2>Events</h2>
+
+<input id="eventName" placeholder="Event Name">
+
+<select id="eventType">
+  <option value="Plated Service">Plated Service</option>
+  <option value="Buffet Service">Buffet Service</option>
+  <option value="Reception">Reception</option>
+  <option value="Coffee Break">Coffee Break</option>
 </select>
-<input id="evStaff" type="number" placeholder="Staff Needed">
-<button onclick="addEvent()">Add</button>
+
+<input id="eventDate" type="date">
+<input id="eventStart" type="time">
+<input id="eventEnd" type="time">
+<input id="eventGuests" type="number" placeholder="Guests">
+<input id="eventStaff" type="number" placeholder="Staff Needed">
+<button onclick="addEvent()">Add Event</button>
 
 <table>
 <thead>
-<tr><th>Name</th><th>Date</th><th>Time</th><th>Guests</th><th>Service</th><th>Staff</th><th>Delete</th></tr>
+<tr>
+<th>Name</th><th>Service</th><th>Date</th>
+<th>Time</th><th>Guests</th>
+<th>Rec.</th><th>Staff</th><th>Delete</th>
+</tr>
 </thead>
-<tbody id="eventTable"></tbody>
+<tbody id="eventsTable"></tbody>
 </table>
 </div>
 
 <!-- SCHEDULE -->
-<div id="schedule" class="tab">
+<div id="scheduleTab" class="tab">
 <h2>Schedule</h2>
 <button onclick="generateSchedule()">Generate</button>
 <table id="scheduleTable"></table>
 </div>
 
 <script>
-let employees = JSON.parse(localStorage.getItem("emps")||"[]");
+let employees = JSON.parse(localStorage.getItem("employees")||"[]");
 let events = JSON.parse(localStorage.getItem("events")||"[]");
 
 function save(){
-  localStorage.setItem("emps",JSON.stringify(employees));
+  localStorage.setItem("employees",JSON.stringify(employees));
   localStorage.setItem("events",JSON.stringify(events));
 }
 
-/* TABS */
 function showTab(id){
   document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
   document.getElementById(id).classList.add("active");
@@ -168,7 +161,6 @@ function showTab(id){
 
 /* EMPLOYEES */
 function addEmployee(){
-  if(!empName.value || !empSeniority.value) return;
   employees.push({
     name:empName.value,
     type:empType.value,
@@ -178,14 +170,12 @@ function addEmployee(){
     sick:false
   });
   save(); renderEmployees();
-  empName.value=""; empSeniority.value="";
 }
-
 function renderEmployees(){
-  empTable.innerHTML="";
+  employeesTable.innerHTML="";
   employees.sort((a,b)=>a.seniority-b.seniority).forEach((e,i)=>{
-    empTable.innerHTML+=`
-    <tr>
+    employeesTable.innerHTML+=`
+    <tr class="employee-row">
       <td>${e.name}</td>
       <td>${e.type}</td>
       <td>${e.seniority}</td>
@@ -199,86 +189,78 @@ function renderEmployees(){
 }
 
 /* EVENTS */
+function recommendedServers(type, guests){
+  if(type==="Plated Service") return Math.ceil(guests/10);
+  if(type==="Buffet Service") return Math.ceil(guests/20);
+  if(type==="Reception") return Math.ceil(guests/25);
+  if(type==="Coffee Break") return Math.ceil(guests/40);
+  return 0;
+}
+
 function addEvent(){
-  if(!evName.value||!evDate.value||!evStart.value||!evEnd.value) return;
+  const start=new Date(`1970-01-01T${eventStart.value}`);
+  const end=new Date(`1970-01-01T${eventEnd.value}`);
+  let hours=(end-start)/36e5;
+  if(hours>=6) hours+=0.5;
+
+  const rec=recommendedServers(eventType.value,+eventGuests.value);
+
   events.push({
-    name:evName.value,
-    date:evDate.value,
-    start:evStart.value,
-    end:evEnd.value,
-    guests:+evGuests.value||0,
-    service:evService.value,
-    staff:+evStaff.value||0
+    name:eventName.value,
+    type:eventType.value,
+    date:eventDate.value,
+    start:eventStart.value,
+    end:eventEnd.value,
+    hours,
+    guests:+eventGuests.value,
+    recommended:rec,
+    staff:+eventStaff.value||rec
   });
   save(); renderEvents();
 }
 
 function renderEvents(){
-  eventTable.innerHTML="";
+  eventsTable.innerHTML="";
   events.forEach((e,i)=>{
-    eventTable.innerHTML+=`
+    eventsTable.innerHTML+=`
     <tr>
       <td>${e.name}</td>
+      <td>${e.type}</td>
       <td>${e.date}</td>
       <td>${e.start}–${e.end}</td>
       <td>${e.guests}</td>
-      <td>${e.service}</td>
-      <td>${e.staff}</td>
-      <td><button onclick="delEvent(${i})">X</button></td>
+      <td>${e.recommended}</td>
+      <td><input type="number" value="${e.staff}"
+        onchange="events[${i}].staff=+this.value;save()"></td>
+      <td><button onclick="events.splice(${i},1);save();renderEvents()">X</button></td>
     </tr>`;
   });
-}
-function delEvent(i){ events.splice(i,1); save(); renderEvents(); }
-
-/* SHIFT NORMALIZATION (FIXED BUG) */
-function normalizeShift(hours){
-  if(hours <= 4) return {h:4, cls:"shift-4", label:"4h"};
-  if(hours < 6) return {h:6, cls:"shift-6", label:"6h"};
-  if(hours < 8) return {h:6.5, cls:"shift-65", label:"6.5h"};
-  return {h:8.5, cls:"shift-85", label:"8.5h"};
 }
 
 /* SCHEDULE */
 function generateSchedule(){
-  scheduleTable.innerHTML="";
-  const days=[...new Set(events.map(e=>e.date))];
-  scheduleTable.innerHTML="<tr><th>Employee</th>"+days.map(d=>`<th>${d}</th>`).join("")+"<th>Total</th></tr>";
-
-  employees.forEach(emp=>{
-    let total=0;
-    let row=`<tr><td>${emp.name}</td>`;
-
-    days.forEach(d=>{
-      if(emp.vacation) return row+=`<td class="status-vacation">Vacation</td>`;
-      if(emp.sick) return row+=`<td class="status-sick">Sick</td>`;
-
-      const ev=events.find(e=>e.date===d);
-      if(!ev) return row+="<td></td>";
-
-      const start=parseInt(ev.start);
-      if(emp.pref==="AM" && start>=12) return row+="<td></td>";
-      if(emp.pref==="PM" && start<12) return row+="<td></td>";
-
-      const diff=(new Date(`1970-01-01T${ev.end}`)-new Date(`1970-01-01T${ev.start}`))/3600000;
-      const s=normalizeShift(diff);
-      total+=s.h;
-      row+=`<td class="${s.cls}" title="${ev.name}">${s.label}</td>`;
-    });
-
-    row+=`<td><strong>${total}h</strong></td></tr>`;
-    scheduleTable.innerHTML+=row;
+  scheduleTable.innerHTML="<tr><th>Employee</th><th>Shift</th></tr>";
+  employees.sort((a,b)=>a.seniority-b.seniority).forEach(emp=>{
+    const ev=events[0];
+    if(!ev||emp.vacation||emp.sick) return;
+    scheduleTable.innerHTML+=`
+    <tr class="employee-row">
+      <td>${emp.name}</td>
+      <td class="shift-6">${ev.start}–${ev.end} (${ev.hours}h)</td>
+    </tr>`;
   });
 }
 
-/* THEME */
-function toggleTheme(){
-  document.body.classList.toggle("light");
+/* MODE */
+function toggleDarkMode(){
+  document.body.classList.toggle("light-mode");
 }
 
 /* INIT */
 renderEmployees();
 renderEvents();
-showTab("employees");
+showTab("employeesTab");
 </script>
+
 </body>
 </html>
