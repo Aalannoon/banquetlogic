@@ -1,1 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Fair Scheduler</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <h1>Fair Scheduler</h1>
 
+  <section>
+    <h2>Add Employee</h2>
+    <input id="name" placeholder="Name" />
+    <input id="seniority" type="number" placeholder="Years of service" />
+    <button onclick="addEmployee()">Add</button>
+  </section>
+
+  <section>
+    <h2>Employees</h2>
+    <ul id="employeeList"></ul>
+  </section>
+
+  <section>
+    <button onclick="generateSchedule()">Generate Schedule</button>
+  </section>
+
+  <section>
+    <h2>Schedule</h2>
+    <pre id="scheduleOutput"></pre>
+  </section>
+
+  <script src="script.js"></script>
+</body>
+</html>
