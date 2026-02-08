@@ -8,6 +8,7 @@ const staffingRatios = {
   vip: 10
 };
 
+// Preference fallback order
 const shiftPriority = {
   morning: ["morning", "midday", "night"],
   midday: ["midday", "night", "morning"],
@@ -18,33 +19,40 @@ const shiftPriority = {
 function addEmployee() {
   employees.push({
     name: empName.value,
-    seniority: Number(empSeniority.value),
+    seniority: Number(empSeniority.value), // 1 = highest
     maxHours: Number(empMaxHours.value),
     preference: empPreference.value,
     hours: 0
   });
-  empName.value = empSeniority.value = empMaxHours.value = "";
+
+  empName.value = "";
+  empSeniority.value = "";
+  empMaxHours.value = "";
+
   renderEmployees();
 }
 
 function renderEmployees() {
   employeeTable.innerHTML = "";
-  employees.sort((a,b)=>b.seniority-a.seniority).forEach(e=>{
-    employeeTable.innerHTML += `
-      <tr>
-        <td>${e.name}</td>
-        <td>${e.seniority}</td>
-        <td>${e.maxHours}</td>
-        <td>${e.preference}</td>
-        <td>${e.hours}</td>
-      </tr>`;
-  });
+  employees
+    .sort((a, b) => a.seniority - b.seniority) // LOWER = MORE SENIOR
+    .forEach(e => {
+      employeeTable.innerHTML += `
+        <tr>
+          <td>${e.name}</td>
+          <td>${e.seniority}</td>
+          <td>${e.maxHours}</td>
+          <td>${e.preference}</td>
+          <td>${e.hours}</td>
+        </tr>`;
+    });
 }
 
 // EVENTS
 function recommendStaff() {
   const guests = Number(eventGuests.value);
   if (!guests) return;
+
   const base = Math.ceil(guests / staffingRatios[eventType.value]);
   eventStaff.value = base;
   setupStaff.value = Math.max(1, Math.round(base * 0.4));
@@ -60,18 +68,24 @@ function addEvent() {
     end: eventEnd.value,
     setup: Number(setupStaff.value),
     event: Number(eventStaff.value),
-    cleanup: Number(cleanupStaff.value),
-    notes: { setup:"", event:"", cleanup:"" }
+    cleanup: Number(cleanupStaff.value)
   });
-  eventName.value = eventDate.value = eventGuests.value =
-  eventStart.value = eventEnd.value =
-  setupStaff.value = eventStaff.value = cleanupStaff.value = "";
+
+  eventName.value = "";
+  eventDate.value = "";
+  eventGuests.value = "";
+  eventStart.value = "";
+  eventEnd.value = "";
+  setupStaff.value = "";
+  eventStaff.value = "";
+  cleanupStaff.value = "";
+
   renderEvents();
 }
 
 function renderEvents() {
   eventTable.innerHTML = "";
-  events.forEach(e=>{
+  events.forEach(e => {
     eventTable.innerHTML += `
       <tr>
         <td>${e.name}</td>
@@ -89,6 +103,7 @@ function renderTimeline() {
   const date = timelineDate.value;
   const container = document.getElementById("timeline");
   const warnings = document.getElementById("warnings");
+
   container.innerHTML = "";
   warnings.innerHTML = "";
 
@@ -100,7 +115,7 @@ function renderTimeline() {
 
   generateWarnings();
 
-  dayEvents.forEach(e=>{
+  dayEvents.forEach(e => {
     container.innerHTML += `
       <h3>${e.name}</h3>
 
@@ -122,18 +137,20 @@ function renderTimeline() {
   });
 }
 
-// WARNINGS
+// WARNINGS (non-blocking)
 function generateWarnings() {
   const warnings = document.getElementById("warnings");
 
-  employees.forEach(e=>{
+  employees.forEach(e => {
     if (e.hours > e.maxHours) {
       warnings.innerHTML += `
         <div class="warning">⚠ ${e.name} exceeds max hours</div>`;
     }
-    if (e.seniority > 5 && e.hours < e.maxHours * 0.5) {
+
+    // Senior staff = low rank number
+    if (e.seniority <= 3 && e.hours < e.maxHours * 0.5) {
       warnings.innerHTML += `
-        <div class="warning">⚠ Senior staff ${e.name} underutilized</div>`;
+        <div class="warning">⚠ Senior staff ${e.name} is underutilized</div>`;
     }
   });
 }
