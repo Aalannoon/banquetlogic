@@ -8,118 +8,206 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <style>
-body { font-family: Arial; background:#f5f5f5; padding:20px; }
-.section { background:#fff; padding:15px; border-radius:6px; margin-bottom:20px; }
-input,select,button { padding:6px; margin:4px 0; }
-table { border-collapse:collapse; width:100%; margin-top:15px; }
-th,td { border:1px solid #ccc; padding:6px; text-align:center; cursor:pointer; }
-th { background:#eee; }
-.employee-row { font-weight:bold; text-align:left; }
+:root{
+  --bg:#f3f6fb;
+  --card:#ffffff;
+  --primary:#2563eb;
+  --danger:#dc2626;
+  --muted:#6b7280;
+}
 
-.shift-4 { background:#c8f7c5; }
-.shift-6 { background:#ffd59e; }
-.shift-8 { background:#fff3a0; }
-.shift-ot { background:#d5b3ff; }
-.shift-sick { background:#b3d9ff; font-weight:bold; }
+body{
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background:var(--bg);
+  margin:0;
+  padding:20px;
+}
 
-.vacation { background:#ddd; color:#666; font-style:italic; }
+h1{ margin-bottom:10px; }
+h2{ margin:0 0 10px; }
 
-#editor {
+.container{
+  max-width:1400px;
+  margin:auto;
+}
+
+.card{
+  background:var(--card);
+  border-radius:10px;
+  padding:16px;
+  margin-bottom:20px;
+  box-shadow:0 8px 24px rgba(0,0,0,.05);
+}
+
+button{
+  padding:8px 14px;
+  border:none;
+  border-radius:6px;
+  font-weight:600;
+  cursor:pointer;
+}
+
+.btn-primary{ background:var(--primary); color:white; }
+.btn-danger{ background:var(--danger); color:white; }
+.btn-secondary{ background:#e5e7eb; }
+
+button:hover{ opacity:.9; }
+
+table{
+  width:100%;
+  border-collapse:collapse;
+  background:white;
+}
+
+th{
+  background:#eef2ff;
+  position:sticky;
+  top:0;
+  z-index:2;
+}
+
+th,td{
+  border:1px solid #e5e7eb;
+  padding:8px;
+  text-align:center;
+}
+
+.employee-row{
+  font-weight:700;
+  text-align:left;
+  background:#f9fafb;
+}
+
+td:hover{ outline:2px solid var(--primary); }
+
+.shift-4{ background:#c8f7c5; }
+.shift-6{ background:#ffd59e; }
+.shift-8{ background:#fff3a0; }
+.shift-ot{ background:#d5b3ff; }
+.shift-sick{ background:#b3d9ff; font-weight:700; }
+
+.vacation{
+  background:#e5e7eb;
+  color:#6b7280;
+  font-style:italic;
+}
+
+/* Modal */
+#overlay{
+  display:none;
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.4);
+  z-index:999;
+}
+
+#editor{
   display:none;
   position:fixed;
   top:50%; left:50%;
   transform:translate(-50%,-50%);
-  background:#fff;
-  padding:15px;
-  border:2px solid #333;
+  background:white;
+  padding:20px;
+  border-radius:12px;
+  width:320px;
   z-index:1000;
+}
+
+input[type="time"]{
+  width:100%;
+  padding:6px;
+  margin-bottom:8px;
+}
+
+.legend span{
+  display:inline-block;
+  padding:4px 8px;
+  border-radius:4px;
+  margin-right:6px;
+  font-weight:600;
 }
 </style>
 </head>
 
 <body>
+<div class="container">
 
 <h1>Seniority Scheduler</h1>
 
-<div class="section">
-<button onclick="generateSchedule()">Generate Schedule</button>
-<button onclick="exportPDF()">Export PDF</button>
+<div class="card">
+  <button class="btn-primary" onclick="generateSchedule()">Generate Schedule</button>
+  <button class="btn-secondary" onclick="exportPDF()">Export PDF</button>
 </div>
 
-<div class="section">
-<h2 id="scheduleHeader"></h2>
-<div id="schedule"></div>
+<div class="card legend">
+  <strong>Legend:</strong><br><br>
+  <span class="shift-4">4h</span>
+  <span class="shift-6">6h</span>
+  <span class="shift-8">8h</span>
+  <span class="shift-ot">OT</span>
+  <span class="shift-sick">Sick</span>
+  <span class="vacation">Vacation</span>
 </div>
+
+<div class="card">
+  <h2 id="scheduleHeader"></h2>
+  <div id="schedule"></div>
+</div>
+
+</div>
+
+<div id="overlay"></div>
 
 <div id="editor">
-<h3>Edit Day</h3>
+  <h3>Edit Day</h3>
 
-<label>
-<input type="radio" name="dayType" value="shift" checked>
-Shift
-</label>
-<label>
-<input type="radio" name="dayType" value="sick">
-Sick
-</label>
+  <label><input type="radio" name="dayType" value="shift" checked> Shift</label>
+  <label><input type="radio" name="dayType" value="sick"> Sick</label>
 
-<div id="shiftEditor">
-Start <input type="time" id="editStart"><br>
-End <input type="time" id="editEnd"><br>
-<label><input type="checkbox" id="editOT"> Overtime</label>
-</div>
+  <div id="shiftEditor">
+    <input type="time" id="editStart">
+    <input type="time" id="editEnd">
+    <label><input type="checkbox" id="editOT"> Overtime</label>
+  </div>
 
-<br>
-<button onclick="saveEdit()">Save</button>
-<button onclick="closeEditor()">Cancel</button>
+  <br>
+  <button class="btn-primary" onclick="saveEdit()">Save</button>
+  <button class="btn-secondary" onclick="closeEditor()">Cancel</button>
 </div>
 
 <script>
 const { jsPDF } = window.jspdf;
+let employees=JSON.parse(localStorage.getItem("employees"))||[];
+let events=JSON.parse(localStorage.getItem("events"))||[];
+let scheduleData=JSON.parse(localStorage.getItem("scheduleData"))||{};
+let editTarget=null;
 
-let employees = JSON.parse(localStorage.getItem("employees")) || [];
-let events = JSON.parse(localStorage.getItem("events")) || [];
-let scheduleData = JSON.parse(localStorage.getItem("scheduleData")) || {};
-
-let editTarget = null;
-
-function saveAll(){
-  localStorage.setItem("scheduleData",JSON.stringify(scheduleData));
-}
+function saveAll(){ localStorage.setItem("scheduleData",JSON.stringify(scheduleData)); }
 
 function generateSchedule(){
-  scheduleData = {};
-  const sorted=[...employees].sort((a,b)=>a.seniority-b.seniority);
+  scheduleData={};
+  employees.sort((a,b)=>a.seniority-b.seniority);
 
   events.forEach(ev=>{
-    let need = ev.guests<=50?2:ev.guests<=150?4:ev.guests<=300?6:8;
+    let need=ev.guests<=50?2:ev.guests<=150?4:ev.guests<=300?6:8;
 
-    sorted.forEach(emp=>{
+    employees.forEach(emp=>{
       if(need<=0) return;
       if(emp.vacations?.some(v=>ev.date>=v.start&&ev.date<=v.end)) return;
-
-      if(!scheduleData[emp.name]) scheduleData[emp.name]={};
+      scheduleData[emp.name]??={};
       if(scheduleData[emp.name][ev.date]) return;
 
-      const start=new Date(ev.date+"T"+ev.start);
-      const end=new Date(ev.date+"T"+ev.end);
-      let paid=Math.max(4,Math.min(8,(end-start)/3600000));
+      const s=new Date(ev.date+"T"+ev.start);
+      const e=new Date(ev.date+"T"+ev.end);
+      let paid=Math.max(4,Math.min(8,(e-s)/3600000));
       let schedH=paid>4?paid+0.5:paid;
 
-      scheduleData[emp.name][ev.date]={
-        type:"shift",
-        start:ev.start,
-        end:ev.end,
-        paid,
-        schedH,
-        ot:false
-      };
+      scheduleData[emp.name][ev.date]={type:"shift",start:ev.start,end:ev.end,paid,schedH,ot:false};
       need--;
     });
   });
 
-  saveAll();
-  renderSchedule();
+  saveAll(); renderSchedule();
 }
 
 function getWeek(){
@@ -130,14 +218,6 @@ function getWeek(){
     const d=new Date(m); d.setDate(m.getDate()+i);
     return d.toISOString().split("T")[0];
   });
-}
-
-function shiftClass(sh){
-  if(sh.type==="sick") return "shift-sick";
-  if(sh.ot) return "shift-ot";
-  if(sh.paid>=8) return "shift-8";
-  if(sh.paid>=6) return "shift-6";
-  return "shift-4";
 }
 
 function renderSchedule(){
@@ -157,16 +237,11 @@ function renderSchedule(){
     week.forEach(d=>{
       const sh=scheduleData?.[emp.name]?.[d];
       if(sh){
-        if(sh.type==="sick"){
-          html+=`<td class="shift-sick" onclick="openEditor('${emp.name}','${d}')">SICK</td>`;
-        } else {
-          html+=`<td class="${shiftClass(sh)}" onclick="openEditor('${emp.name}','${d}')">
-            ${sh.start}-${sh.end}<br>${sh.schedH}h
-          </td>`;
-        }
-      } else {
-        html+=`<td onclick="openEditor('${emp.name}','${d}')"></td>`;
-      }
+        html+=`<td class="${sh.type==="sick"?"shift-sick":sh.ot?"shift-ot":"shift-"+sh.paid}"
+          onclick="openEditor('${emp.name}','${d}')">
+          ${sh.type==="sick"?"SICK":`${sh.start}-${sh.end}<br>${sh.schedH}h`}
+        </td>`;
+      } else html+=`<td onclick="openEditor('${emp.name}','${d}')"></td>`;
     });
     html+="</tr>";
   });
@@ -176,35 +251,28 @@ function renderSchedule(){
 
 function openEditor(name,date){
   editTarget={name,date};
-
-  if(!scheduleData[name]) scheduleData[name]={};
-
+  scheduleData[name]??={};
   const sh=scheduleData[name][date];
 
-  if(sh?.type==="sick"){
-    document.querySelector('input[value="sick"]').checked=true;
-    shiftEditor.style.display="none";
-  } else {
-    document.querySelector('input[value="shift"]').checked=true;
-    shiftEditor.style.display="block";
-    editStart.value=sh?.start||"";
-    editEnd.value=sh?.end||"";
-    editOT.checked=sh?.ot||false;
-  }
+  document.querySelector(`input[value="${sh?.type||"shift"}"]`).checked=true;
+  shiftEditor.style.display=sh?.type==="sick"?"none":"block";
+  editStart.value=sh?.start||"";
+  editEnd.value=sh?.end||"";
+  editOT.checked=sh?.ot||false;
 
+  overlay.style.display="block";
   editor.style.display="block";
 }
 
 function closeEditor(){
+  overlay.style.display="none";
   editor.style.display="none";
-  editTarget=null;
 }
 
 function saveEdit(){
   const type=document.querySelector('input[name="dayType"]:checked').value;
-
   if(type==="sick"){
-    scheduleData[editTarget.name][editTarget.date]={ type:"sick" };
+    scheduleData[editTarget.name][editTarget.date]={type:"sick"};
   } else {
     const s=new Date("2000-01-01T"+editStart.value);
     const e=new Date("2000-01-01T"+editEnd.value);
@@ -212,18 +280,11 @@ function saveEdit(){
     let schedH=paid>4?paid+0.5:paid;
 
     scheduleData[editTarget.name][editTarget.date]={
-      type:"shift",
-      start:editStart.value,
-      end:editEnd.value,
-      paid,
-      schedH,
-      ot:editOT.checked
+      type:"shift",start:editStart.value,end:editEnd.value,
+      paid,schedH,ot:editOT.checked
     };
   }
-
-  saveAll();
-  closeEditor();
-  renderSchedule();
+  saveAll(); closeEditor(); renderSchedule();
 }
 
 function exportPDF(){
@@ -236,6 +297,5 @@ function exportPDF(){
 
 renderSchedule();
 </script>
-
 </body>
 </html>
