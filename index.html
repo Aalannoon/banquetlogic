@@ -6,96 +6,107 @@
 
 <style>
 /* =========================
-   GLOBAL / LAYOUT
+   DARK MODE & MODERN UI
 ========================= */
 body {
-  font-family: Arial, sans-serif;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   margin: 20px;
+  background: #1e1e2f;
+  color: #f0f0f0;
+  transition: background 0.3s, color 0.3s;
 }
 
-h1 {
-  margin-bottom: 4px;
+/* Light mode override */
+body.light-mode {
+  background: #f8f9fa;
+  color: #333;
 }
 
+h1 { font-size:28px; margin-bottom:10px; }
+h2 { margin-top:20px; margin-bottom:10px; }
+
+/* =========================
+   TABS
+========================= */
+.tabs { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; }
 .tabs button {
-  margin-right: 6px;
-  padding: 6px 10px;
-  cursor: pointer;
+  padding:8px 14px; cursor:pointer; border:none; border-radius:8px;
+  font-weight:bold; transition:0.2s;
 }
+.tabs button.active { background:#4e9af1; color:#fff; }
 
-.tab {
-  display: none;
-  margin-top: 20px;
+body.dark-mode .tabs button { background:#2e2e3d; color:#ccc; }
+body.dark-mode .tabs button.active { background:#4e9af1; color:#fff; }
+
+/* =========================
+   INPUTS & BUTTONS
+========================= */
+input, select, button {
+  margin-right:6px; margin-bottom:6px; padding:6px 10px;
+  border-radius:6px; border:none; font-size:14px;
 }
+button { font-weight:bold; background:#4e9af1; color:#fff; transition:0.2s; }
+button:hover { opacity:0.85; }
+body.light-mode button { background:#007bff; color:#fff; }
 
 /* =========================
    TABLES
 ========================= */
-table {
-  border-collapse: collapse;
-  width: 100%;
-  margin-top: 10px;
-}
-
-th, td {
-  border: 1px solid #ccc;
-  padding: 6px;
-  text-align: center;
-  vertical-align: middle;
-}
-
-.employee-row {
-  border-top: 3px solid #000;
-}
+table { border-collapse:collapse; width:100%; margin-top:10px;
+        border-radius:8px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.3);}
+th, td { padding:10px; text-align:center; border-bottom:1px solid #444; transition:0.3s; }
+th { background:#4e9af1; color:#fff; position:sticky; top:0; }
+tr:nth-child(even) { background: rgba(255,255,255,0.05); }
+.employee-row td { border-top:3px solid #888; }
 
 /* =========================
    SHIFT COLORS
 ========================= */
-.shift-4 { background: #7bd389; }     /* green */
-.shift-6 { background: #f4a261; }     /* orange */
-.shift-8 { background: #f1e05a; }     /* yellow */
-.shift-ot { background: #c77dff; }    /* purple */
+.shift-4 { background: #2ecc71; color: #fff; }
+.shift-6 { background: #e67e22; color: #fff; }
+.shift-8 { background: #f1c40f; color: #000; }
+.shift-ot { background: #9b59b6; color: #fff; }
 
 /* =========================
-   STATUS CELLS
+   VACATION / SICK
 ========================= */
-.status-vacation {
-  background: #e0e0e0;
-  font-style: italic;
-}
+.status-vacation { background: #7f8c8d; color:#fff; font-weight:bold; font-style:italic; }
+.status-sick { background: #c0392b; color:#fff; font-weight:bold; font-style:italic; }
 
-.status-sick {
-  background: #ffd6d6;
-  font-style: italic;
-}
+/* =========================
+   RESPONSIVENESS
+========================= */
+table { display:block; overflow-x:auto; }
 
 /* =========================
    PRINT / PDF
 ========================= */
 @media print {
-  body { margin: 0; }
-  .tabs, button { display: none; }
+  body { margin:0; }
+  .tabs, button { display:none; }
 }
 </style>
 </head>
 
 <body>
-
 <h1 id="weekHeader"></h1>
 
+<!-- Dark Mode Toggle -->
+<button id="toggleDarkMode" onclick="toggleDarkMode()">Toggle Dark Mode</button>
+
+<!-- Tabs -->
 <div class="tabs">
-  <button onclick="showTab('employeesTab')">Employees</button>
-  <button onclick="showTab('eventsTab')">Events</button>
-  <button onclick="showTab('scheduleTab')">Schedule</button>
+  <button id="tabEmpBtn" onclick="showTab('employeesTab')">Employees</button>
+  <button id="tabEvBtn" onclick="showTab('eventsTab')">Events</button>
+  <button id="tabSchBtn" onclick="showTab('scheduleTab')">Schedule</button>
   <button onclick="window.print()">Export PDF</button>
 </div>
 
 <!-- =========================
-     EMPLOYEES TAB
+   EMPLOYEES TAB
 ========================= -->
 <div id="employeesTab" class="tab">
   <h2>Employees</h2>
-
   <input id="empName" placeholder="Name" />
   <select id="empType">
     <option value="FT">FT</option>
@@ -108,12 +119,8 @@ th, td {
   <table>
     <thead>
       <tr>
-        <th>Name</th>
-        <th>Type</th>
-        <th>Seniority</th>
-        <th>Pref Start</th>
-        <th>Vacation</th>
-        <th>Sick</th>
+        <th>Name</th><th>Type</th><th>Seniority</th>
+        <th>Pref Start</th><th>Vacation</th><th>Sick</th>
       </tr>
     </thead>
     <tbody id="employeesTable"></tbody>
@@ -121,11 +128,10 @@ th, td {
 </div>
 
 <!-- =========================
-     EVENTS TAB (MANAGERS)
+   EVENTS TAB
 ========================= -->
 <div id="eventsTab" class="tab">
   <h2>Events (Manager Only)</h2>
-
   <input id="eventName" placeholder="Event Name" />
   <input id="eventDate" type="date" />
   <input id="eventGuests" type="number" placeholder="Guests" />
@@ -136,11 +142,7 @@ th, td {
   <table>
     <thead>
       <tr>
-        <th>Name</th>
-        <th>Date</th>
-        <th>Guests</th>
-        <th>Staff Needed</th>
-        <th>Hours</th>
+        <th>Name</th><th>Date</th><th>Guests</th><th>Staff Needed</th><th>Hours</th>
       </tr>
     </thead>
     <tbody id="eventsTable"></tbody>
@@ -148,7 +150,7 @@ th, td {
 </div>
 
 <!-- =========================
-     SCHEDULE TAB
+   SCHEDULE TAB
 ========================= -->
 <div id="scheduleTab" class="tab">
   <h2>Schedule</h2>
@@ -157,271 +159,164 @@ th, td {
 </div>
 
 <script>
-/* ==========================================================
-   DATA MODELS (PERSISTENT)
-========================================================== */
-
+// ==========================
+// DATA MODELS
+// ==========================
 let employees = JSON.parse(localStorage.getItem("employees") || "[]");
 let events = JSON.parse(localStorage.getItem("events") || "[]");
-
-/*
-Employee shape:
-{
-  name: string,
-  type: "FT" | "PT",
-  seniority: number,
-  prefStart: "HH:MM" | "",
-  vacation: boolean,
-  sick: boolean
-}
-
-Event shape:
-{
-  name: string,
-  date: "YYYY-MM-DD",
-  guests: number,
-  staffNeeded: number,
-  hours: number
-}
-*/
-
 function saveData() {
   localStorage.setItem("employees", JSON.stringify(employees));
   localStorage.setItem("events", JSON.stringify(events));
 }
 
-/* ==========================================================
-   TAB CONTROL
-========================================================== */
-function showTab(id) {
-  document.querySelectorAll(".tab").forEach(t => t.style.display = "none");
-  document.getElementById(id).style.display = "block";
+// ==========================
+// TAB CONTROL
+// ==========================
+function showTab(id){
+  document.querySelectorAll(".tab").forEach(t=>t.style.display="none");
+  document.getElementById(id).style.display="block";
 }
 
-/* ==========================================================
-   DATE HELPERS
-========================================================== */
-function getWeekStart(date = new Date()) {
+// ==========================
+// DATE HELPERS
+// ==========================
+function getWeekStart(date=new Date()) {
   const d = new Date(date);
-  const day = d.getDay() || 7; // Sun = 7
-  if (day !== 1) d.setDate(d.getDate() - day + 1);
+  const day = d.getDay() || 7;
+  if(day!==1) d.setDate(d.getDate()-day+1);
   return d;
 }
-
-function formatDateISO(date) {
-  return date.toISOString().split("T")[0];
-}
-
+function formatDateISO(date) { return date.toISOString().split("T")[0]; }
 function getWeekDays() {
   const start = getWeekStart();
-  const days = [];
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(start);
-    d.setDate(start.getDate() + i);
-    days.push(d);
-  }
+  const days=[];
+  for(let i=0;i<7;i++){ const d=new Date(start); d.setDate(start.getDate()+i); days.push(d);}
   return days;
 }
 
-/* ==========================================================
-   INITIAL UI
-========================================================== */
-showTab("employeesTab");
-</script>
-
-<script>
-/* ==========================================================
-   EMPLOYEE FUNCTIONS
-========================================================== */
-function addEmployee() {
-  const name = document.getElementById("empName").value.trim();
-  const type = document.getElementById("empType").value;
-  const seniority = Number(document.getElementById("empSeniority").value);
-  const prefStart = document.getElementById("empPrefTime").value;
-
-  if (!name || !seniority) return alert("Enter name and seniority");
-
-  employees.push({
-    name,
-    type,
-    seniority,
-    prefStart,
-    vacation: false,
-    sick: false
-  });
-
-  saveData();
-  renderEmployees();
-  document.getElementById("empName").value = "";
-  document.getElementById("empSeniority").value = "";
-  document.getElementById("empPrefTime").value = "";
+// ==========================
+// EMPLOYEES FUNCTIONS
+// ==========================
+function addEmployee(){
+  const name=document.getElementById("empName").value.trim();
+  const type=document.getElementById("empType").value;
+  const seniority=Number(document.getElementById("empSeniority").value);
+  const prefStart=document.getElementById("empPrefTime").value;
+  if(!name||!seniority)return alert("Enter name and seniority");
+  employees.push({name,type,seniority,prefStart,vacation:false,sick:false});
+  saveData(); renderEmployees();
+  document.getElementById("empName").value="";
+  document.getElementById("empSeniority").value="";
+  document.getElementById("empPrefTime").value="";
 }
-
-function renderEmployees() {
-  const tbody = document.getElementById("employeesTable");
-  tbody.innerHTML = "";
+function renderEmployees(){
+  const tbody=document.getElementById("employeesTable");
+  tbody.innerHTML="";
   employees.sort((a,b)=>a.seniority-b.seniority).forEach((e,i)=>{
-    const row = document.createElement("tr");
-    row.className = "employee-row";
-    row.innerHTML = `
-      <td>${e.name}</td>
-      <td>${e.type}</td>
-      <td>${e.seniority}</td>
-      <td>${e.prefStart || "-"}</td>
+    const row=document.createElement("tr");
+    row.className="employee-row";
+    row.innerHTML=`<td>${e.name}</td><td>${e.type}</td><td>${e.seniority}</td>
+      <td>${e.prefStart||"-"}</td>
       <td><input type="checkbox" ${e.vacation?"checked":""} onchange="employees[${i}].vacation=this.checked; saveData()"></td>
-      <td><input type="checkbox" ${e.sick?"checked":""} onchange="employees[${i}].sick=this.checked; saveData()"></td>
-    `;
+      <td><input type="checkbox" ${e.sick?"checked":""} onchange="employees[${i}].sick=this.checked; saveData()"></td>`;
     tbody.appendChild(row);
   });
 }
 
-/* ==========================================================
-   EVENT FUNCTIONS
-========================================================== */
-function addEvent() {
-  const name = document.getElementById("eventName").value.trim();
-  const date = document.getElementById("eventDate").value;
-  const guests = Number(document.getElementById("eventGuests").value);
-  const staffNeeded = Number(document.getElementById("eventStaffNeeded").value);
-  const hours = Number(document.getElementById("eventHours").value);
-
-  if (!name || !date || !guests || !staffNeeded || !hours) return alert("Fill all event fields");
-
-  events.push({ name, date, guests, staffNeeded, hours });
-
-  saveData();
-  renderEvents();
-
-  document.getElementById("eventName").value = "";
-  document.getElementById("eventDate").value = "";
-  document.getElementById("eventGuests").value = "";
-  document.getElementById("eventStaffNeeded").value = "";
-  document.getElementById("eventHours").value = "";
+// ==========================
+// EVENTS FUNCTIONS
+// ==========================
+function addEvent(){
+  const name=document.getElementById("eventName").value.trim();
+  const date=document.getElementById("eventDate").value;
+  const guests=Number(document.getElementById("eventGuests").value);
+  const staffNeeded=Number(document.getElementById("eventStaffNeeded").value);
+  const hours=Number(document.getElementById("eventHours").value);
+  if(!name||!date||!guests||!staffNeeded||!hours)return alert("Fill all event fields");
+  events.push({name,date,guests,staffNeeded,hours});
+  saveData(); renderEvents();
+  document.getElementById("eventName").value="";
+  document.getElementById("eventDate").value="";
+  document.getElementById("eventGuests").value="";
+  document.getElementById("eventStaffNeeded").value="";
+  document.getElementById("eventHours").value="";
 }
-
-function renderEvents() {
-  const tbody = document.getElementById("eventsTable");
-  tbody.innerHTML = "";
-  events.forEach((ev, i)=>{
-    const row = document.createElement("tr");
-    row.innerHTML = `
-      <td>${ev.name}</td>
-      <td>${ev.date}</td>
-      <td>${ev.guests}</td>
-      <td>${ev.staffNeeded}</td>
-      <td>${ev.hours}</td>
-    `;
+function renderEvents(){
+  const tbody=document.getElementById("eventsTable");
+  tbody.innerHTML="";
+  events.forEach((ev)=>{const row=document.createElement("tr");
+    row.innerHTML=`<td>${ev.name}</td><td>${ev.date}</td><td>${ev.guests}</td><td>${ev.staffNeeded}</td><td>${ev.hours}</td>`;
     tbody.appendChild(row);
   });
 }
 
-/* ==========================================================
-   PREFERENCE LOGIC
-   (employees cannot start before prefStart)
-========================================================== */
-function filterByPreference(employee, eventHour) {
+// ==========================
+// PREFERENCE LOGIC
+// ==========================
+function filterByPreference(employee,eventHour){
   if(!employee.prefStart) return true;
-  const prefH = Number(employee.prefStart.split(":")[0]);
-  return eventHour >= prefH;
+  const prefH=Number(employee.prefStart.split(":")[0]);
+  return eventHour>=prefH;
 }
 
-/* ==========================================================
-   STAFF RECOMMENDATION (used by manager)
-========================================================== */
-function recommendStaff(eventType, guests) {
-  switch(eventType) {
-    case "wedding": return Math.ceil(guests/15);
-    case "buffet": return Math.ceil(guests/25);
-    case "banquet": return Math.ceil(guests/20);
-    default: return Math.ceil(guests/20);
-  }
-}
-
-/* ==========================================================
-   INITIAL RENDER
-========================================================== */
-renderEmployees();
-renderEvents();
-</script>
-
-<script>
-/* ==========================================================
-   SCHEDULING ENGINE
-========================================================== */
-function generateSchedule() {
-  const table = document.getElementById("scheduleTable");
-  table.innerHTML = "";
-
-  const weekDays = getWeekDays();
-  weekHeader.innerText = weekDays[0].toLocaleString('default',{month:'long', year:'numeric'});
-
-  // HEADER
-  let header = "<tr><th>Employee</th>";
-  weekDays.forEach(d=>{
-    header += `<th>${d.toLocaleDateString(undefined,{weekday:'short', day:'numeric'})}</th>`;
-  });
-  header += "</tr>";
-  table.innerHTML += header;
-
-  // SORT EMPLOYEES BY SENIORITY
-  const sortedEmps = [...employees].sort((a,b)=>a.seniority-b.seniority);
-
-  // GENERATE SHIFTS
+// ==========================
+// SCHEDULING ENGINE
+// ==========================
+function generateSchedule(){
+  const table=document.getElementById("scheduleTable");
+  table.innerHTML="";
+  const weekDays=getWeekDays();
+  weekHeader.innerText=weekDays[0].toLocaleString('default',{month:'long', year:'numeric'});
+  let header="<tr><th>Employee</th>";
+  weekDays.forEach(d=>header+=`<th>${d.toLocaleDateString(undefined,{weekday:'short', day:'numeric'})}</th>`);
+  header+="</tr>"; table.innerHTML+=header;
+  const sortedEmps=[...employees].sort((a,b)=>a.seniority-b.seniority);
   sortedEmps.forEach(emp=>{
-    let row = `<tr class="employee-row"><td>${emp.name}</td>`;
-
+    let row=`<tr class="employee-row"><td>${emp.name}</td>`;
     weekDays.forEach(day=>{
-      const dayISO = formatDateISO(day);
-
-      // VACATION OR SICK
-      if(emp.vacation) { row += '<td class="status-vacation">Vacation</td>'; return; }
-      if(emp.sick) { row += '<td class="status-sick">Sick</td>'; return; }
-
-      // FIND EVENT(S) FOR THIS DAY
-      const dayEvents = events.filter(ev=>ev.date===dayISO);
-
-      if(dayEvents.length===0){ row+='<td></td>'; return; }
-
-      // PICK FIRST EVENT (other events can be handled later)
-      const ev = dayEvents[0];
-
-      // ENFORCE ONE SHIFT PER DAY
-      if(emp.shiftAssigned) { row += '<td></td>'; return; }
-
-      // PREFERENCE CHECK
-      const startH = Number(ev.hours); // using hours as event "start placeholder"
-      if(!filterByPreference(emp, startH)) { row+='<td></td>'; return; }
-
-      // HOURS LOGIC
-      let hours = Math.max(4, ev.hours);
-      if(hours===8) hours = 8.5;
-
-      // COLOR CODE
-      let cls = hours<=4?'shift-4':hours<=6?'shift-6':hours<=8.5?'shift-8':'shift-ot';
-
-      row += `<td class="${cls}">${hours}h</td>`;
-
-      // MARK EMPLOYEE AS ASSIGNED FOR THIS DAY
-      emp.shiftAssigned = true;
+      const dayISO=formatDateISO(day);
+      if(emp.vacation){row+='<td class="status-vacation">Vacation</td>'; return;}
+      if(emp.sick){row+='<td class="status-sick">Sick</td>'; return;}
+      const dayEvents=events.filter(ev=>ev.date===dayISO);
+      if(dayEvents.length===0){row+='<td></td>'; return;}
+      const ev=dayEvents[0];
+      if(emp.shiftAssigned){row+='<td></td>'; return;}
+      const startH=Number(ev.hours);
+      if(!filterByPreference(emp,startH)){row+='<td></td>'; return;}
+      let hours=Math.max(4,ev.hours); if(hours===8) hours=8.5;
+      let cls=hours<=4?'shift-4':hours<=6?'shift-6':hours<=8.5?'shift-8':'shift-ot';
+      row+=`<td class="${cls}">${hours}h</td>`; emp.shiftAssigned=true;
     });
-
-    row += "</tr>";
-    table.innerHTML += row;
+    row+="</tr>"; table.innerHTML+=row;
   });
-
-  // CLEAR shiftAssigned flags
   sortedEmps.forEach(e=>delete e.shiftAssigned);
 }
 
-/* ==========================================================
-   INITIAL RENDER / PREP
-========================================================== */
+// ==========================
+// ACTIVE TAB HIGHLIGHT & DARK MODE
+// ==========================
+function setActiveTabButton(tabId){
+  document.querySelectorAll('.tabs button').forEach(btn=>btn.classList.remove('active'));
+  if(tabId==='employeesTab') document.getElementById('tabEmpBtn').classList.add('active');
+  if(tabId==='eventsTab') document.getElementById('tabEvBtn').classList.add('active');
+  if(tabId==='scheduleTab') document.getElementById('tabSchBtn').classList.add('active');
+}
+const oldShowTab=showTab;
+showTab=function(tabId){ oldShowTab(tabId); setActiveTabButton(tabId); };
+window.addEventListener('DOMContentLoaded',()=>setActiveTabButton('employeesTab'));
+
+function toggleDarkMode(){
+  document.body.classList.toggle('dark-mode');
+  document.body.classList.toggle('light-mode');
+}
+
+// ==========================
+// INITIAL RENDER
+// ==========================
 renderEmployees();
 renderEvents();
-showTab("employeesTab");
+showTab('employeesTab');
 </script>
 
 </body>
 </html>
-
-
