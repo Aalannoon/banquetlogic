@@ -229,4 +229,199 @@ function getWeekDays() {
 showTab("employeesTab");
 </script>
 
-<!-- PART 1 END -->
+<script>
+/* ==========================================================
+   EMPLOYEE FUNCTIONS
+========================================================== */
+function addEmployee() {
+  const name = document.getElementById("empName").value.trim();
+  const type = document.getElementById("empType").value;
+  const seniority = Number(document.getElementById("empSeniority").value);
+  const prefStart = document.getElementById("empPrefTime").value;
+
+  if (!name || !seniority) return alert("Enter name and seniority");
+
+  employees.push({
+    name,
+    type,
+    seniority,
+    prefStart,
+    vacation: false,
+    sick: false
+  });
+
+  saveData();
+  renderEmployees();
+  document.getElementById("empName").value = "";
+  document.getElementById("empSeniority").value = "";
+  document.getElementById("empPrefTime").value = "";
+}
+
+function renderEmployees() {
+  const tbody = document.getElementById("employeesTable");
+  tbody.innerHTML = "";
+  employees.sort((a,b)=>a.seniority-b.seniority).forEach((e,i)=>{
+    const row = document.createElement("tr");
+    row.className = "employee-row";
+    row.innerHTML = `
+      <td>${e.name}</td>
+      <td>${e.type}</td>
+      <td>${e.seniority}</td>
+      <td>${e.prefStart || "-"}</td>
+      <td><input type="checkbox" ${e.vacation?"checked":""} onchange="employees[${i}].vacation=this.checked; saveData()"></td>
+      <td><input type="checkbox" ${e.sick?"checked":""} onchange="employees[${i}].sick=this.checked; saveData()"></td>
+    `;
+    tbody.appendChild(row);
+  });
+}
+
+/* ==========================================================
+   EVENT FUNCTIONS
+========================================================== */
+function addEvent() {
+  const name = document.getElementById("eventName").value.trim();
+  const date = document.getElementById("eventDate").value;
+  const guests = Number(document.getElementById("eventGuests").value);
+  const staffNeeded = Number(document.getElementById("eventStaffNeeded").value);
+  const hours = Number(document.getElementById("eventHours").value);
+
+  if (!name || !date || !guests || !staffNeeded || !hours) return alert("Fill all event fields");
+
+  events.push({ name, date, guests, staffNeeded, hours });
+
+  saveData();
+  renderEvents();
+
+  document.getElementById("eventName").value = "";
+  document.getElementById("eventDate").value = "";
+  document.getElementById("eventGuests").value = "";
+  document.getElementById("eventStaffNeeded").value = "";
+  document.getElementById("eventHours").value = "";
+}
+
+function renderEvents() {
+  const tbody = document.getElementById("eventsTable");
+  tbody.innerHTML = "";
+  events.forEach((ev, i)=>{
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td>${ev.name}</td>
+      <td>${ev.date}</td>
+      <td>${ev.guests}</td>
+      <td>${ev.staffNeeded}</td>
+      <td>${ev.hours}</td>
+    `;
+    tbody.appendChild(row);
+  });
+}
+
+/* ==========================================================
+   PREFERENCE LOGIC
+   (employees cannot start before prefStart)
+========================================================== */
+function filterByPreference(employee, eventHour) {
+  if(!employee.prefStart) return true;
+  const prefH = Number(employee.prefStart.split(":")[0]);
+  return eventHour >= prefH;
+}
+
+/* ==========================================================
+   STAFF RECOMMENDATION (used by manager)
+========================================================== */
+function recommendStaff(eventType, guests) {
+  switch(eventType) {
+    case "wedding": return Math.ceil(guests/15);
+    case "buffet": return Math.ceil(guests/25);
+    case "banquet": return Math.ceil(guests/20);
+    default: return Math.ceil(guests/20);
+  }
+}
+
+/* ==========================================================
+   INITIAL RENDER
+========================================================== */
+renderEmployees();
+renderEvents();
+</script>
+
+<script>
+/* ==========================================================
+   SCHEDULING ENGINE
+========================================================== */
+function generateSchedule() {
+  const table = document.getElementById("scheduleTable");
+  table.innerHTML = "";
+
+  const weekDays = getWeekDays();
+  weekHeader.innerText = weekDays[0].toLocaleString('default',{month:'long', year:'numeric'});
+
+  // HEADER
+  let header = "<tr><th>Employee</th>";
+  weekDays.forEach(d=>{
+    header += `<th>${d.toLocaleDateString(undefined,{weekday:'short', day:'numeric'})}</th>`;
+  });
+  header += "</tr>";
+  table.innerHTML += header;
+
+  // SORT EMPLOYEES BY SENIORITY
+  const sortedEmps = [...employees].sort((a,b)=>a.seniority-b.seniority);
+
+  // GENERATE SHIFTS
+  sortedEmps.forEach(emp=>{
+    let row = `<tr class="employee-row"><td>${emp.name}</td>`;
+
+    weekDays.forEach(day=>{
+      const dayISO = formatDateISO(day);
+
+      // VACATION OR SICK
+      if(emp.vacation) { row += '<td class="status-vacation">Vacation</td>'; return; }
+      if(emp.sick) { row += '<td class="status-sick">Sick</td>'; return; }
+
+      // FIND EVENT(S) FOR THIS DAY
+      const dayEvents = events.filter(ev=>ev.date===dayISO);
+
+      if(dayEvents.length===0){ row+='<td></td>'; return; }
+
+      // PICK FIRST EVENT (other events can be handled later)
+      const ev = dayEvents[0];
+
+      // ENFORCE ONE SHIFT PER DAY
+      if(emp.shiftAssigned) { row += '<td></td>'; return; }
+
+      // PREFERENCE CHECK
+      const startH = Number(ev.hours); // using hours as event "start placeholder"
+      if(!filterByPreference(emp, startH)) { row+='<td></td>'; return; }
+
+      // HOURS LOGIC
+      let hours = Math.max(4, ev.hours);
+      if(hours===8) hours = 8.5;
+
+      // COLOR CODE
+      let cls = hours<=4?'shift-4':hours<=6?'shift-6':hours<=8.5?'shift-8':'shift-ot';
+
+      row += `<td class="${cls}">${hours}h</td>`;
+
+      // MARK EMPLOYEE AS ASSIGNED FOR THIS DAY
+      emp.shiftAssigned = true;
+    });
+
+    row += "</tr>";
+    table.innerHTML += row;
+  });
+
+  // CLEAR shiftAssigned flags
+  sortedEmps.forEach(e=>delete e.shiftAssigned);
+}
+
+/* ==========================================================
+   INITIAL RENDER / PREP
+========================================================== */
+renderEmployees();
+renderEvents();
+showTab("employeesTab");
+</script>
+
+</body>
+</html>
+
+
