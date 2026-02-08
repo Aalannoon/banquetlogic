@@ -1,78 +1,86 @@
-let employees = [];
-let events =;
+document.addEventListener("DOMContentLoaded", () => {
 
-// Grab elements once
-const empName = document.getElementById("empName");
-const empSeniority = document.getElementById("empSeniority");
-const empMaxHours = document.getElementById("empMaxHours");
-const employeeTable = document.getElementById("employeeTable");
+  let employees = [];
+  let events = [];
 
-const eventName = document.getElementById("eventName");
-const eventDate = document.getElementById("eventDate");
-const eventStart = document.getElementById("eventStart");
-const eventEnd = document.getElementById("eventEnd");
-const eventStaff = document.getElementById("eventStaff");
-const eventTable = document.getElementById("eventTable");
+  // Employee elements
+  const empName = document.getElementById("empName");
+  const empSeniority = document.getElementById("empSeniority");
+  const empMaxHours = document.getElementById("empMaxHours");
+  const employeeTable = document.getElementById("employeeTable");
 
-function addEmployee() {
-  if (!empName.value || !empSeniority.value || !empMaxHours.value) return;
+  // Event elements
+  const eventName = document.getElementById("eventName");
+  const eventDate = document.getElementById("eventDate");
+  const eventStart = document.getElementById("eventStart");
+  const eventEnd = document.getElementById("eventEnd");
+  const eventStaff = document.getElementById("eventStaff");
+  const eventTable = document.getElementById("eventTable");
 
-  employees.push({
-    name: empName.value,
-    seniority: Number(empSeniority.value),
-    maxHours: Number(empMaxHours.value),
-    hours: 0
-  });
+  // EMPLOYEES
+  window.addEmployee = function () {
+    if (!empName.value || !empSeniority.value || !empMaxHours.value) return;
 
-  empName.value = empSeniority.value = empMaxHours.value = "";
-  renderEmployees();
-}
+    employees.push({
+      name: empName.value,
+      seniority: Number(empSeniority.value),
+      maxHours: Number(empMaxHours.value),
+      hours: 0
+    });
 
-function renderEmployees() {
-  employeeTable.innerHTML = "";
-  employees
-    .sort((a, b) => b.seniority - a.seniority)
-    .forEach(e => {
-      employeeTable.innerHTML += `
+    empName.value = empSeniority.value = empMaxHours.value = "";
+    renderEmployees();
+  };
+
+  function renderEmployees() {
+    employeeTable.innerHTML = "";
+    employees
+      .sort((a, b) => b.seniority - a.seniority)
+      .forEach(e => {
+        employeeTable.innerHTML += `
+          <tr>
+            <td data-label="Name">${e.name}</td>
+            <td data-label="Seniority">${e.seniority}</td>
+            <td data-label="Max Hours">${e.maxHours}</td>
+            <td data-label="Assigned">${e.hours}</td>
+          </tr>
+        `;
+      });
+  }
+
+  // EVENTS
+  window.addEvent = function () {
+    if (!eventName.value || !eventDate.value || !eventStart.value || !eventEnd.value || !eventStaff.value) return;
+
+    events.push({
+      name: eventName.value,
+      date: eventDate.value,
+      start: eventStart.value,
+      end: eventEnd.value,
+      staff: Number(eventStaff.value)
+    });
+
+    eventName.value = eventDate.value = eventStart.value = eventEnd.value = eventStaff.value = "";
+    renderEvents();
+  };
+
+  function renderEvents() {
+    eventTable.innerHTML = "";
+    events.forEach(e => {
+      eventTable.innerHTML += `
         <tr>
-          <td data-label="Name">${e.name}</td>
-          <td data-label="Seniority">${e.seniority}</td>
-          <td data-label="Max Hours">${e.maxHours}</td>
-          <td data-label="Assigned">${e.hours}</td>
+          <td data-label="Event">${e.name}</td>
+          <td data-label="Date">${e.date}</td>
+          <td data-label="Time">${e.start} – ${e.end}</td>
+          <td data-label="Servers">${e.staff}</td>
         </tr>
       `;
     });
-}
+  }
 
-function addEvent() {
-  if (!eventName.value || !eventDate.value || !eventStart.value || !eventEnd.value || !eventStaff.value) return;
+  // PLACEHOLDER
+  window.generateSchedule = function () {
+    alert("Next: seniority-first scheduling engine");
+  };
 
-  events.push({
-    name: eventName.value,
-    date: eventDate.value,
-    start: eventStart.value,
-    end: eventEnd.value,
-    staff: Number(eventStaff.value)
-  });
-
-  eventName.value = eventDate.value = eventStart.value = eventEnd.value = eventStaff.value = "";
-  renderEvents();
-}
-
-function renderEvents() {
-  eventTable.innerHTML = "";
-  events.forEach(e => {
-    eventTable.innerHTML += `
-      <tr>
-        <td data-label="Event">${e.name}</td>
-        <td data-label="Date">${e.date}</td>
-        <td data-label="Time">${e.start} – ${e.end}</td>
-        <td data-label="Servers">${e.staff}</td>
-      </tr>
-    `;
-  });
-}
-
-function generateSchedule() {
-  alert("Next step: seniority-first auto scheduling 🚀");
-}
+});
