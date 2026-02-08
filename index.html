@@ -111,11 +111,14 @@ th { background:#4e9af1; color:#fff; }
 <h2>Events</h2>
 
 <input id="eventName" placeholder="Event Name">
+
 <select id="eventType">
-  <option value="Banquet">Banquet</option>
-  <option value="Wedding">Wedding</option>
-  <option value="Corporate">Corporate</option>
+  <option value="Plated Service">Plated Service</option>
+  <option value="Buffet Service">Buffet Service</option>
+  <option value="Reception">Reception</option>
+  <option value="Coffee Break">Coffee Break</option>
 </select>
+
 <input id="eventDate" type="date">
 <input id="eventStart" type="time">
 <input id="eventEnd" type="time">
@@ -126,7 +129,7 @@ th { background:#4e9af1; color:#fff; }
 <table>
 <thead>
 <tr>
-<th>Name</th><th>Type</th><th>Date</th>
+<th>Name</th><th>Service</th><th>Date</th>
 <th>Time</th><th>Guests</th>
 <th>Rec.</th><th>Staff</th><th>Delete</th>
 </tr>
@@ -187,8 +190,11 @@ function renderEmployees(){
 
 /* EVENTS */
 function recommendedServers(type, guests){
-  const ratio = type==="Wedding"?15:type==="Corporate"?20:25;
-  return Math.ceil(guests/ratio);
+  if(type==="Plated Service") return Math.ceil(guests/10);
+  if(type==="Buffet Service") return Math.ceil(guests/20);
+  if(type==="Reception") return Math.ceil(guests/25);
+  if(type==="Coffee Break") return Math.ceil(guests/40);
+  return 0;
 }
 
 function addEvent(){
