@@ -1,10 +1,166 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Scheduler Test</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Seniority Scheduler</title>
+<style>
+body { font-family: Arial, sans-serif; margin:0; background:#f5f5f5; }
+header { background:#222; color:#fff; padding:10px; text-align:center; }
+nav { display:flex; background:#333; }
+nav button {
+  flex:1; padding:12px; border:none; background:#333; color:#fff;
+}
+nav button.active { background:#555; }
+section { display:none; padding:15px; }
+section.active { display:block; }
+.card { background:#fff; padding:15px; margin-bottom:10px; border-radius:6px; }
+input, select, button {
+  width:100%; padding:8px; margin-top:6px;
+}
+.list-item { border-bottom:1px solid #ddd; padding:6px 0; }
+.small { font-size:0.9em; color:#555; }
+</style>
 </head>
 <body>
-  <h1>It works 🎉</h1>
+
+<header>
+  <h2>Seniority Scheduler</h2>
+</header>
+
+<nav>
+  <button onclick="showTab('employees')" class="active">Employees</button>
+  <button onclick="showTab('events')">Events</button>
+  <button onclick="showTab('vacations')">Vacations</button>
+  <button onclick="showTab('schedule')">Schedule</button>
+</nav>
+
+<section id="employees" class="active">
+  <div class="card">
+    <h3>Add Employee</h3>
+    <input id="empName" placeholder="Name"/>
+    <select id="empType">
+      <option value="full">Full-Time</option>
+      <option value="part">Part-Time</option>
+    </select>
+    <input id="empSeniority" type="number" placeholder="Seniority (1 = highest)"/>
+    <select id="empPref">
+      <option>Morning</option>
+      <option>Midday</option>
+      <option>Night</option>
+    </select>
+    <button onclick="addEmployee()">Add Employee</button>
+  </div>
+  <div class="card">
+    <h3>Employees</h3>
+    <div id="employeeList"></div>
+  </div>
+</section>
+
+<section id="events">
+  <div class="card">
+    <h3>Add Event</h3>
+    <input id="eventName" placeholder="Event Name"/>
+    <input id="eventDate" type="date"/>
+    <input id="eventStart" type="time"/>
+    <input id="eventEnd" type="time"/>
+    <input id="eventSize" type="number" placeholder="Guests (optional)"/>
+    <button onclick="addEvent()">Add Event</button>
+  </div>
+  <div class="card">
+    <h3>Events</h3>
+    <div id="eventList"></div>
+  </div>
+</section>
+
+<section id="vacations">
+  <div class="card">
+    <h3>Vacation (Coming Next)</h3>
+    <p class="small">Vacation & retirements will auto-adjust seniority.</p>
+  </div>
+</section>
+
+<section id="schedule">
+  <div class="card">
+    <h3>Generate Schedule</h3>
+    <p class="small">Auto-scheduling logic will respect seniority & preferences.</p>
+    <button onclick="generateSchedule()">Generate Schedule</button>
+    <div id="scheduleOutput"></div>
+  </div>
+</section>
+
+<script>
+let employees = JSON.parse(localStorage.getItem('employees')) || [];
+let events = JSON.parse(localStorage.getItem('events')) || [];
+
+function save() {
+  localStorage.setItem('employees', JSON.stringify(employees));
+  localStorage.setItem('events', JSON.stringify(events));
+}
+
+function showTab(id) {
+  document.querySelectorAll('section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  event.target.classList.add('active');
+}
+
+function addEmployee() {
+  const e = {
+    name: empName.value,
+    type: empType.value,
+    seniority: parseInt(empSeniority.value),
+    pref: empPref.value
+  };
+  if (!e.name || !e.seniority) return;
+  employees.push(e);
+  employees.sort((a,b) => {
+    if (a.type !== b.type) return a.type === 'full' ? -1 : 1;
+    return a.seniority - b.seniority;
+  });
+  save();
+  renderEmployees();
+}
+
+function renderEmployees() {
+  employeeList.innerHTML = employees.map(e =>
+    `<div class="list-item">
+      <strong>${e.name}</strong> (${e.type})<br>
+      Seniority: ${e.seniority} | Pref: ${e.pref}
+    </div>`
+  ).join('');
+}
+
+function addEvent() {
+  events.push({
+    name: eventName.value,
+    date: eventDate.value,
+    start: eventStart.value,
+    end: eventEnd.value,
+    size: eventSize.value
+  });
+  save();
+  renderEvents();
+}
+
+function renderEvents() {
+  eventList.innerHTML = events.map(ev =>
+    `<div class="list-item">
+      <strong>${ev.name}</strong><br>
+      ${ev.date} ${ev.start}–${ev.end}<br>
+      Guests: ${ev.size || 'n/a'}
+    </div>`
+  ).join('');
+}
+
+function generateSchedule() {
+  scheduleOutput.innerHTML =
+    `<p class="small">Next step: automatic assignment engine.</p>`;
+}
+
+renderEmployees();
+renderEvents();
+</script>
+
 </body>
 </html>
