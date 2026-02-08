@@ -15,10 +15,12 @@ function addEmployee() {
     id: Date.now(),
     name: empName.value,
     hireDate: empHireDate.value,
+    type: empType.value, // fulltime | parttime
     maxHours: Number(empMaxHours.value),
     preference: empPreference.value,
     active: true,
-    hours: 0
+    hours: 0,
+    seniority: null
   });
 
   empName.value = "";
@@ -31,8 +33,18 @@ function addEmployee() {
 
 function recalcSeniority() {
   const active = employees.filter(e => e.active && e.hireDate);
-  active.sort((a, b) => new Date(a.hireDate) - new Date(b.hireDate));
-  active.forEach((e, i) => e.seniority = i + 1);
+
+  const fullTime = active
+    .filter(e => e.type === "fulltime")
+    .sort((a, b) => new Date(a.hireDate) - new Date(b.hireDate));
+
+  const partTime = active
+    .filter(e => e.type === "parttime")
+    .sort((a, b) => new Date(a.hireDate) - new Date(b.hireDate));
+
+  let rank = 1;
+  fullTime.forEach(e => e.seniority = rank++);
+  partTime.forEach(e => e.seniority = rank++);
 }
 
 function deactivateEmployee(id) {
@@ -71,11 +83,12 @@ function renderEmployees() {
   vacEmployee.innerHTML = "";
 
   employees
-    .sort((a, b) => (a.seniority || 999) - (b.seniority || 999))
+    .sort((a, b) => (a.seniority ?? 999) - (b.seniority ?? 999))
     .forEach(e => {
       employeeTable.innerHTML += `
         <tr class="${!e.active ? "inactive" : ""}">
           <td>${e.name}</td>
+          <td>${e.type === "fulltime" ? "FT" : "PT"}</td>
           <td>${e.seniority ?? "-"}</td>
           <td>${e.hireDate || "-"}</td>
           <td>${e.preference}</td>
