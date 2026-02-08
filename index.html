@@ -1,21 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta charset="UTF-8">
 <title>Seniority Scheduler</title>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
 body {
   font-family: Arial, sans-serif;
-  margin: 20px;
-  background: #f5f5f5;
-}
-
-h1, h2 {
-  margin-bottom: 10px;
+  background: #f4f4f4;
+  padding: 20px;
 }
 
 section {
@@ -26,71 +20,39 @@ section {
 }
 
 input, select, button {
+  margin: 5px 0;
   padding: 6px;
-  margin: 4px 0;
-}
-
-button {
-  cursor: pointer;
 }
 
 table {
   border-collapse: collapse;
   width: 100%;
-  table-layout: fixed;
 }
 
 th, td {
   border: 1px solid #ccc;
   padding: 6px;
   text-align: center;
-  font-size: 13px;
 }
 
 th {
   background: #eee;
 }
 
-.employee-name {
+.employee {
+  font-weight: bold;
   text-align: left;
-  font-weight: bold;
-  background: #fafafa;
-}
-
-.shift {
-  color: #000;
-  font-weight: bold;
-  border-radius: 4px;
-  padding: 4px;
-}
-
-.h4 { background: #7CFC9A; }        /* green */
-.h5 { background: #B6FCD5; }
-.h6 { background: #FFA94D; }        /* orange */
-.h7 { background: #FFD36A; }
-.h8 { background: #FFF176; }        /* yellow */
-.ot { background: #C084FC; color: white; }
-.vacation { background: #ccc; color: #333; }
-
-.controls {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-small {
-  color: #666;
 }
 </style>
 </head>
 
 <body>
 
-<h1>Seniority Scheduler</h1>
+<h1>Seniority Scheduler (Stable Core)</h1>
 
 <section>
-  <h2>Employees</h2>
-  <input id="empName" placeholder="Name"/>
+  <h2>Add Employee</h2>
+  <input id="empName" placeholder="Name">
   <select id="empType">
     <option value="full">Full Time</option>
     <option value="part">Part Time</option>
@@ -100,28 +62,25 @@ small {
     <option value="midday">Midday</option>
     <option value="night">Night</option>
   </select>
-  <button onclick="addEmployee()">Add Employee</button>
+  <button onclick="addEmployee()">Add</button>
 </section>
 
 <section>
-  <h2>Events</h2>
-  <input type="date" id="eventDate"/>
-  <input type="time" id="eventStart"/>
-  <input type="time" id="eventEnd"/>
-  <input type="number" id="eventGuests" placeholder="Guests"/>
+  <h2>Add Event</h2>
+  <input type="date" id="eventDate">
+  <input type="time" id="eventStart">
+  <input type="time" id="eventEnd">
+  <input type="number" id="eventGuests" placeholder="Guests">
   <button onclick="addEvent()">Add Event</button>
   <div id="eventList"></div>
 </section>
 
-<section class="controls">
+<section>
   <button onclick="generateSchedule()">Generate Schedule</button>
-  <button onclick="exportData()">Export Data</button>
-  <input type="file" onchange="importData(event)"/>
-  <button onclick="exportPDF()">Export PDF</button>
 </section>
 
-<section id="scheduleSection">
-  <h2 id="weekTitle"></h2>
+<section>
+  <h2>Schedule</h2>
   <div id="schedule"></div>
 </section>
 
@@ -157,6 +116,7 @@ function addEvent() {
     end: eventEnd.value,
     guests: Number(eventGuests.value)
   });
+
   save();
   renderEvents();
 }
@@ -165,112 +125,80 @@ function renderEvents() {
   eventList.innerHTML = "";
   events.forEach((e, i) => {
     const div = document.createElement("div");
-    div.innerHTML = `${e.date} ${e.start}-${e.end} (${e.guests} guests)
-      <button onclick="events.splice(${i},1); save(); renderEvents()">❌</button>`;
+    div.innerHTML = `
+      ${e.date} ${e.start}-${e.end} (${e.guests} guests)
+      <button onclick="deleteEvent(${i})">❌</button>
+    `;
     eventList.appendChild(div);
   });
 }
 
-function getWeekDates() {
-  const today = new Date();
-  const monday = new Date(today);
-  monday.setDate(today.getDate() - ((today.getDay()+6)%7));
-
-  return Array.from({length:7}, (_,i)=>{
-    const d = new Date(monday);
-    d.setDate(monday.getDate()+i);
-    return d;
-  });
+function deleteEvent(i) {
+  events.splice(i,1);
+  save();
+  renderEvents();
 }
 
-function paidHours(start, end) {
-  let diff = (end - start) / 3600000;
-  if (diff > 4) diff -= 0.5;
-  return diff;
-}
-
-function colorClass(hours) {
-  if (hours > 8) return "ot";
-  return "h" + Math.round(hours);
+function recommendServers(guests) {
+  if (guests <= 50) return 2;
+  if (guests <= 100) return 3;
+  if (guests <= 200) return 5;
+  if (guests <= 400) return 8;
+  return 10;
 }
 
 function generateSchedule() {
   schedule = {};
-  const week = getWeekDates();
 
-  employees.forEach(emp => {
-    schedule[emp.name] = {};
-    week.forEach(d => schedule[emp.name][d.toDateString()] = null);
+  const sortedEmployees = [...employees].sort((a,b)=>{
+    if (a.type !== b.type) return a.type === "full" ? -1 : 1;
+    return 0;
+  });
+
+  events.forEach(event => {
+    const start = new Date(event.date + "T" + event.start);
+    const end = new Date(event.date + "T" + event.end);
+    const hours = (end - start) / 3600000;
+
+    const needed = recommendServers(event.guests);
+    let assigned = 0;
+
+    sortedEmployees.forEach(emp => {
+      if (assigned >= needed) return;
+
+      if (!schedule[emp.name]) schedule[emp.name] = [];
+
+      schedule[emp.name].push({
+        date: event.date,
+        start: event.start,
+        end: event.end,
+        hours: hours
+      });
+
+      assigned++;
+    });
   });
 
   renderSchedule();
 }
 
 function renderSchedule() {
-  const week = getWeekDates();
-  const monthYear = week[0].toLocaleDateString(undefined,{month:"long",year:"numeric"});
-  weekTitle.textContent = monthYear;
+  let html = "<table><tr><th>Employee</th><th>Shifts</th></tr>";
 
-  let html = "<table><tr><th>Employee</th>";
-  week.forEach(d=>{
-    html += `<th>${d.toLocaleDateString(undefined,{weekday:"short"})}<br>${d.getDate()}</th>`;
-  });
-  html += "</tr>";
-
-  employees.forEach(emp=>{
-    html += `<tr><td class="employee-name">${emp.name}</td>`;
-    week.forEach(d=>{
-      const cell = schedule[emp.name][d.toDateString()];
-      if (cell === "vacation") {
-        html += `<td class="vacation">Vacation</td>`;
-      } else if (cell) {
-        html += `<td class="shift ${colorClass(cell.hours)}">
-          ${cell.time}<br>${cell.hours}h
-        </td>`;
-      } else {
-        html += `<td>—</td>`;
-      }
+  employees.forEach(emp => {
+    html += `<tr><td class="employee">${emp.name}</td><td>`;
+    const shifts = schedule[emp.name] || [];
+    shifts.forEach(s => {
+      html += `${s.date} ${s.start}-${s.end} (${s.hours}h)<br>`;
     });
-    html += "</tr>";
+    html += "</td></tr>";
   });
 
   html += "</table>";
-  schedule.innerHTML = html;
-}
-
-function exportData() {
-  const data = { employees, events };
-  const blob = new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "seniority-scheduler-backup.json";
-  a.click();
-}
-
-function importData(e) {
-  const file = e.target.files[0];
-  const reader = new FileReader();
-  reader.onload = () => {
-    const data = JSON.parse(reader.result);
-    employees = data.employees || [];
-    events = data.events || [];
-    save();
-    renderEvents();
-    generateSchedule();
-  };
-  reader.readAsText(file);
-}
-
-function exportPDF() {
-  html2pdf().set({
-    margin: 0.5,
-    filename: "weekly-schedule.pdf",
-    jsPDF: { orientation: "landscape" }
-  }).from(document.getElementById("scheduleSection")).save();
+  document.getElementById("schedule").innerHTML = html;
 }
 
 renderEvents();
-generateSchedule();
 </script>
 
 </body>
