@@ -8,35 +8,41 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <style>
-:root{
-  --bg:#f3f6fb;
-  --card:#ffffff;
-  --primary:#2563eb;
-  --danger:#dc2626;
-  --muted:#6b7280;
-}
-
 body{
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  background:var(--bg);
+  background:#f3f6fb;
   margin:0;
   padding:20px;
 }
 
-h1{ margin-bottom:10px; }
-h2{ margin:0 0 10px; }
+h1{margin-bottom:10px;}
+h2{margin:0 0 10px;}
 
-.container{
-  max-width:1400px;
-  margin:auto;
+.tabs{
+  display:flex;
+  gap:10px;
+  margin-bottom:20px;
+}
+
+.tab{
+  padding:10px 16px;
+  background:#e5e7eb;
+  border-radius:8px;
+  cursor:pointer;
+  font-weight:600;
+}
+
+.tab.active{
+  background:#2563eb;
+  color:white;
 }
 
 .card{
-  background:var(--card);
+  background:white;
   border-radius:10px;
   padding:16px;
-  margin-bottom:20px;
   box-shadow:0 8px 24px rgba(0,0,0,.05);
+  margin-bottom:20px;
 }
 
 button{
@@ -47,23 +53,13 @@ button{
   cursor:pointer;
 }
 
-.btn-primary{ background:var(--primary); color:white; }
-.btn-danger{ background:var(--danger); color:white; }
-.btn-secondary{ background:#e5e7eb; }
-
-button:hover{ opacity:.9; }
+.primary{background:#2563eb;color:white;}
+.danger{background:#dc2626;color:white;}
+.secondary{background:#e5e7eb;}
 
 table{
   width:100%;
   border-collapse:collapse;
-  background:white;
-}
-
-th{
-  background:#eef2ff;
-  position:sticky;
-  top:0;
-  z-index:2;
 }
 
 th,td{
@@ -72,134 +68,170 @@ th,td{
   text-align:center;
 }
 
-.employee-row{
+th{
+  background:#eef2ff;
+}
+
+.employee{
   font-weight:700;
   text-align:left;
   background:#f9fafb;
 }
 
-td:hover{ outline:2px solid var(--primary); }
+.shift-4{background:#c8f7c5;}
+.shift-6{background:#ffd59e;}
+.shift-8{background:#fff3a0;}
+.shift-ot{background:#d5b3ff;}
+.shift-sick{background:#b3d9ff;font-weight:700;}
+.vacation{background:#e5e7eb;color:#6b7280;font-style:italic;}
 
-.shift-4{ background:#c8f7c5; }
-.shift-6{ background:#ffd59e; }
-.shift-8{ background:#fff3a0; }
-.shift-ot{ background:#d5b3ff; }
-.shift-sick{ background:#b3d9ff; font-weight:700; }
+.hidden{display:none;}
 
-.vacation{
-  background:#e5e7eb;
-  color:#6b7280;
-  font-style:italic;
-}
-
-/* Modal */
 #overlay{
   display:none;
   position:fixed;
   inset:0;
   background:rgba(0,0,0,.4);
-  z-index:999;
 }
 
 #editor{
   display:none;
   position:fixed;
-  top:50%; left:50%;
+  top:50%;left:50%;
   transform:translate(-50%,-50%);
   background:white;
   padding:20px;
   border-radius:12px;
   width:320px;
-  z-index:1000;
-}
-
-input[type="time"]{
-  width:100%;
-  padding:6px;
-  margin-bottom:8px;
-}
-
-.legend span{
-  display:inline-block;
-  padding:4px 8px;
-  border-radius:4px;
-  margin-right:6px;
-  font-weight:600;
 }
 </style>
 </head>
 
 <body>
-<div class="container">
 
 <h1>Seniority Scheduler</h1>
 
-<div class="card">
-  <button class="btn-primary" onclick="generateSchedule()">Generate Schedule</button>
-  <button class="btn-secondary" onclick="exportPDF()">Export PDF</button>
+<div class="tabs">
+  <div class="tab active" onclick="showTab('schedule')">Schedule</div>
+  <div class="tab" onclick="showTab('events')">Events</div>
+  <div class="tab" onclick="showTab('employees')">Employees</div>
+  <div class="tab" onclick="showTab('timeoff')">Time Off</div>
 </div>
 
-<div class="card legend">
-  <strong>Legend:</strong><br><br>
-  <span class="shift-4">4h</span>
-  <span class="shift-6">6h</span>
-  <span class="shift-8">8h</span>
-  <span class="shift-ot">OT</span>
-  <span class="shift-sick">Sick</span>
-  <span class="vacation">Vacation</span>
-</div>
-
-<div class="card">
+<!-- SCHEDULE -->
+<div id="schedule" class="card">
+  <button class="primary" onclick="generateSchedule()">Generate Schedule</button>
+  <button class="secondary" onclick="exportPDF()">Export PDF</button>
   <h2 id="scheduleHeader"></h2>
-  <div id="schedule"></div>
+  <div id="scheduleTable"></div>
 </div>
 
+<!-- EVENTS -->
+<div id="events" class="card hidden">
+  <h2>Events</h2>
+  <input id="evDate" type="date">
+  <input id="evStart" type="time">
+  <input id="evEnd" type="time">
+  <input id="evGuests" type="number" placeholder="Guests">
+  <button class="primary" onclick="addEvent()">Add Event</button>
+  <ul id="eventList"></ul>
+</div>
+
+<!-- EMPLOYEES -->
+<div id="employees" class="card hidden">
+  <h2>Employees</h2>
+  <input id="empName" placeholder="Name">
+  <select id="empType">
+    <option value="FT">Full-Time</option>
+    <option value="PT">Part-Time</option>
+  </select>
+  <button class="primary" onclick="addEmployee()">Add Employee</button>
+  <ul id="employeeList"></ul>
+</div>
+
+<!-- TIME OFF -->
+<div id="timeoff" class="card hidden">
+  <h2>Vacation</h2>
+  <select id="vacEmp"></select>
+  <input id="vacStart" type="date">
+  <input id="vacEnd" type="date">
+  <button class="primary" onclick="addVacation()">Add Vacation</button>
 </div>
 
 <div id="overlay"></div>
 
 <div id="editor">
   <h3>Edit Day</h3>
-
   <label><input type="radio" name="dayType" value="shift" checked> Shift</label>
   <label><input type="radio" name="dayType" value="sick"> Sick</label>
-
-  <div id="shiftEditor">
-    <input type="time" id="editStart">
-    <input type="time" id="editEnd">
-    <label><input type="checkbox" id="editOT"> Overtime</label>
+  <div id="shiftEdit">
+    <input id="editStart" type="time">
+    <input id="editEnd" type="time">
+    <label><input type="checkbox" id="editOT"> OT</label>
   </div>
-
-  <br>
-  <button class="btn-primary" onclick="saveEdit()">Save</button>
-  <button class="btn-secondary" onclick="closeEditor()">Cancel</button>
+  <button class="primary" onclick="saveEdit()">Save</button>
+  <button class="secondary" onclick="closeEditor()">Cancel</button>
 </div>
 
 <script>
 const { jsPDF } = window.jspdf;
+
 let employees=JSON.parse(localStorage.getItem("employees"))||[];
 let events=JSON.parse(localStorage.getItem("events"))||[];
 let scheduleData=JSON.parse(localStorage.getItem("scheduleData"))||{};
 let editTarget=null;
 
-function saveAll(){ localStorage.setItem("scheduleData",JSON.stringify(scheduleData)); }
+function saveAll(){
+  localStorage.setItem("employees",JSON.stringify(employees));
+  localStorage.setItem("events",JSON.stringify(events));
+  localStorage.setItem("scheduleData",JSON.stringify(scheduleData));
+}
+
+function showTab(id){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.card').forEach(c=>c.classList.add('hidden'));
+  document.getElementById(id).classList.remove('hidden');
+  [...document.querySelectorAll('.tab')].find(t=>t.textContent.toLowerCase()===id).classList.add('active');
+}
+
+function normalizeSeniority(){
+  let ft=employees.filter(e=>e.type==="FT");
+  let pt=employees.filter(e=>e.type==="PT");
+  employees=[...ft,...pt];
+  employees.forEach((e,i)=>e.seniority=i+1);
+}
+
+function addEmployee(){
+  employees.push({name:empName.value,type:empType.value,seniority:0,vacations:[]});
+  normalizeSeniority();
+  saveAll();
+  renderEmployees();
+}
+
+function addEvent(){
+  events.push({date:evDate.value,start:evStart.value,end:evEnd.value,guests:+evGuests.value});
+  saveAll();
+  renderEvents();
+}
+
+function addVacation(){
+  let emp=employees.find(e=>e.name===vacEmp.value);
+  emp.vacations.push({start:vacStart.value,end:vacEnd.value});
+  saveAll();
+}
 
 function generateSchedule(){
   scheduleData={};
-  employees.sort((a,b)=>a.seniority-b.seniority);
+  employees.forEach(e=>scheduleData[e.name]={});
 
   events.forEach(ev=>{
     let need=ev.guests<=50?2:ev.guests<=150?4:ev.guests<=300?6:8;
-
     employees.forEach(emp=>{
       if(need<=0) return;
-      if(emp.vacations?.some(v=>ev.date>=v.start&&ev.date<=v.end)) return;
-      scheduleData[emp.name]??={};
+      if(emp.vacations.some(v=>ev.date>=v.start&&ev.date<=v.end)) return;
       if(scheduleData[emp.name][ev.date]) return;
 
-      const s=new Date(ev.date+"T"+ev.start);
-      const e=new Date(ev.date+"T"+ev.end);
-      let paid=Math.max(4,Math.min(8,(e-s)/3600000));
+      let paid=Math.max(4,Math.min(8,(new Date(ev.date+"T"+ev.end)-new Date(ev.date+"T"+ev.start))/3600000));
       let schedH=paid>4?paid+0.5:paid;
 
       scheduleData[emp.name][ev.date]={type:"shift",start:ev.start,end:ev.end,paid,schedH,ot:false};
@@ -207,95 +239,79 @@ function generateSchedule(){
     });
   });
 
-  saveAll(); renderSchedule();
+  saveAll();
+  renderSchedule();
 }
 
 function getWeek(){
-  const t=new Date();
-  const m=new Date(t);
-  m.setDate(t.getDate()-((t.getDay()+6)%7));
-  return [...Array(7)].map((_,i)=>{
-    const d=new Date(m); d.setDate(m.getDate()+i);
-    return d.toISOString().split("T")[0];
-  });
+  let t=new Date();
+  let m=new Date(t);m.setDate(t.getDate()-((t.getDay()+6)%7));
+  return [...Array(7)].map((_,i)=>{let d=new Date(m);d.setDate(m.getDate()+i);return d.toISOString().split("T")[0];});
 }
 
 function renderSchedule(){
-  const week=getWeek();
-  const head=new Date(week[0]);
-  scheduleHeader.textContent=head.toLocaleString("default",{month:"long",year:"numeric"});
-
+  let week=getWeek();
+  scheduleHeader.textContent=new Date(week[0]).toLocaleString("default",{month:"long",year:"numeric"});
   let html="<table><tr><th>Employee</th>";
-  week.forEach(d=>{
-    const dt=new Date(d);
-    html+=`<th>${dt.toLocaleDateString("default",{weekday:"short"})} ${dt.getDate()}</th>`;
-  });
+  week.forEach(d=>html+=`<th>${new Date(d).toLocaleDateString("default",{weekday:"short"})}</th>`);
   html+="</tr>";
 
   employees.forEach(emp=>{
-    html+=`<tr><td class="employee-row">#${emp.seniority} ${emp.name}</td>`;
+    html+=`<tr><td class="employee">#${emp.seniority} ${emp.name}</td>`;
     week.forEach(d=>{
-      const sh=scheduleData?.[emp.name]?.[d];
+      let sh=scheduleData[emp.name]?.[d];
       if(sh){
-        html+=`<td class="${sh.type==="sick"?"shift-sick":sh.ot?"shift-ot":"shift-"+sh.paid}"
-          onclick="openEditor('${emp.name}','${d}')">
-          ${sh.type==="sick"?"SICK":`${sh.start}-${sh.end}<br>${sh.schedH}h`}
+        html+=`<td class="${sh.type==="sick"?"shift-sick":sh.ot?"shift-ot":"shift-"+sh.paid}" onclick="openEditor('${emp.name}','${d}')">
+        ${sh.type==="sick"?"SICK":`${sh.start}-${sh.end}<br>${sh.schedH}h`}
         </td>`;
-      } else html+=`<td onclick="openEditor('${emp.name}','${d}')"></td>`;
+      }else html+=`<td onclick="openEditor('${emp.name}','${d}')"></td>`;
     });
     html+="</tr>";
   });
-
-  schedule.innerHTML=html+"</table>";
+  scheduleTable.innerHTML=html+"</table>";
 }
 
-function openEditor(name,date){
-  editTarget={name,date};
-  scheduleData[name]??={};
-  const sh=scheduleData[name][date];
-
-  document.querySelector(`input[value="${sh?.type||"shift"}"]`).checked=true;
-  shiftEditor.style.display=sh?.type==="sick"?"none":"block";
-  editStart.value=sh?.start||"";
-  editEnd.value=sh?.end||"";
-  editOT.checked=sh?.ot||false;
-
-  overlay.style.display="block";
-  editor.style.display="block";
+function openEditor(n,d){
+  editTarget={n,d};
+  overlay.style.display=editor.style.display="block";
 }
 
 function closeEditor(){
-  overlay.style.display="none";
-  editor.style.display="none";
+  overlay.style.display=editor.style.display="none";
 }
 
 function saveEdit(){
-  const type=document.querySelector('input[name="dayType"]:checked').value;
+  let type=document.querySelector('input[name="dayType"]:checked').value;
   if(type==="sick"){
-    scheduleData[editTarget.name][editTarget.date]={type:"sick"};
-  } else {
-    const s=new Date("2000-01-01T"+editStart.value);
-    const e=new Date("2000-01-01T"+editEnd.value);
-    let paid=Math.max(4,(e-s)/3600000);
-    let schedH=paid>4?paid+0.5:paid;
-
-    scheduleData[editTarget.name][editTarget.date]={
-      type:"shift",start:editStart.value,end:editEnd.value,
-      paid,schedH,ot:editOT.checked
-    };
+    scheduleData[editTarget.n][editTarget.d]={type:"sick"};
   }
-  saveAll(); closeEditor(); renderSchedule();
+  saveAll();closeEditor();renderSchedule();
 }
 
 function exportPDF(){
-  const doc=new jsPDF({orientation:"landscape"});
-  doc.html(document.querySelector("#schedule"),{
-    callback:()=>doc.save("schedule.pdf"),
-    x:10,y:10,width:270
+  let doc=new jsPDF({orientation:"landscape"});
+  doc.html(scheduleTable,{callback:()=>doc.save("schedule.pdf"),x:10,y:10,width:270});
+}
+
+function renderEmployees(){
+  employeeList.innerHTML="";
+  employees.forEach(e=>{
+    employeeList.innerHTML+=`<li>#${e.seniority} ${e.name} (${e.type})</li>`;
+  });
+  vacEmp.innerHTML=employees.map(e=>`<option>${e.name}</option>`).join("");
+}
+
+function renderEvents(){
+  eventList.innerHTML="";
+  events.forEach((e,i)=>{
+    eventList.innerHTML+=`<li>${e.date} ${e.start}-${e.end} (${e.guests}) <button class="danger" onclick="events.splice(${i},1);saveAll();renderEvents()">X</button></li>`;
   });
 }
 
+renderEmployees();
+renderEvents();
 renderSchedule();
 </script>
+
 </body>
 </html>
