@@ -14,8 +14,9 @@ body {
 body.light-mode { background:#f8f9fa; color:#333; }
 
 h1 { font-size:28px; margin-bottom:10px; }
-h2 { margin-top:20px; margin-bottom:10px; }
+h2 { margin-top:20px; }
 
+/* TABS */
 .tabs { display:flex; gap:6px; margin-bottom:12px; }
 .tabs button {
   padding:8px 14px;
@@ -23,50 +24,59 @@ h2 { margin-top:20px; margin-bottom:10px; }
   border-radius:8px;
   font-weight:bold;
   cursor:pointer;
-  background:#4e9af1;
-  color:#fff;
+  background:#2e2e3d;
+  color:#ccc;
 }
+.tabs button.active { background:#4e9af1; color:#fff; }
 
+/* INPUTS */
 input, select, button {
   margin:4px;
   padding:6px 10px;
   border-radius:6px;
   border:none;
 }
+button { background:#4e9af1; color:#fff; font-weight:bold; }
 
-table {
-  border-collapse:collapse;
-  width:100%;
-  margin-top:10px;
-}
+/* TABLE */
+table { border-collapse:collapse; width:100%; margin-top:10px; }
 th, td {
-  padding:8px;
-  border-bottom:1px solid #444;
+  padding:10px;
   text-align:center;
+  border-bottom:2px solid #444;
+  border-right:2px solid #555;
 }
+th:last-child, td:last-child { border-right:none; }
+th:first-child, td:first-child { border-right:4px solid #888; font-weight:bold; }
+th:nth-last-child(2), td:nth-last-child(2) { border-right:4px solid #888; }
+
 th { background:#4e9af1; color:#fff; }
 
+/* STATUS */
+.status-vacation { background:#7f8c8d; font-weight:bold; }
+.status-sick { background:#c0392b; font-weight:bold; }
+
+/* SHIFTS */
+.shift-4 { background:#2ecc71; }
+.shift-6 { background:#e67e22; }
+.shift-65 { background:#f1c40f; color:#000; }
+.shift-85 { background:#9b59b6; }
+
+/* TABS */
 .tab { display:none; }
 .tab.active { display:block; }
-
-.status-vacation { background:#7f8c8d; color:#fff; font-weight:bold; }
-.status-sick { background:#c0392b; color:#fff; font-weight:bold; }
-
-.shift-4 { background:#2ecc71; color:#fff; }
-.shift-6 { background:#e67e22; color:#fff; }
-.shift-65 { background:#f1c40f; color:#000; }
-.shift-85 { background:#9b59b6; color:#fff; }
 </style>
 </head>
 
 <body>
+
 <h1 id="weekHeader"></h1>
 <button onclick="toggleDarkMode()">Toggle Dark Mode</button>
 
 <div class="tabs">
-  <button onclick="showTab('employeesTab')">Employees</button>
-  <button onclick="showTab('eventsTab')">Events</button>
-  <button onclick="showTab('scheduleTab')">Schedule</button>
+  <button id="tabEmpBtn" onclick="showTab('employeesTab')">Employees</button>
+  <button id="tabEvBtn" onclick="showTab('eventsTab')">Events</button>
+  <button id="tabSchBtn" onclick="showTab('scheduleTab')">Schedule</button>
 </div>
 
 <!-- EMPLOYEES -->
@@ -109,10 +119,7 @@ th { background:#4e9af1; color:#fff; }
 
 <table>
 <thead>
-<tr>
-  <th>Name</th><th>Date</th><th>Time</th>
-  <th>Guests</th><th>Service</th><th>Staff</th>
-</tr>
+<tr><th>Name</th><th>Date</th><th>Time</th><th>Guests</th><th>Service</th><th>Staff</th></tr>
 </thead>
 <tbody id="eventsTable"></tbody>
 </table>
@@ -134,9 +141,14 @@ function save(){
   localStorage.setItem("events",JSON.stringify(events));
 }
 
+/* TABS */
 function showTab(id){
   document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+  document.querySelectorAll(".tabs button").forEach(b=>b.classList.remove("active"));
   document.getElementById(id).classList.add("active");
+  if(id==="employeesTab") tabEmpBtn.classList.add("active");
+  if(id==="eventsTab") tabEvBtn.classList.add("active");
+  if(id==="scheduleTab") tabSchBtn.classList.add("active");
 }
 
 /* EMPLOYEES */
@@ -196,7 +208,7 @@ function renderEvents(){
   });
 }
 
-/* WEEK LOGIC – FIXED */
+/* WEEK (MON–SUN) */
 function getWeekStart(date=new Date()){
   const d=new Date(date);
   const day=d.getDay();
@@ -215,7 +227,7 @@ function getWeekDays(){
 }
 function iso(d){ return d.toISOString().split("T")[0]; }
 
-/* HOURS */
+/* HOURS RULE */
 function normalizeHours(start,end){
   const diff=(new Date(`1970-01-01T${end}`)-new Date(`1970-01-01T${start}`))/3600000;
   if(diff<=4) return {h:4,cls:"shift-4"};
@@ -229,14 +241,14 @@ function generateSchedule(){
   scheduleTable.innerHTML="";
   const days=getWeekDays();
 
-  weekHeader.innerText=
-    days[0].toLocaleDateString(undefined,{month:"long",day:"numeric"})+
-    " – "+
+  weekHeader.innerText =
+    days[0].toLocaleDateString(undefined,{month:"long",day:"numeric"}) +
+    " – " +
     days[6].toLocaleDateString(undefined,{month:"long",day:"numeric",year:"numeric"});
 
-  scheduleTable.innerHTML=
-    "<tr><th>Employee</th>"+
-    days.map(d=>`<th>${d.toLocaleDateString(undefined,{weekday:"short",day:"numeric"})}</th>`).join("")+
+  scheduleTable.innerHTML =
+    "<tr><th>Employee</th>" +
+    days.map(d=>`<th>${d.toLocaleDateString(undefined,{weekday:"short",day:"numeric"})}</th>`).join("") +
     "<th>Total</th></tr>";
 
   employees.forEach(emp=>{
@@ -244,10 +256,11 @@ function generateSchedule(){
     let row=`<tr><td>${emp.name}</td>`;
 
     days.forEach(d=>{
+      const date=iso(d);
       if(emp.vacation) return row+=`<td class="status-vacation">Vacation</td>`;
       if(emp.sick) return row+=`<td class="status-sick">Sick</td>`;
 
-      const ev=events.find(e=>e.date===iso(d));
+      const ev=events.find(e=>e.date===date);
       if(!ev) return row+="<td></td>";
 
       const startHour=parseInt(ev.start);
@@ -264,13 +277,16 @@ function generateSchedule(){
   });
 }
 
+/* DARK MODE */
 function toggleDarkMode(){
   document.body.classList.toggle("light-mode");
 }
 
+/* INIT */
 renderEmployees();
 renderEvents();
 showTab("employeesTab");
+generateSchedule();
 </script>
 </body>
 </html>
