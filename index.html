@@ -370,18 +370,17 @@ generateSchedule();
 
 /* Map hours to correct shift class */
 function getShiftClassByHours(h){
-  h = Number(h);               // 🔑 force number
+  function getShiftClassByHours(h){
   const d = displayHours(h);
 
-  if(d === 4) return "shift-4";      // green
-  if(d === 5) return "shift-5";      // blue
-  if(d === 6) return "shift-6";      // orange
-  if(d === 7) return "shift-7";      // pink
-  if(d === 8 && h === 8) return "shift-65"; // yellow
-  if(h > 8) return "shift-85";       // purple (OT)
+  if(d === 4) return "shift-4";   // green
+  if(d === 5) return "shift-5";   // blue
+  if(d === 6) return "shift-6";   // orange
+  if(d === 7) return "shift-7";   // pink
+  if(d === 8 && h <= 8) return "shift-65"; // yellow
+  if(h > 8) return "shift-85";    // purple (OT)
 
-  return "shift-default";
-}
+  return "";
 }
 }
 
