@@ -545,7 +545,7 @@ total += shift.internalHours;
 row+=`<td class="${getShiftClassByHours(shift.displayHours)}"
       onclick="editScheduleCell('${emp.id}','${iso(d)}')">
       ${shift.displayHours}h<br>
-      <small>${shift.start}–${shift.end}</small>
+      <small>${timeStr(shift.start)}–${timeStr(shift.end)}</small>
       </td>`;
     });
     row+=`<td><strong>${total}h</strong></td></tr>`;
