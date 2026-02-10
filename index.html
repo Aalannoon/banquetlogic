@@ -678,6 +678,56 @@ generateSchedule = function(){
 };
 
 /* ===== END ADD-ON ===== */
+/* ===== SMART SHIFT TIME + MEAL LOGIC (OPTION C) ===== */
+
+function roundToHalfHour(date) {
+  const mins = date.getMinutes();
+  if (mins < 15) date.setMinutes(0);
+  else if (mins < 45) date.setMinutes(30);
+  else { date.setMinutes(0); date.setHours(date.getHours() + 1); }
+  date.setSeconds(0);
+  return date;
+}
+
+function calculateSmartShift(ev, paidHours) {
+  const baseStart = new Date(`1970-01-01T${ev.start}`);
+  const baseEnd   = new Date(`1970-01-01T${ev.end}`);
+
+  let buffer = 1;
+  if (ev.guests >= 200) buffer = 2;
+
+  const workHours = paidHours > 4 ? paidHours - 0.5 : paidHours;
+
+  // OPTION A: meal AFTER
+  let startA = new Date(baseStart);
+  startA.setHours(startA.getHours() - buffer);
+  let endA = new Date(startA);
+  endA.setHours(endA.getHours() + workHours);
+
+  // OPTION B: meal BEFORE
+  let endB = new Date(baseEnd);
+  endB.setHours(endB.getHours() + buffer);
+  let startB = new Date(endB);
+  startB.setHours(startB.getHours() - workHours);
+
+  // Round both
+  startA = roundToHalfHour(startA);
+  endA   = roundToHalfHour(endA);
+  startB = roundToHalfHour(startB);
+  endB   = roundToHalfHour(endB);
+
+  // Pick closer to event window (OPTION C)
+  const distA = Math.abs(startA - baseStart) + Math.abs(endA - baseEnd);
+  const distB = Math.abs(startB - baseStart) + Math.abs(endB - baseEnd);
+
+  return distA <= distB
+    ? { start: startA, end: endA }
+    : { start: startB, end: endB };
+}
+
+function timeStr(d){
+  return d.toTimeString().slice(0,5);
+}
 </script>
 </body>
 </html>
