@@ -425,6 +425,130 @@ generateSchedule = function(){
   });
 };
 /* ===== END ADD-ON ===== */
+/* ===== ADD-ON: Event buffer + rounding + meal break logic ===== */
+
+/* Round minutes to :00 or :30 */
+function roundToHalfHour(date, direction="nearest"){
+  const d = new Date(date);
+  const m = d.getMinutes();
+
+  if(direction === "down"){
+    d.setMinutes(m < 30 ? 0 : 30);
+  } else if(direction === "up"){
+    d.setMinutes(m <= 30 ? 30 : 60);
+  } else {
+    d.setMinutes(m < 15 ? 0 : m < 45 ? 30 : 60);
+  }
+  d.setSeconds(0,0);
+  return d;
+}
+
+/* Build shift times from event */
+function buildShiftTimes(ev){
+  const start = new Date(`${ev.date}T${ev.start}`);
+  const end   = new Date(`${ev.date}T${ev.end}`);
+
+  const bigEvent = ev.guests >= 200;
+  const buffer   = bigEvent ? 2 : 1;
+
+  let shiftStart = new Date(start);
+  let shiftEnd   = new Date(end);
+
+  shiftStart.setHours(shiftStart.getHours() - buffer);
+  shiftEnd.setHours(shiftEnd.getHours() + buffer);
+
+  shiftStart = roundToHalfHour(shiftStart, "down");
+  shiftEnd   = roundToHalfHour(shiftEnd, "up");
+
+  let hours = (shiftEnd - shiftStart) / 3600000;
+
+  /* Meal break logic */
+  let paidHours = hours;
+  if(hours > 4){
+    paidHours -= 0.5; // display hours
+  }
+
+  return {
+    start: shiftStart,
+    end: shiftEnd,
+    scheduledHours: hours,
+    displayHours: paidHours
+  };
+}
+
+/* Override normalizeHours WITHOUT removing original */
+const _originalNormalizeHours = normalizeHours;
+normalizeHours = function(start, end, ev=null){
+  if(!ev){
+    return _originalNormalizeHours(start, end);
+  }
+
+  const shift = buildShiftTimes(ev);
+
+  let h = shift.scheduledHours;
+  if(h <= 4) h = 4;
+  else if(h < 6) h = 6;
+  else if(h < 8) h = 6.5;
+  else h = 8.5;
+
+  return {
+    h,
+    cls: getShiftClassByHours(h),
+    start: shift.start,
+    end: shift.end,
+    display: shift.displayHours
+  };
+};
+
+/* Patch generateSchedule again to inject new logic */
+const _patchedGenerateSchedule2 = generateSchedule;
+generateSchedule = function(){
+  scheduleTable.innerHTML="";
+  const start=getWeekStart();
+  const days=[...Array(7)].map((_,i)=>{const d=new Date(start);d.setDate(start.getDate()+i);return d;});
+  weekHeader.textContent=`${days[0].toLocaleDateString()} – ${days[6].toLocaleDateString()}`;
+
+  scheduleTable.innerHTML="<tr><th>Employee</th>"+
+    days.map(d=>`<th>${d.toLocaleDateString(undefined,{weekday:"short",day:"numeric"})}</th>`).join("")+
+    "<th>Total</th></tr>";
+
+  employees.filter(e=>!e.retired).forEach(emp=>{
+    let total=0,row=`<tr><td>${emp.name}</td>`;
+    days.forEach(d=>{
+      const key=emp.id+"_"+iso(d);
+
+      if(manualEdits[key]){
+        const h=manualEdits[key];
+        total+=h;
+        row+=`<td class="${getShiftClassByHours(h)}"
+              onclick="editScheduleCell('${emp.id}','${iso(d)}')">${h}h</td>`;
+        return;
+      }
+
+      const ev=events.find(e=>e.date===iso(d));
+      if(!ev || emp.vacation || emp.sick){
+        row+=`<td onclick="editScheduleCell('${emp.id}','${iso(d)}')"></td>`;
+        return;
+      }
+
+      const s=normalizeHours(ev.start, ev.end, ev);
+      total+=s.display ?? s.h;
+
+      row+=`<td class="${s.cls}"
+            onclick="editScheduleCell('${emp.id}','${iso(d)}')">
+            ${s.display ?? s.h}h<br>
+            <small>
+              ${s.start.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}
+              –
+              ${s.end.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}
+            </small>
+            </td>`;
+    });
+    row+=`<td><strong>${total}h</strong></td></tr>`;
+    scheduleTable.innerHTML+=row;
+  });
+};
+/* ===== END ADD-ON ===== */
 </script>
 </body>
 </html>
