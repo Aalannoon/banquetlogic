@@ -531,18 +531,15 @@ generateSchedule = function(){
         return;
       }
 
-      const s=normalizeHours(ev.start, ev.end, ev);
-      total+=s.display ?? s.h;
+      const shift = buildShiftFromEvent(ev);
 
-      row+=`<td class="${s.cls}"
-            onclick="editScheduleCell('${emp.id}','${iso(d)}')">
-            ${s.display ?? s.h}h<br>
-            <small>
-              ${s.start.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}
-              –
-              ${s.end.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}
-            </small>
-            </td>`;
+total += shift.internalHours;
+
+row+=`<td class="${getShiftClassByHours(shift.displayHours)}"
+      onclick="editScheduleCell('${emp.id}','${iso(d)}')">
+      ${shift.displayHours}h<br>
+      <small>${shift.start}–${shift.end}</small>
+      </td>`;
     });
     row+=`<td><strong>${total}h</strong></td></tr>`;
     scheduleTable.innerHTML+=row;
