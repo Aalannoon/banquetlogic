@@ -370,12 +370,18 @@ generateSchedule();
 
 /* Map hours to correct shift class */
 function getShiftClassByHours(h){
-  if(h === 4) return "shift-4";
-  if(h === 6) return "shift-6";
-  if(h === 6.5) return "shift-65";
-  if(h === 8) return "shift-65";   // 8h stays YELLOW
-  if(h === 8.5) return "shift-85"; // 8.5h stays PURPLE
+  function getShiftClassByHours(h){
+  const d = displayHours(h);
+
+  if(d === 4) return "shift-4";   // green
+  if(d === 5) return "shift-5";   // blue
+  if(d === 6) return "shift-6";   // orange
+  if(d === 7) return "shift-7";   // pink
+  if(d === 8 && h <= 8) return "shift-65"; // yellow
+  if(h > 8) return "shift-85";    // purple (OT)
+
   return "";
+}
 }
 
 /* Format time range */
@@ -678,7 +684,7 @@ total += s.h;
 
 row+=`<td class="${s.cls}"
       onclick="editScheduleCell('${emp.id}','${iso(d)}')">
-      ${s.h}h<br>
+      ${displayHours(s.h)}h<br>
       <small>${timeStr(t.start)}–${timeStr(t.end)}</small>
       </td>`;
     });
