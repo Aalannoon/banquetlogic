@@ -218,18 +218,41 @@ function retireEmployee(id){
 function renderEmployees(){
   employeesTable.innerHTML="";
   employees.sort((a,b)=>a.seniority-b.seniority).forEach(e=>{
-    employeesTable.innerHTML+=`
-    <tr class="${e.retired?'status-retired':''}">
+    const row = document.createElement('tr');
+    row.className = e.retired ? 'status-retired' : '';
+    
+    row.innerHTML = `
       <td>${e.name}</td>
       <td>${e.type}</td>
-      <td>${e.retired?'-':e.seniority}</td>
-      <td>${e.pref||"-"}</td>
-      <td><input type="checkbox" ${e.vacation?"checked":""}
-        onchange="toggleVacation('${e.id}',this.checked)"></td>
-      <td><input type="checkbox" ${e.sick?"checked":""}
-        onchange="toggleSick('${e.id}',this.checked)"></td>
-      <td>${e.retired?"—":`<button class="retire" onclick="retireEmployee('${e.id}')">Retire</button>`}</td>
-    </tr>`;
+      <td>${e.retired ? '-' : e.seniority}</td>
+      <td>${e.pref || "-"}</td>
+      <td><input type="checkbox" class="vacation-check" ${e.vacation ? "checked" : ""}></td>
+      <td><input type="checkbox" class="sick-check" ${e.sick ? "checked" : ""}></td>
+      <td>${e.retired ? "—" : '<button class="retire">Retire</button>'}</td>
+    `;
+    
+    // Add event listeners
+    const vacationCheck = row.querySelector('.vacation-check');
+    const sickCheck = row.querySelector('.sick-check');
+    const retireBtn = row.querySelector('.retire');
+    
+    if(vacationCheck) {
+      vacationCheck.onchange = function() {
+        toggleVacation(e.id, this.checked);
+      };
+    }
+    
+    if(sickCheck) {
+      sickCheck.onchange = function() {
+        toggleSick(e.id, this.checked);
+      };
+    }
+    
+    if(retireBtn) {
+      retireBtn.onclick = () => retireEmployee(e.id);
+    }
+    
+    employeesTable.appendChild(row);
   });
 }
 
@@ -458,6 +481,9 @@ function generateSchedule(){
   headerRow.innerHTML += '<th>Total</th>';
   scheduleTable.appendChild(headerRow);
 
+  // Assign employees to events for each day
+  const assignments = assignEmployeesToWeek(days);
+
   // Generate rows for each employee
   employees.filter(e=>!e.retired).forEach(emp=>{
     let total=0;
@@ -465,7 +491,8 @@ function generateSchedule(){
     row.innerHTML = `<td>${emp.name}</td>`;
 
     days.forEach(d=>{
-      const key=emp.id+"_"+iso(d);
+      const dateStr = iso(d);
+      const key=emp.id+"_"+dateStr;
       const cell = document.createElement('td');
 
       // Manual edit override
@@ -474,17 +501,18 @@ function generateSchedule(){
         total += h;
         cell.className = getShiftClassByHours(h);
         cell.innerHTML = `${h}h`;
-        cell.onclick = () => editScheduleCell(emp.id, iso(d));
+        cell.onclick = () => editScheduleCell(emp.id, dateStr);
         row.appendChild(cell);
         return;
       }
 
-      // Check for event
-      const ev=events.find(e=>e.date===iso(d));
+      // Check if employee is assigned to this event
+      const ev=events.find(e=>e.date===dateStr);
+      const isAssigned = assignments[dateStr] && assignments[dateStr].includes(emp.id);
       
-      // Empty cell if no event or employee unavailable
-      if(!ev || emp.vacation || emp.sick){
-        cell.onclick = () => editScheduleCell(emp.id, iso(d));
+      // Empty cell if no event, not assigned, or employee unavailable
+      if(!ev || !isAssigned || emp.vacation || emp.sick){
+        cell.onclick = () => editScheduleCell(emp.id, dateStr);
         row.appendChild(cell);
         return;
       }
@@ -498,7 +526,7 @@ function generateSchedule(){
 
       cell.className = getShiftClassByHours(s.h);
       cell.innerHTML = `${s.h}h<br><small>${timeStr(t.start)}–${timeStr(t.end)}</small>`;
-      cell.onclick = () => editScheduleCell(emp.id, iso(d));
+      cell.onclick = () => editScheduleCell(emp.id, dateStr);
       row.appendChild(cell);
     });
 
@@ -507,6 +535,161 @@ function generateSchedule(){
     row.appendChild(totalCell);
     scheduleTable.appendChild(row);
   });
+}
+
+function assignEmployeesToWeek(days) {
+  const assignments = {};
+  const employeeShiftHistory = {}; // Track last shift end time for each employee
+  const employeeTotalHours = {}; // Track total hours assigned to each employee
+  
+  // Initialize tracking for all employees
+  employees.filter(e => !e.retired).forEach(e => {
+    employeeShiftHistory[e.id] = null;
+    employeeTotalHours[e.id] = 0;
+  });
+  
+  days.forEach(d => {
+    const dateStr = iso(d);
+    const dayEvents = events.filter(e => e.date === dateStr);
+    
+    if(dayEvents.length === 0) return;
+    
+    // Sort events by start time (earliest to latest)
+    dayEvents.sort((a, b) => a.start.localeCompare(b.start));
+    
+    // Get available employees for this day
+    const available = employees.filter(e => 
+      !e.retired && 
+      !e.sick && 
+      !e.vacation
+    ).map(e => ({...e, assignedToday: false, skippedEvents: []}));
+    
+    // For each event, assign employees
+    dayEvents.forEach((ev, eventIndex) => {
+      const isEarliestShift = eventIndex === 0;
+      const isLatestShift = eventIndex === dayEvents.length - 1;
+      
+      // Calculate this event's shift times
+      const s = normalizeHours(ev.start, ev.end);
+      const t = calculateSmartShift(ev, s.h);
+      
+      // Score employees for this specific event
+      const scored = available
+        .filter(emp => !emp.assignedToday) // Only one shift per day
+        .map(emp => {
+          let score = 0;
+          let canWork = true;
+          let reason = '';
+          
+          // Check 8-hour gap
+          const gapCheck = canWorkShift(emp.id, dateStr, t.start, employeeShiftHistory);
+          if(!gapCheck.allowed) {
+            canWork = false;
+            reason = '8hr-gap';
+            // Track that they were skipped for this event (might work a later one)
+            emp.skippedEvents.push(eventIndex);
+          }
+          
+          // Seniority is primary (higher seniority = higher score)
+          score += (100 - emp.seniority) * 10;
+          
+          // IMPORTANT: Boost score if employee has fewer hours than they should
+          // Higher seniority should have more hours, so penalize if they're behind
+          const expectedHours = (100 - emp.seniority) * 0.5; // Rough target
+          if(employeeTotalHours[emp.id] < expectedHours) {
+            score += 200; // Strong boost to catch up on hours
+          }
+          
+          // Preference bonus based on shift timing
+          if(emp.pref === 'AM' && isEarliestShift) {
+            score += 100; // Strong preference for earliest shift
+          } else if(emp.pref === 'PM' && isLatestShift) {
+            score += 100; // Strong preference for latest shift
+          }
+          
+          // FT employees get slight priority
+          if(emp.type === 'FT') {
+            score += 20;
+          }
+          
+          return { ...emp, score, canWork, reason };
+        })
+        .filter(emp => emp.canWork); // Only include employees who can work this shift
+      
+      // Sort by score (highest first)
+      scored.sort((a, b) => b.score - a.score);
+      
+      // Assign top N employees
+      const assigned = scored.slice(0, ev.staff);
+      
+      // Mark these employees as assigned for today and update their records
+      assigned.forEach(emp => {
+        const empRef = available.find(e => e.id === emp.id);
+        if(empRef) empRef.assignedToday = true;
+        
+        // Update shift history with this shift's end time
+        employeeShiftHistory[emp.id] = {
+          date: dateStr,
+          endTime: t.end
+        };
+        
+        // Update total hours
+        employeeTotalHours[emp.id] += s.h;
+      });
+      
+      // Store assignments
+      if(!assignments[dateStr]) {
+        assignments[dateStr] = [];
+      }
+      assigned.forEach(emp => {
+        if(!assignments[dateStr].includes(emp.id)) {
+          assignments[dateStr].push(emp.id);
+        }
+      });
+    });
+  });
+  
+  return assignments;
+}
+
+// Check if employee can work this shift (8-hour gap from previous day's shift)
+function canWorkShift(empId, currentDate, shiftStart, shiftHistory) {
+  const lastShift = shiftHistory[empId];
+  
+  // If no previous shift, can work
+  if(!lastShift) return {allowed: true};
+  
+  // Check if last shift was yesterday
+  const lastDate = new Date(lastShift.date);
+  const currentDateObj = new Date(currentDate);
+  const daysDiff = Math.floor((currentDateObj - lastDate) / (1000 * 60 * 60 * 24));
+  
+  // If last shift was more than 1 day ago, can work
+  if(daysDiff > 1) return {allowed: true};
+  
+  // If last shift was yesterday, check 8-hour gap
+  if(daysDiff === 1) {
+    // Calculate time difference between last shift end and this shift start
+    const lastEnd = lastShift.endTime;
+    const currentStart = shiftStart;
+    
+    // Convert to minutes for comparison
+    const lastEndMinutes = lastEnd.getHours() * 60 + lastEnd.getMinutes();
+    const currentStartMinutes = currentStart.getHours() * 60 + currentStart.getMinutes();
+    
+    // Add 24 hours (1440 minutes) to current start since it's the next day
+    const totalMinutesBetween = (1440 - lastEndMinutes) + currentStartMinutes;
+    
+    // Require at least 8 hours (480 minutes) between shifts
+    if(totalMinutesBetween >= 480) {
+      return {allowed: true};
+    } else {
+      return {allowed: false, reason: 'needs 8 hour gap'};
+    }
+  }
+  
+  // If last shift was today, already handled by assignedToday flag
+  return {allowed: true};
 }
 
 function regenerateSchedule(){ 
