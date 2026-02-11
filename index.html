@@ -132,11 +132,18 @@ td[onclick]:hover, td.clickable:hover { outline:2px dashed #4e9af1; }
 
 /* PRINT */
 @media print {
-  body { background:#fff; color:#000; }
+  body { background:#fff !important; color:#000 !important; }
   .tabs, button, input, select { display:none !important; }
-  table { font-size:12px; }
-  th { background:#ddd !important; color:#000 !important; }
+  .tab { display:none !important; }
+  #scheduleTab { display:block !important; }
+  table { font-size:12px; page-break-inside: avoid; }
+  th { background:#ddd !important; color:#000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .locked-cell::after, .conflict-cell::before { display: none; }
+  .shift-4, .shift-5, .shift-6, .shift-7, .shift-8, .shift-ot {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  h1 { color: #000 !important; }
 }
 
 /* TABS */
@@ -357,7 +364,7 @@ function showTab(id){
   document.getElementById(id).classList.add("active");
   if(id==="employeesTab") tabEmpBtn.classList.add("active");
   if(id==="eventsTab") tabEvBtn.classList.add("active");
-  if(id==="scheduleTab") { tabSchBtn.classList.add("active"); generateSchedule(); }
+  if(id==="scheduleTab") { tabSchBtn.classList.add("active"); displaySchedule(); }
   if(id==="auditTab") { tabAuditBtn.classList.add("active"); renderAuditLog(); }
   if(id==="settingsTab") { tabSettingsBtn.classList.add("active"); loadSettings(); }
 }
@@ -381,7 +388,8 @@ function addEmployee(){
   rebalanceSeniority();
   
   addAuditEntry('Employee Added', newEmp.id, null, null, `${newEmp.name} (${newEmp.type}, Seniority ${newEmp.seniority})`);
-  save(); renderEmployees(); generateSchedule();
+  save(); 
+  renderEmployees();
 }
 
 function rebalanceSeniority(){
@@ -397,7 +405,8 @@ function retireEmployee(id){
   rebalanceSeniority();
   
   addAuditEntry('Employee Retired', id, null, 'Active', 'Retired');
-  save(); renderEmployees(); generateSchedule();
+  save(); 
+  renderEmployees();
 }
 
 function renderEmployees(){
@@ -444,14 +453,14 @@ function toggleVacation(id, checked){
   const emp = employees.find(e=>e.id===id);
   emp.vacation=checked;
   addAuditEntry('Vacation Changed', id, null, !checked, checked);
-  save(); generateSchedule();
+  save();
 }
 
 function toggleSick(id, checked){
   const emp = employees.find(e=>e.id===id);
   emp.sick=checked;
   addAuditEntry('Sick Status Changed', id, null, !checked, checked);
-  save(); generateSchedule();
+  save();
 }
 
 /* EVENTS */
@@ -495,7 +504,8 @@ function addEvent(){
   eventGuests.value="";
   eventStaff.value="";
   
-  save(); renderEvents(); generateSchedule();
+  save(); 
+  renderEvents();
 }
 
 function renderEvents(){
@@ -537,7 +547,8 @@ function deleteEvent(id){
   const ev = events.find(e=>e.id===id);
   events=events.filter(e=>e.id!==id);
   addAuditEntry('Event Deleted', null, ev.date, `${ev.name}`, null);
-  save(); renderEvents(); generateSchedule();
+  save(); 
+  renderEvents();
 }
 
 /* HELPER FUNCTIONS */
@@ -684,7 +695,7 @@ function toggleLock(empId, date){
   }
   
   save();
-  generateSchedule();
+  displaySchedule(); // Just refresh display, don't regenerate
 }
 
 function editScheduleCell(empId, date){
@@ -738,7 +749,7 @@ function editScheduleCell(empId, date){
     delete manualEdits[key];
     addAuditEntry('Shift Removed', empId, date, oldValue, null);
     save(); 
-    generateSchedule();
+    displaySchedule(); // Just refresh display
     return;
   }
   
@@ -748,7 +759,7 @@ function editScheduleCell(empId, date){
     manualEdits[key] = { status: 'sick' };
     addAuditEntry('Marked Sick', empId, date, oldValue, 'SICK');
     save();
-    generateSchedule();
+    displaySchedule(); // Just refresh display
     return;
   }
   
@@ -758,7 +769,7 @@ function editScheduleCell(empId, date){
     manualEdits[key] = { status: 'vacation' };
     addAuditEntry('Marked Vacation', empId, date, oldValue, 'VACATION');
     save();
-    generateSchedule();
+    displaySchedule(); // Just refresh display
     return;
   }
   
@@ -784,7 +795,7 @@ function editScheduleCell(empId, date){
   addAuditEntry('Shift Manually Edited', empId, date, oldValue, JSON.stringify(newEdit));
   
   save(); 
-  generateSchedule();
+  displaySchedule(); // Just refresh display
 }
 
 function clearDay(dateStr){
@@ -798,10 +809,86 @@ function clearDay(dateStr){
   
   addAuditEntry('Day Cleared', null, dateStr, 'All shifts', null);
   save();
-  generateSchedule();
+  displaySchedule(); // Just refresh display
 }
 
 function generateSchedule(){
+  // This function GENERATES shifts from events
+  if(!confirm("Generate schedule from events? This will create shifts for all employees based on events and settings.")) return;
+  
+  const start=getWeekStart();
+  const days=[...Array(7)].map((_,i)=>{
+    const d=new Date(start);
+    d.setDate(start.getDate()+i);
+    return d;
+  });
+  
+  let shiftsCreated = 0;
+  
+  const assignments = assignEmployeesToWeek(days);
+  
+  // Convert assignments to manual edits (but don't overwrite locked/existing manual edits)
+  days.forEach(d => {
+    const dateStr = iso(d);
+    const ev = events.find(e => e.date === dateStr);
+    
+    if(!ev) {
+      console.log(`No event on ${dateStr}`);
+      return;
+    }
+    
+    if(!assignments[dateStr]) {
+      console.log(`No assignments for ${dateStr}`);
+      return;
+    }
+    
+    console.log(`Event: ${ev.name} on ${dateStr}, assigned: ${assignments[dateStr].length} employees`);
+    
+    assignments[dateStr].forEach(empId => {
+      const key = empId + "_" + dateStr;
+      
+      // Skip if locked or already manually edited
+      if(lockedCells[key]) {
+        console.log(`Skipping ${key} - locked`);
+        return;
+      }
+      if(manualEdits[key]) {
+        console.log(`Skipping ${key} - already has manual edit`);
+        return;
+      }
+      
+      // Calculate shift times
+      const s = normalizeHours(ev.start, ev.end);
+      const t = calculateSmartShift(ev, s.h);
+      
+      // Create the shift as a manual edit
+      manualEdits[key] = {
+        hours: s.h,
+        start: timeStr(t.start),
+        end: timeStr(t.end),
+        generated: true // Mark as auto-generated
+      };
+      
+      shiftsCreated++;
+      console.log(`Created shift for ${key}: ${s.h}h`);
+    });
+  });
+  
+  console.log(`Total shifts created: ${shiftsCreated}`);
+  
+  if(shiftsCreated === 0) {
+    alert(`No shifts were created. Make sure you have:\n1. Events in the current week\n2. Available employees (not retired/sick/vacation)\n3. Unlocked cells`);
+  } else {
+    alert(`Created ${shiftsCreated} shifts!`);
+  }
+  
+  addAuditEntry('Schedule Generated', null, null, null, `Generated ${shiftsCreated} shifts from events`);
+  save();
+  displaySchedule();
+}
+
+function displaySchedule(){
+  // This function just DISPLAYS the current schedule (manual edits + locked cells)
   scheduleTable.innerHTML="";
   const start=getWeekStart();
   const days=[...Array(7)].map((_,i)=>{
@@ -830,8 +917,6 @@ function generateSchedule(){
   headerRow.innerHTML += '<th>Total</th>';
   scheduleTable.appendChild(headerRow);
 
-  const assignments = assignEmployeesToWeek(days);
-
   employees.filter(e=>!e.retired).forEach(emp=>{
     let total=0;
     const row = document.createElement('tr');
@@ -846,7 +931,7 @@ function generateSchedule(){
       const isLocked = lockedCells[key];
       if(isLocked) cell.classList.add('locked-cell');
 
-      // Manual edit override
+      // Check for manual edits (includes generated shifts)
       if(manualEdits[key]){
         const edit = manualEdits[key];
         
@@ -886,22 +971,7 @@ function generateSchedule(){
         return;
       }
 
-      const ev=events.find(e=>e.date===dateStr);
-      const isAssigned = assignments[dateStr] && assignments[dateStr].includes(emp.id);
-      
-      if(!ev || !isAssigned || emp.vacation || emp.sick){
-        cell.onclick = () => editScheduleCell(emp.id, dateStr);
-        row.appendChild(cell);
-        return;
-      }
-
-      const s = normalizeHours(ev.start, ev.end);
-      const t = calculateSmartShift(ev, s.h);
-      
-      total += s.h;
-
-      cell.className += ' ' + getShiftClassByHours(s.h);
-      cell.innerHTML = `${s.h}h<br><small>${timeStr(t.start)}–${timeStr(t.end)}</small>`;
+      // Empty cell if no manual edit
       cell.onclick = () => editScheduleCell(emp.id, dateStr);
       row.appendChild(cell);
     });
@@ -1042,17 +1112,17 @@ function canWorkShift(empId, currentDate, shiftStart, shiftHistory) {
 }
 
 function regenerateSchedule(){ 
-  if(!confirm("This will clear all manual edits. Continue?")) return;
+  if(!confirm("This will clear ALL shifts (manual and generated) and regenerate from events. Continue?")) return;
   
   manualEdits = {};
-  addAuditEntry('Schedule Regenerated', null, null, 'All manual edits', null);
+  addAuditEntry('Schedule Regenerated', null, null, 'All shifts cleared', 'Regenerated from events');
   save();
-  generateSchedule(); 
+  generateSchedule(); // This will regenerate
 }
 
 function changeWeek(n){ 
   currentWeekOffset+=n; 
-  generateSchedule(); 
+  displaySchedule(); // Just display, don't regenerate
 }
 
 function toggleDarkMode(){ 
@@ -1060,8 +1130,11 @@ function toggleDarkMode(){
 }
 
 function printSchedule(){ 
-  showTab("scheduleTab"); 
-  setTimeout(()=>window.print(),200); 
+  showTab("scheduleTab");
+  // Wait for schedule to render before printing
+  setTimeout(() => {
+    window.print();
+  }, 500);
 }
 
 /* AUDIT LOG */
