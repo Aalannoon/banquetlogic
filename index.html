@@ -255,6 +255,7 @@ td[onclick]:hover, td.clickable:hover { outline:2px dashed #4e9af1; }
 <button onclick="changeWeek(1)">Next Week ➡</button>
 <button onclick="generateSchedule()">Generate</button>
 <button onclick="regenerateSchedule()">Regenerate</button>
+<button id="globalLockBtn" onclick="toggleGlobalLock()" style="background:#f39c12;">🔓 Unlock Schedule</button>
 
 <table id="scheduleTable"></table>
 </div>
@@ -318,6 +319,8 @@ let employees = JSON.parse(localStorage.getItem("employees") || "[]");
 let events = JSON.parse(localStorage.getItem("events") || "[]");
 let manualEdits = JSON.parse(localStorage.getItem("manualEdits") || "{}");
 let lockedCells = JSON.parse(localStorage.getItem("lockedCells") || "{}");
+let lockedRows = JSON.parse(localStorage.getItem("lockedRows") || "{}"); // NEW: Row locks
+let scheduleGlobalLock = JSON.parse(localStorage.getItem("scheduleGlobalLock") || "false"); // NEW: Global lock
 let auditLog = JSON.parse(localStorage.getItem("auditLog") || "[]");
 let settings = JSON.parse(localStorage.getItem("settings") || JSON.stringify({
   ratios: {
@@ -335,6 +338,8 @@ function save(){
   localStorage.setItem("events", JSON.stringify(events));
   localStorage.setItem("manualEdits", JSON.stringify(manualEdits));
   localStorage.setItem("lockedCells", JSON.stringify(lockedCells));
+  localStorage.setItem("lockedRows", JSON.stringify(lockedRows));
+  localStorage.setItem("scheduleGlobalLock", JSON.stringify(scheduleGlobalLock));
   localStorage.setItem("auditLog", JSON.stringify(auditLog));
   localStorage.setItem("settings", JSON.stringify(settings));
 }
@@ -682,6 +687,36 @@ function detectConflicts(empId, date, shiftStart, shiftEnd){
 }
 
 /* SCHEDULE FUNCTIONS */
+function toggleGlobalLock(){
+  scheduleGlobalLock = !scheduleGlobalLock;
+  const btn = document.getElementById('globalLockBtn');
+  
+  if(scheduleGlobalLock) {
+    btn.innerHTML = '🔒 Locked Schedule';
+    btn.style.background = '#e74c3c';
+    addAuditEntry('Schedule Locked', null, null, 'Unlocked', 'Locked');
+  } else {
+    btn.innerHTML = '🔓 Unlock Schedule';
+    btn.style.background = '#f39c12';
+    addAuditEntry('Schedule Unlocked', null, null, 'Locked', 'Unlocked');
+  }
+  
+  save();
+}
+
+function toggleRowLock(empId){
+  if(lockedRows[empId]) {
+    delete lockedRows[empId];
+    addAuditEntry('Row Unlocked', empId, null, 'Locked', 'Unlocked');
+  } else {
+    lockedRows[empId] = true;
+    addAuditEntry('Row Locked', empId, null, 'Unlocked', 'Locked');
+  }
+  
+  save();
+  displaySchedule();
+}
+
 function toggleLock(empId, date){
   const key = empId + "_" + date;
   const emp = employees.find(e => e.id === empId);
@@ -699,6 +734,18 @@ function toggleLock(empId, date){
 }
 
 function editScheduleCell(empId, date){
+  // Check global lock first
+  if(scheduleGlobalLock) {
+    alert('Schedule is globally locked! Unlock it first using the "🔒 Locked Schedule" button.');
+    return;
+  }
+  
+  // Check row lock
+  if(lockedRows[empId]) {
+    alert('This employee\'s entire row is locked! Click the lock icon next to their name to unlock.');
+    return;
+  }
+  
   const key = empId + "_" + date;
   const emp = employees.find(e => e.id === empId);
   const ev = events.find(e => e.date === date);
@@ -900,7 +947,7 @@ function displaySchedule(){
   weekHeader.textContent = `${days[0].toLocaleDateString()} – ${days[6].toLocaleDateString()}`;
 
   const headerRow = document.createElement('tr');
-  headerRow.innerHTML = '<th>Employee</th>';
+  headerRow.innerHTML = '<th>🔒</th><th>Employee</th>';
   
   days.forEach(d=>{
     const th = document.createElement('th');
@@ -920,16 +967,33 @@ function displaySchedule(){
   employees.filter(e=>!e.retired).forEach(emp=>{
     let total=0;
     const row = document.createElement('tr');
-    row.innerHTML = `<td>${emp.name}</td>`;
+    
+    // Add row lock toggle
+    const lockCell = document.createElement('td');
+    const isRowLocked = lockedRows[emp.id];
+    lockCell.innerHTML = isRowLocked ? '🔒' : '🔓';
+    lockCell.style.cursor = 'pointer';
+    lockCell.style.fontSize = '18px';
+    lockCell.onclick = () => toggleRowLock(emp.id);
+    lockCell.title = isRowLocked ? 'Click to unlock this row' : 'Click to lock this row';
+    row.appendChild(lockCell);
+    
+    // Add employee name
+    const nameCell = document.createElement('td');
+    nameCell.textContent = emp.name;
+    row.appendChild(nameCell);
 
     days.forEach(d=>{
       const dateStr = iso(d);
       const key=emp.id+"_"+dateStr;
       const cell = document.createElement('td');
       cell.className = 'clickable';
+      cell.setAttribute('data-emp-id', emp.id); // Add data attribute for debugging
+      cell.setAttribute('data-date', dateStr);
       
       const isLocked = lockedCells[key];
       if(isLocked) cell.classList.add('locked-cell');
+      if(lockedRows[emp.id]) cell.classList.add('locked-cell');
 
       // Check for manual edits (includes generated shifts)
       if(manualEdits[key]){
@@ -981,6 +1045,18 @@ function displaySchedule(){
     row.appendChild(totalCell);
     scheduleTable.appendChild(row);
   });
+  
+  // Update global lock button state
+  const btn = document.getElementById('globalLockBtn');
+  if(btn) {
+    if(scheduleGlobalLock) {
+      btn.innerHTML = '🔒 Locked Schedule';
+      btn.style.background = '#e74c3c';
+    } else {
+      btn.innerHTML = '🔓 Unlock Schedule';
+      btn.style.background = '#f39c12';
+    }
+  }
 }
 
 function assignEmployeesToWeek(days) {
