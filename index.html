@@ -188,6 +188,7 @@ td[onclick]:hover, td.clickable:hover { outline:2px dashed #4e9af1; }
   <button id="tabSchBtn" onclick="showTab('scheduleTab')">Schedule</button>
   <button id="tabAuditBtn" onclick="showTab('auditTab')">Audit Log</button>
   <button id="tabSettingsBtn" onclick="showTab('settingsTab')">Settings</button>
+  <button id="tabSupportBtn" onclick="showTab('supportTab')">Support / Contact</button>
 </div>
 
 <!-- EMPLOYEES -->
@@ -314,6 +315,62 @@ td[onclick]:hover, td.clickable:hover { outline:2px dashed #4e9af1; }
 </div>
 </div>
 
+<!-- SUPPORT / CONTACT -->
+<div id="supportTab" class="tab">
+<h2>Support / Contact</h2>
+
+<div class="settings-section">
+  <h3>Report a Bug or Suggest a Feature</h3>
+  <p>Have feedback about the scheduler? Found a bug? Have a feature request? Let us know!</p>
+  
+  <div style="margin-top: 20px;">
+    <div style="margin-bottom: 15px;">
+      <label style="display: block; margin-bottom: 5px; font-weight: bold;">Category:</label>
+      <select id="supportCategory" style="width: 100%; max-width: 400px;">
+        <option value="Bug">Bug Report</option>
+        <option value="Suggestion">Feature Suggestion</option>
+        <option value="Other">Other</option>
+      </select>
+    </div>
+    
+    <div style="margin-bottom: 15px;">
+      <label style="display: block; margin-bottom: 5px; font-weight: bold;">Subject: <span style="color: #e74c3c;">*</span></label>
+      <input type="text" id="supportSubject" placeholder="Brief description of the issue or suggestion" 
+             style="width: 100%; max-width: 600px; padding: 8px;" />
+    </div>
+    
+    <div style="margin-bottom: 15px;">
+      <label style="display: block; margin-bottom: 5px; font-weight: bold;">Message: <span style="color: #e74c3c;">*</span></label>
+      <textarea id="supportMessage" placeholder="Please provide details about the bug or your suggestion..."
+                style="width: 100%; max-width: 600px; min-height: 150px; padding: 8px; font-family: inherit;"></textarea>
+    </div>
+    
+    <div style="margin-bottom: 15px; padding: 10px; background: #34495e; border-radius: 6px; max-width: 600px;">
+      <small style="color: #ecf0f1;">
+        <strong>Privacy Note:</strong> This form does not automatically send any employee data or schedule information. 
+        Only the information you type in the subject and message fields will be included.
+      </small>
+    </div>
+    
+    <button onclick="submitSupport()" style="background: #27ae60; font-size: 16px; padding: 10px 20px;">
+      📧 Send Message
+    </button>
+    
+    <div id="supportFeedback" style="margin-top: 15px; padding: 10px; border-radius: 6px; display: none;"></div>
+  </div>
+  
+  <div style="margin-top: 30px; padding: 15px; background: #2e2e3d; border-radius: 8px; max-width: 600px;">
+    <h4 style="margin-top: 0;">Alternative Contact Methods:</h4>
+    <p style="margin: 5px 0;">
+      📧 Email directly: <a href="mailto:Alialannoon@gmail.com" style="color: #4e9af1;">Alialannoon@gmail.com</a>
+    </p>
+    <p style="margin: 5px 0; color: #95a5a6; font-size: 14px;">
+      We typically respond within 1-2 business days.
+    </p>
+  </div>
+</div>
+</div>
+
 <script>
 let employees = JSON.parse(localStorage.getItem("employees") || "[]");
 let events = JSON.parse(localStorage.getItem("events") || "[]");
@@ -372,6 +429,7 @@ function showTab(id){
   if(id==="scheduleTab") { tabSchBtn.classList.add("active"); displaySchedule(); }
   if(id==="auditTab") { tabAuditBtn.classList.add("active"); renderAuditLog(); }
   if(id==="settingsTab") { tabSettingsBtn.classList.add("active"); loadSettings(); }
+  if(id==="supportTab") { tabSupportBtn.classList.add("active"); }
 }
 
 /* EMPLOYEES */
@@ -1390,6 +1448,58 @@ function saveSettings(){
   
   save();
   alert('Settings saved!');
+}
+
+/* SUPPORT / CONTACT */
+function submitSupport(){
+  const category = document.getElementById('supportCategory').value;
+  const subject = document.getElementById('supportSubject').value.trim();
+  const message = document.getElementById('supportMessage').value.trim();
+  const feedback = document.getElementById('supportFeedback');
+  
+  // Validation
+  if(!subject) {
+    feedback.style.display = 'block';
+    feedback.style.background = '#e74c3c';
+    feedback.style.color = '#fff';
+    feedback.innerHTML = '❌ Please enter a subject';
+    return;
+  }
+  
+  if(!message) {
+    feedback.style.display = 'block';
+    feedback.style.background = '#e74c3c';
+    feedback.style.color = '#fff';
+    feedback.innerHTML = '❌ Please enter a message';
+    return;
+  }
+  
+  // Build email content
+  const emailSubject = `[Scheduler ${category}] ${subject}`;
+  const emailBody = `Category: ${category}\n\n${message}\n\n---\nSent from Seniority Scheduler Dashboard`;
+  
+  // Create mailto link
+  const mailtoLink = `mailto:Alialannoon@gmail.com?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`;
+  
+  // Open email client
+  window.location.href = mailtoLink;
+  
+  // Show success message
+  feedback.style.display = 'block';
+  feedback.style.background = '#27ae60';
+  feedback.style.color = '#fff';
+  feedback.innerHTML = '✅ Your email client should open shortly. Please send the pre-filled email to complete your submission.';
+  
+  // Clear form after a delay
+  setTimeout(() => {
+    document.getElementById('supportSubject').value = '';
+    document.getElementById('supportMessage').value = '';
+    document.getElementById('supportCategory').value = 'Bug';
+  }, 2000);
+  
+  // Log in audit
+  addAuditEntry('Support Request', null, null, null, `${category}: ${subject}`);
+  save();
 }
 
 /* INIT */
