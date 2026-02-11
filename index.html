@@ -268,54 +268,7 @@ td[onclick]:hover, td.clickable:hover { outline:2px dashed #4e9af1; }
   width: 100px;
 }
 
-/* MOBILE SCHEDULE CARDS (hidden on desktop) */
-.mobile-schedule {
-  display: none;
-}
-
-.mobile-employee-card {
-  background: #2e2e3d;
-  border-radius: 8px;
-  padding: 15px;
-  margin-bottom: 15px;
-}
-
-.mobile-employee-card h3 {
-  margin: 0 0 10px 0;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.mobile-day-card {
-  background: #1e1e2f;
-  border-radius: 6px;
-  padding: 10px;
-  margin: 8px 0;
-  border-left: 4px solid #4e9af1;
-}
-
-.mobile-day-header {
-  font-weight: bold;
-  margin-bottom: 5px;
-  color: #4e9af1;
-}
-
-.mobile-shift-info {
-  padding: 8px;
-  border-radius: 4px;
-  cursor: pointer;
-  margin-top: 5px;
-}
-
-.mobile-shift-empty {
-  color: #95a5a6;
-  font-style: italic;
-}
-
-/* RESPONSIVE BREAKPOINTS */
-
-/* TABLET: 768px - 1024px */
+/* RESPONSIVE: Make table scrollable on smaller screens */
 @media (max-width: 1024px) {
   body {
     margin: 10px;
@@ -330,7 +283,7 @@ td[onclick]:hover, td.clickable:hover { outline:2px dashed #4e9af1; }
     font-size: 13px;
   }
   
-  /* Make table scrollable horizontally on tablet */
+  /* Make table scrollable horizontally */
   .schedule-container {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
@@ -356,7 +309,6 @@ td[onclick]:hover, td.clickable:hover { outline:2px dashed #4e9af1; }
   }
 }
 
-/* MOBILE: < 768px */
 @media (max-width: 768px) {
   body {
     margin: 5px;
@@ -366,69 +318,15 @@ td[onclick]:hover, td.clickable:hover { outline:2px dashed #4e9af1; }
     font-size: 18px;
   }
   
-  /* Stack tabs vertically on very small screens if needed */
-  .tabs {
-    gap: 4px;
-  }
-  
   .tabs button {
     padding: 8px 12px;
     font-size: 12px;
-    flex: 1 1 auto;
-  }
-  
-  /* Hide desktop table on mobile */
-  #scheduleTable {
-    display: none;
-  }
-  
-  /* Show mobile card layout */
-  .mobile-schedule {
-    display: block;
   }
   
   /* Make inputs full width on mobile */
   input, select, textarea {
-    width: 100%;
     max-width: 100%;
     box-sizing: border-box;
-  }
-  
-  /* Stack buttons vertically on mobile */
-  button {
-    display: block;
-    width: 100%;
-    margin: 4px 0;
-  }
-  
-  /* Exception: Keep tab buttons inline */
-  .tabs button {
-    display: inline-block;
-    width: auto;
-  }
-  
-  /* Exception: Keep small utility buttons inline */
-  button.delete,
-  button.clear-day-btn {
-    display: inline-block;
-    width: auto;
-    padding: 4px 8px;
-    font-size: 10px;
-    min-height: auto;
-  }
-  
-  /* Tables in other tabs scroll horizontally */
-  table {
-    display: block;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    white-space: nowrap;
-  }
-  
-  thead, tbody, tr {
-    display: table;
-    width: 100%;
-    table-layout: fixed;
   }
   
   th, td {
@@ -436,64 +334,15 @@ td[onclick]:hover, td.clickable:hover { outline:2px dashed #4e9af1; }
     font-size: 12px;
     min-width: 60px;
   }
-  
-  .audit-entry {
-    font-size: 12px;
-    padding: 6px;
-  }
-  
-  .settings-section {
-    padding: 8px;
-  }
-  
-  .setting-row input {
-    width: 100%;
-  }
-}
-
-/* VERY SMALL MOBILE: < 480px */
-@media (max-width: 480px) {
-  h1 {
-    font-size: 16px;
-  }
-  
-  .tabs button {
-    font-size: 11px;
-    padding: 6px 8px;
-  }
-  
-  .mobile-employee-card {
-    padding: 10px;
-  }
-  
-  .mobile-day-card {
-    padding: 8px;
-  }
-  
-  th, td {
-    padding: 3px;
-    font-size: 11px;
-    min-width: 50px;
-  }
 }
 </style>
 </head>
 
 <body>
 
-<h1 style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: space-between;">
-  <span style="display: flex; align-items: center; gap: 10px;">
-    <span style="color: #4e9af1;">BanquetLogic</span>
-    <span style="font-size: 18px; color: #95a5a6;" id="weekHeader"></span>
-  </span>
-  <span style="display: flex; align-items: center; gap: 8px; font-size: 14px;">
-    <span style="color: #95a5a6;">View:</span>
-    <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
-      <span style="color: #95a5a6;">📱 Mobile</span>
-      <input type="checkbox" id="viewToggle" onchange="toggleViewMode()" checked style="margin: 0;">
-      <span style="color: #95a5a6;">🖥️ Desktop</span>
-    </label>
-  </span>
+<h1 style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+  <span style="color: #4e9af1;">BanquetLogic</span>
+  <span style="font-size: 18px; color: #95a5a6;" id="weekHeader"></span>
 </h1>
 
 <button onclick="toggleDarkMode()">Toggle Dark Mode</button>
@@ -627,8 +476,6 @@ td[onclick]:hover, td.clickable:hover { outline:2px dashed #4e9af1; }
 <div class="schedule-container">
   <table id="scheduleTable"></table>
 </div>
-
-<div id="mobileSchedule" class="mobile-schedule"></div>
 </div>
 
 <!-- AUDIT LOG -->
@@ -893,7 +740,6 @@ let settings = JSON.parse(localStorage.getItem("settings") || JSON.stringify({
 }));
 let editingEventId = null;
 let currentWeekOffset = 0;
-let forceDesktopView = true; // Default to desktop view for all devices
 
 // Initialize day preferences for existing employees (backward compatibility)
 employees.forEach(emp => {
@@ -953,25 +799,6 @@ function showTab(id){
   if(id==="demoTab") { tabDemoBtn.classList.add("active"); }
 }
 
-function toggleViewMode() {
-  forceDesktopView = document.getElementById('viewToggle').checked;
-  
-  // Apply/remove force desktop class
-  const scheduleTable = document.getElementById('scheduleTable');
-  const mobileSchedule = document.getElementById('mobileSchedule');
-  
-  if(forceDesktopView) {
-    // Force desktop view - override media queries
-    scheduleTable.style.display = 'table';
-    mobileSchedule.style.display = 'none';
-  } else {
-    // Auto-responsive (CSS media queries handle it)
-    scheduleTable.style.display = '';
-    mobileSchedule.style.display = '';
-  }
-  
-  console.log(`View mode: ${forceDesktopView ? 'Forced Desktop' : 'Auto-Responsive'}`);
-}
 
 function showGenerationRules() {
   const assignmentStyle = settings.assignmentStyle || 'strict';
@@ -2534,15 +2361,14 @@ function generateSchedule(){
 
 /* SCHEDULE DISPLAY */
 function displaySchedule(){
-  // This function just DISPLAYS the current schedule (manual edits + locked cells)
-  scheduleTable.innerHTML="";
-  const mobileSchedule = document.getElementById('mobileSchedule');
-  mobileSchedule.innerHTML = "";
-  
-  const start=getWeekStart();
-  const days=[...Array(7)].map((_,i)=>{
-    const d=new Date(start);
-    d.setDate(start.getDate()+i);
+  try {
+    // This function just DISPLAYS the current schedule (manual edits + locked cells)
+    scheduleTable.innerHTML="";
+    
+    const start=getWeekStart();
+    const days=[...Array(7)].map((_,i)=>{
+      const d=new Date(start);
+      d.setDate(start.getDate()+i);
     return d;
   });
 
@@ -2655,9 +2481,13 @@ function displaySchedule(){
           // Create audit tooltip (hidden by default)
           const auditDiv = document.createElement('div');
           auditDiv.className = 'audit-explanation';
+          
+          // Safety check: ensure assignmentReasons is an array
+          const reasons = Array.isArray(assignmentReasons[key]) ? assignmentReasons[key] : [];
+          
           auditDiv.innerHTML = `
             <div class="audit-explanation-title">Why ${emp.name} was assigned:</div>
-            ${assignmentReasons[key].map(reason => 
+            ${reasons.map(reason => 
               reason === '' ? '<br>' : `<div class="audit-explanation-item">${reason}</div>`
             ).join('')}
           `;
@@ -2720,190 +2550,6 @@ function displaySchedule(){
     scheduleTable.appendChild(row);
   });
   
-  // ========== MOBILE CARD VIEW ==========
-  try {
-    employees.filter(e=>!e.retired).forEach(emp=>{
-      let totalHours = 0;
-      let totalDays = 0;
-      const currentEmpId = emp.id; // Capture ID explicitly
-      
-      const empCard = document.createElement('div');
-      empCard.className = 'mobile-employee-card';
-      
-      const empHeader = document.createElement('h3');
-      const isRowLocked = lockedRows[currentEmpId];
-      
-      const empNameSpan = document.createElement('span');
-      empNameSpan.textContent = emp.name;
-      
-      const lockSpan = document.createElement('span');
-      lockSpan.style.cursor = 'pointer';
-      lockSpan.style.fontSize = '20px';
-      lockSpan.textContent = isRowLocked ? '🔒' : '🔓';
-      lockSpan.title = isRowLocked ? 'Unlock row' : 'Lock row';
-      lockSpan.onclick = (function(empId) {
-        return function() { toggleRowLock(empId); };
-      })(currentEmpId);
-      
-      empHeader.appendChild(empNameSpan);
-      empHeader.appendChild(lockSpan);
-      empCard.appendChild(empHeader);
-    
-    days.forEach(d => {
-      const dateStr = iso(d);
-      const key = currentEmpId + "_" + dateStr;
-      
-      const dayCard = document.createElement('div');
-      dayCard.className = 'mobile-day-card';
-      
-      const dayHeader = document.createElement('div');
-      dayHeader.className = 'mobile-day-header';
-      dayHeader.textContent = d.toLocaleDateString(undefined, {weekday: 'long', month: 'short', day: 'numeric'});
-      dayCard.appendChild(dayHeader);
-      
-      const shiftInfo = document.createElement('div');
-      shiftInfo.className = 'mobile-shift-info';
-      shiftInfo.onclick = (function(empId, date) {
-        return function() { editScheduleCell(empId, date); };
-      })(currentEmpId, dateStr);
-      
-      const isLocked = lockedCells[key];
-      
-      if(manualEdits[key]) {
-        const edit = manualEdits[key];
-        
-        if(edit.status === 'sick') {
-          shiftInfo.style.background = '#95a5a6';
-          shiftInfo.innerHTML = '<strong>SICK</strong>';
-        } else if(edit.status === 'vacation') {
-          shiftInfo.style.background = '#3498db';
-          shiftInfo.innerHTML = '<strong>VACATION</strong>';
-        } else {
-          const h = edit.hours || edit;
-          totalHours += h;
-          totalDays++;
-          
-          const shiftClass = getShiftClassByHours(h);
-          shiftInfo.className += ' ' + shiftClass;
-          
-          if(isLocked) {
-            shiftInfo.innerHTML = `🔒 <strong>${h}h</strong>`;
-          } else {
-            shiftInfo.innerHTML = `<strong>${h}h</strong>`;
-          }
-          
-          if(edit.start && edit.end) {
-            shiftInfo.innerHTML += `<br><small>${edit.start} – ${edit.end}</small>`;
-          }
-          
-          const conflicts = detectConflicts(currentEmpId, dateStr, edit.start, edit.end);
-          if(conflicts.length > 0) {
-            shiftInfo.innerHTML = '⚠️ ' + shiftInfo.innerHTML;
-            shiftInfo.title = 'Conflict: ' + conflicts.join(', ');
-          }
-          
-          // NEW: Add audit explanation for mobile
-          const hasAuditReason = assignmentReasons[key];
-          if(hasAuditReason) {
-            shiftInfo.innerHTML += ' <span style="font-size:10px; opacity:0.8;">ℹ️</span>';
-            
-            // Create hidden audit explanation div
-            const auditDiv = document.createElement('div');
-            auditDiv.style.display = 'none';
-            auditDiv.style.marginTop = '10px';
-            auditDiv.style.padding = '10px';
-            auditDiv.style.background = '#2e2e3d';
-            auditDiv.style.border = '2px solid #4e9af1';
-            auditDiv.style.borderRadius = '6px';
-            auditDiv.style.fontSize = '12px';
-            auditDiv.style.lineHeight = '1.4';
-            
-            auditDiv.innerHTML = `
-              <div style="font-weight: bold; color: #4e9af1; margin-bottom: 8px; border-bottom: 1px solid #4e9af1; padding-bottom: 5px;">
-                Why ${emp.name} was assigned:
-              </div>
-              ${assignmentReasons[key].map(reason => 
-                reason === '' ? '<div style="height:5px;"></div>' : 
-                `<div style="margin: 3px 0; padding-left: 15px; position: relative;">
-                  <span style="position: absolute; left: 5px; color: #27ae60;">•</span>
-                  ${reason}
-                </div>`
-              ).join('')}
-            `;
-            
-            // Add close button container and button
-            const closeBtnContainer = document.createElement('div');
-            closeBtnContainer.style.cssText = 'margin-top: 10px; text-align: center;';
-            
-            const closeBtn = document.createElement('button');
-            closeBtn.textContent = 'Close';
-            closeBtn.style.cssText = 'background: #e74c3c; color: #fff; border: none; padding: 5px 15px; border-radius: 4px; cursor: pointer;';
-            closeBtn.onclick = function() {
-              auditDiv.style.display = 'none';
-            };
-            
-            closeBtnContainer.appendChild(closeBtn);
-            auditDiv.appendChild(closeBtnContainer);
-            
-            dayCard.appendChild(auditDiv);
-            
-            // Override click to show/hide audit first, then edit
-            shiftInfo.onclick = (function(empId, date, auditElement) {
-              let auditShown = false;
-              return function(e) {
-                if(!auditShown) {
-                  // First tap: show audit
-                  auditElement.style.display = 'block';
-                  auditShown = true;
-                  e.stopPropagation();
-                } else {
-                  // Second tap: hide audit and open edit
-                  auditElement.style.display = 'none';
-                  auditShown = false;
-                  editScheduleCell(empId, date);
-                }
-              };
-            })(currentEmpId, dateStr, auditDiv);
-          }
-        }
-      } else {
-        shiftInfo.className += ' mobile-shift-empty';
-        shiftInfo.innerHTML = isLocked ? '🔒 Off' : 'Off';
-      }
-      
-      dayCard.appendChild(shiftInfo);
-      empCard.appendChild(dayCard);
-    });
-    
-    // Add summary footer
-    const summary = document.createElement('div');
-    summary.style.marginTop = '10px';
-    summary.style.padding = '10px';
-    summary.style.background = '#1e1e2f';
-    summary.style.borderRadius = '6px';
-    summary.style.display = 'flex';
-    summary.style.justifyContent = 'space-between';
-    
-    const empMaxDays = emp.maxDaysPerWeek !== undefined ? emp.maxDaysPerWeek : 5;
-    const totalHtml = `<strong>Total: ${totalHours}h</strong>`;
-    let daysHtml = `<strong>Days: ${totalDays}/${empMaxDays}</strong>`;
-    
-    if(totalDays >= empMaxDays) {
-      daysHtml = `<strong style="color:#e74c3c;">Days: ${totalDays}/${empMaxDays} ⚠️</strong>`;
-    } else if(totalDays >= empMaxDays - 1) {
-      daysHtml = `<strong style="color:#f39c12;">Days: ${totalDays}/${empMaxDays}</strong>`;
-    }
-    
-    summary.innerHTML = `<span>${totalHtml}</span><span>${daysHtml}</span>`;
-    empCard.appendChild(summary);
-    
-    mobileSchedule.appendChild(empCard);
-  });
-  } catch(error) {
-    console.error('Mobile view rendering error:', error);
-    // Mobile view failed, but desktop view should still work
-    mobileSchedule.innerHTML = '<div style="padding: 20px; color: #e74c3c;">Mobile view unavailable. Please use desktop view toggle above.</div>';
-  }
   
   // Update global lock button state
   const btn = document.getElementById('globalLockBtn');
@@ -2915,6 +2561,11 @@ function displaySchedule(){
       btn.innerHTML = '🔓 Unlock Schedule';
       btn.style.background = '#f39c12';
     }
+  }
+  } catch(error) {
+    console.error('Error in displaySchedule:', error);
+    console.error('Error details:', error.message, error.stack);
+    scheduleTable.innerHTML = '<tr><td colspan="10" style="padding: 20px; color: #e74c3c; text-align: center;">Error displaying schedule. Please check console for details.</td></tr>';
   }
 }
 
@@ -3595,10 +3246,14 @@ function demoStep11_Complete() {
 }
 
 /* INIT */
-renderEmployees();
-renderEvents();
-showTab("employeesTab");
-toggleViewMode(); // Apply desktop view by default
+try {
+  renderEmployees();
+  renderEvents();
+  showTab("employeesTab");
+} catch(error) {
+  console.error('Initialization error:', error);
+  alert('Error loading BanquetLogic. Please refresh the page.\n\nError: ' + error.message);
+}
 </script>
 </body>
 </html>
