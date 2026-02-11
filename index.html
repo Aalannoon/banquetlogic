@@ -56,7 +56,7 @@ th { background:#4e9af1; color:#fff; }
 .shift-4 { background:#2ecc71; }      /* Green - 4 hours */
 .shift-5 { background:#3498db; }      /* Blue - 5 hours */
 .shift-6 { background:#e67e22; }      /* Orange - 6 hours */
-.shift-7 { background:#e67e22; }      /* Orange - 7 hours */
+.shift-7 { background:#e91e63; }      /* Pink - 7 hours */
 .shift-8 { background:#f1c40f; color:#000; }  /* Yellow - 8 hours */
 .shift-ot { background:#9b59b6; }     /* Purple - overtime (>8) */
 
@@ -429,13 +429,83 @@ function normalizeHours(start, end){
 }
 
 /* SCHEDULE FUNCTIONS */
-function editScheduleCell(empId,date){
-  const key=empId+"_"+date;
-  const val=prompt("Enter hours (4, 5, 6, 7, 8, or 9+ for OT). Blank removes shift.",manualEdits[key]||"");
-  if(val===null) return;
-  if(val==="") delete manualEdits[key];
-  else manualEdits[key]=Number(val);
-  save(); generateSchedule();
+function editScheduleCell(empId, date){
+  const key = empId + "_" + date;
+  const emp = employees.find(e => e.id === empId);
+  const ev = events.find(e => e.date === date);
+  
+  // Build the edit dialog
+  let currentEdit = manualEdits[key];
+  let dialog = `Edit shift for ${emp.name} on ${date}:\n\n`;
+  dialog += `Options:\n`;
+  dialog += `1. Set custom hours only (e.g., "5" for 5 hours)\n`;
+  dialog += `2. Set hours + times (e.g., "6,09:00,15:30")\n`;
+  dialog += `3. Mark as SICK (enter "sick")\n`;
+  dialog += `4. Mark as VACATION (enter "vacation")\n`;
+  dialog += `5. Clear shift (leave blank)\n\n`;
+  
+  if(currentEdit) {
+    if(currentEdit.status === 'sick') {
+      dialog += `Current: SICK\n`;
+    } else if(currentEdit.status === 'vacation') {
+      dialog += `Current: VACATION\n`;
+    } else if(currentEdit.start && currentEdit.end) {
+      dialog += `Current: ${currentEdit.hours}h (${currentEdit.start}-${currentEdit.end})\n`;
+    } else {
+      dialog += `Current: ${currentEdit.hours || currentEdit}h\n`;
+    }
+  } else if(ev) {
+    dialog += `Auto-generated from event: ${ev.name}\n`;
+  }
+  
+  const input = prompt(dialog);
+  
+  if(input === null) return; // Cancelled
+  
+  // Clear shift
+  if(input === "") {
+    delete manualEdits[key];
+    save(); 
+    generateSchedule();
+    return;
+  }
+  
+  // Mark as sick
+  if(input.toLowerCase() === 'sick') {
+    manualEdits[key] = { status: 'sick' };
+    save();
+    generateSchedule();
+    return;
+  }
+  
+  // Mark as vacation
+  if(input.toLowerCase() === 'vacation') {
+    manualEdits[key] = { status: 'vacation' };
+    save();
+    generateSchedule();
+    return;
+  }
+  
+  // Parse input
+  const parts = input.split(',').map(p => p.trim());
+  
+  if(parts.length === 1) {
+    // Just hours
+    manualEdits[key] = { hours: Number(parts[0]) };
+  } else if(parts.length === 3) {
+    // Hours + start + end
+    manualEdits[key] = {
+      hours: Number(parts[0]),
+      start: parts[1],
+      end: parts[2]
+    };
+  } else {
+    alert('Invalid format. Use: hours OR hours,start,end OR sick OR vacation');
+    return;
+  }
+  
+  save(); 
+  generateSchedule();
 }
 
 function clearDay(dateStr){
@@ -497,10 +567,37 @@ function generateSchedule(){
 
       // Manual edit override
       if(manualEdits[key]){
-        const h = manualEdits[key];
+        const edit = manualEdits[key];
+        
+        // Handle sick status
+        if(edit.status === 'sick') {
+          cell.style.background = '#95a5a6';
+          cell.innerHTML = 'SICK';
+          cell.onclick = () => editScheduleCell(emp.id, dateStr);
+          row.appendChild(cell);
+          return;
+        }
+        
+        // Handle vacation status
+        if(edit.status === 'vacation') {
+          cell.style.background = '#3498db';
+          cell.innerHTML = 'VAC';
+          cell.onclick = () => editScheduleCell(emp.id, dateStr);
+          row.appendChild(cell);
+          return;
+        }
+        
+        // Handle hour edits (with or without custom times)
+        const h = edit.hours || edit;
         total += h;
         cell.className = getShiftClassByHours(h);
-        cell.innerHTML = `${h}h`;
+        
+        if(edit.start && edit.end) {
+          cell.innerHTML = `${h}h<br><small>${edit.start}–${edit.end}</small>`;
+        } else {
+          cell.innerHTML = `${h}h`;
+        }
+        
         cell.onclick = () => editScheduleCell(emp.id, dateStr);
         row.appendChild(cell);
         return;
