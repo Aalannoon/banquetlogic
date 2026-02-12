@@ -406,16 +406,30 @@ body.light-mode .audit-empty { color: #6b7280; background: #f9fafb; border-color
 
 /* PRINT */
 @media print {
-  body { background:#fff !important; color:#000 !important; padding: 6px 12px 0 12px !important; margin: 0 !important; }
+  body { background:#fff !important; color:#000 !important; padding: 0 12px 0 12px !important; margin: 0 !important; }
   .tabs, button, input, select, textarea { display:none !important; }
   .tab { display:none !important; }
   #scheduleTab { display:block !important; padding: 0 !important; margin: 0 !important; }
   #scheduleTab h2 { display: none !important; }
-  /* Compact header: keep visible but reduce vertical space */
-  .app-header { padding: 6px 0 8px 0 !important; margin-bottom: 6px !important; }
+  /* Header: no top margin/padding, keep with schedule (no page break after) */
+  .app-header {
+    padding: 0 0 6px 0 !important;
+    margin: 0 0 4px 0 !important;
+    page-break-after: avoid !important;
+    page-break-inside: avoid !important;
+    position: static !important;
+  }
   .app-header .logo-wordmark { font-size: 1.1rem !important; }
   .tagline { font-size: 12px !important; margin: 0 !important; }
   .week-header { font-size: 12px !important; }
+  /* Schedule: no break before so header and table stay on same first page */
+  .schedule-container {
+    margin: 0 !important;
+    padding: 0 !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    page-break-before: avoid !important;
+  }
   /* Hide all UI-only instructional text and controls */
   .schedule-actions,
   .schedule-grid-helper,
@@ -425,19 +439,19 @@ body.light-mode .audit-empty { color: #6b7280; background: #f9fafb; border-color
   .demo-tip,
   .demo-tip-visible,
   .schedule-why-link { display: none !important; }
-  /* Schedule container: no gap below header */
-  .schedule-container { margin: 0 !important; padding: 0 !important; min-height: 0 !important; overflow: visible !important; }
-  table { font-size:12px; page-break-inside: avoid; border-collapse: collapse !important; }
-  #scheduleTable { border-collapse: collapse !important; }
+  /* Table: allow page breaks between rows only; repeat thead on each page */
+  table { font-size: 13px; border-collapse: collapse !important; }
+  #scheduleTable { border-collapse: collapse !important; page-break-inside: auto !important; }
+  #scheduleTable thead { display: table-header-group !important; }
+  #scheduleTable tbody tr { page-break-inside: avoid !important; page-break-after: auto !important; }
   #scheduleTable th,
-  #scheduleTable td { border: 1px solid #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  #scheduleTable td { border: 1px solid #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; padding: 7px 6px !important; }
   th { background:#ddd !important; color:#000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .locked-cell::after, .conflict-cell::before { display: none !important; }
   .shift-4, .shift-5, .shift-6, .shift-7, .shift-8, .shift-ot {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
-  /* Days Worked column: min-width and alignment for print */
   #scheduleTable th:last-child,
   #scheduleTable td:last-child { min-width: 4.5em !important; white-space: nowrap !important; text-align: center !important; }
   #scheduleTable th:nth-last-child(2),
@@ -446,7 +460,6 @@ body.light-mode .audit-empty { color: #6b7280; background: #f9fafb; border-color
   .logo-icon { color: #000 !important; }
   .logo-icon-wrap { background: transparent !important; border-color: #ccc !important; }
   .app-header { border-bottom-color: #ccc !important; background: transparent !important; }
-  /* Hide lock column and all lock controls in schedule */
   #scheduleTable th:first-child,
   #scheduleTable td:first-child { display: none !important; }
 }
@@ -455,40 +468,56 @@ body.light-mode .audit-empty { color: #6b7280; background: #f9fafb; border-color
 body.print-pending * { transition: none !important; }
 body.print-pending { max-width: 100% !important; }
 
-/* PDF capture: off-screen container with print-like styling for html2canvas */
+/* PDF capture: off-screen container for html2canvas (schedule only) */
 .pdf-capture-view {
   position: fixed;
   left: -99999px;
   top: 0;
-  width: 800px;
+  width: 1100px;
   background: #fff;
   color: #000;
-  padding: 6px 12px 12px 12px;
+  padding: 0 10px 10px 10px;
+  margin: 0;
   box-sizing: border-box;
   z-index: -1;
   pointer-events: none;
 }
 .pdf-capture-view .pdf-header {
-  padding: 6px 0 8px 0;
-  margin-bottom: 6px;
+  padding: 0 0 6px 0;
+  margin: 0 0 6px 0;
   border-bottom: 1px solid #ccc;
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   flex-wrap: wrap;
 }
 .pdf-capture-view .pdf-header .logo-wordmark { font-size: 1.1rem; color: #000; margin: 0; }
 .pdf-capture-view .pdf-header .week-header { font-size: 12px; color: #000; }
+.pdf-capture-view .pdf-header-compact .logo-wordmark { font-size: 0.95rem; }
+.pdf-capture-view .pdf-header-compact .week-header { font-size: 11px; }
+.pdf-capture-view .pdf-header-compact { padding: 0 0 4px 0; margin: 0 0 4px 0; }
 .pdf-capture-view table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: 13px;
+  line-height: 1.35;
 }
 .pdf-capture-view th,
-.pdf-capture-view td { border: 1px solid #000; padding: 6px 8px; }
+.pdf-capture-view td {
+  border: 1px solid #000;
+  padding: 8px 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .pdf-capture-view th { background: #ddd; color: #000; }
 .pdf-capture-view th:first-child,
 .pdf-capture-view td:first-child { display: none; }
+.pdf-capture-view colgroup col:nth-child(1) { width: 0; }
+.pdf-capture-view colgroup col:nth-child(2) { width: 14%; }
+.pdf-capture-view colgroup col:nth-child(n+3):nth-child(-n+9) { width: 9.2%; }
+.pdf-capture-view colgroup col:nth-child(10) { width: 7%; }
+.pdf-capture-view colgroup col:nth-child(11) { width: 7%; }
 .pdf-capture-view .shift-4, .pdf-capture-view .shift-5, .pdf-capture-view .shift-6,
 .pdf-capture-view .shift-7, .pdf-capture-view .shift-8, .pdf-capture-view .shift-ot {
   -webkit-print-color-adjust: exact; print-color-adjust: exact;
@@ -4348,47 +4377,94 @@ function saveSchedulePDF(){
   showTab("scheduleTab");
   var start = getWeekStart();
   var filename = "BanquetLogic_Weekly_Schedule_" + iso(start) + ".pdf";
-  var wrap = document.createElement("div");
-  wrap.className = "pdf-capture-view";
-  wrap.setAttribute("aria-hidden", "true");
   var weekEl = document.getElementById("weekHeader");
   var weekText = weekEl ? weekEl.textContent : (start.toLocaleDateString() + " – week");
-  var header = document.createElement("div");
-  header.className = "pdf-header";
-  header.innerHTML = "<span class=\"logo-wordmark\">BanquetLogic</span><span class=\"week-header\">" + (weekText.replace(/</g, "&lt;").replace(/>/g, "&gt;")) + "</span>";
-  wrap.appendChild(header);
+  var safeWeek = (weekText || "").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   var table = document.getElementById("scheduleTable");
   if (!table || !table.rows.length) {
-    wrap.remove();
     alert("No schedule to export. Add employees and events, then Generate.");
     return;
   }
-  var tableClone = table.cloneNode(true);
-  wrap.appendChild(tableClone);
-  document.body.appendChild(wrap);
-  setTimeout(function() {
-    if (typeof html2canvas === "undefined") {
-      wrap.remove();
-      alert("PDF export is not available. Please refresh the page.");
-      return;
-    }
-    html2canvas(wrap, { scale: 2, backgroundColor: "#ffffff", useCORS: true, logging: false, allowTaint: true }).then(function(canvas) {
-      wrap.remove();
-      var JsPDF = (typeof jspdf !== "undefined" && jspdf.jsPDF) ? jspdf.jsPDF : (window.jspdf && window.jspdf.jsPDF);
-      if (!JsPDF) {
-        alert("PDF library not loaded. Please refresh the page.");
-        return;
-      }
-      var doc = new JsPDF("landscape", "mm", "a4");
-      var pageW = doc.internal.pageSize.getWidth();
-      var pageH = doc.internal.pageSize.getHeight();
-      var r = canvas.height / canvas.width;
-      var wMm = pageW * 0.95;
-      var hMm = r * wMm;
-      if (hMm > pageH * 0.95) { hMm = pageH * 0.95; wMm = hMm / r; }
-      var x = (pageW - wMm) / 2;
-      var y = (pageH - hMm) / 2;
-      doc.addImage(canvas.toDataURL("image/jpeg", 0.92), "JPEG", x, y, wMm, hMm);
+  var JsPDF = (typeof jspdf !== "undefined" && jspdf.jsPDF) ? jspdf.jsPDF : (window.jspdf && window.jspdf.jsPDF);
+  if (!JsPDF) {
+    alert("PDF library not loaded. Please refresh the page.");
+    return;
+  }
+  if (typeof html2canvas === "undefined") {
+    alert("PDF export is not available. Please refresh the page.");
+    return;
+  }
+  var ROWS_PER_PAGE = 10;
+  var CAPTURE_SCALE = 2.5;
+  var thead = table.querySelector("thead");
+  var tbody = table.querySelector("tbody");
+  var allRows = tbody ? [].slice.call(tbody.rows) : [];
+  var totalPages = Math.max(1, Math.ceil(allRows.length / ROWS_PER_PAGE));
+
+  function makeColgroup(tbl) {
+    var cg = document.createElement("colgroup");
+    for (var i = 0; i < 11; i++) cg.appendChild(document.createElement("col"));
+    if (tbl.firstChild) tbl.insertBefore(cg, tbl.firstChild);
+  }
+
+  function buildPageWrap(isFirstPage, rowStart, rowEnd) {
+    var wrap = document.createElement("div");
+    wrap.className = "pdf-capture-view";
+    wrap.setAttribute("aria-hidden", "true");
+    var header = document.createElement("div");
+    header.className = "pdf-header" + (isFirstPage ? "" : " pdf-header-compact");
+    header.innerHTML = "<span class=\"logo-wordmark\">BanquetLogic</span><span class=\"week-header\">" + safeWeek + "</span>";
+    wrap.appendChild(header);
+    var tbl = document.createElement("table");
+    if (thead) tbl.appendChild(thead.cloneNode(true));
+    makeColgroup(tbl);
+    var tbodyClone = document.createElement("tbody");
+    for (var r = rowStart; r < rowEnd && r < allRows.length; r++) tbodyClone.appendChild(allRows[r].cloneNode(true));
+    tbl.appendChild(tbodyClone);
+    wrap.appendChild(tbl);
+    return wrap;
+  }
+
+  function capturePage(wrap) {
+    return new Promise(function(resolve, reject) {
+      document.body.appendChild(wrap);
+      setTimeout(function() {
+        html2canvas(wrap, {
+          scale: CAPTURE_SCALE,
+          backgroundColor: "#ffffff",
+          useCORS: true,
+          logging: false,
+          allowTaint: true
+        }).then(function(canvas) {
+          wrap.remove();
+          resolve(canvas);
+        }).catch(function(err) {
+          wrap.remove();
+          reject(err);
+        });
+      }, 60);
+    });
+  }
+
+  var doc = new JsPDF("landscape", "mm", "a4");
+  var pageW = doc.internal.pageSize.getWidth();
+  var pageH = doc.internal.pageSize.getHeight();
+  var imgWmm = pageW;
+  var imgHmm = pageH;
+
+  function addPageFromCanvas(canvas, isFirst) {
+    var r = canvas.height / canvas.width;
+    var wMm = imgWmm;
+    var hMm = r * wMm;
+    if (hMm > pageH) { hMm = pageH; wMm = hMm / r; }
+    var x = (pageW - wMm) / 2;
+    var y = (pageH - hMm) / 2;
+    doc.addImage(canvas.toDataURL("image/jpeg", 0.92), "JPEG", x, y, wMm, hMm);
+  }
+
+  var pageIndex = 0;
+  function nextPage() {
+    if (pageIndex >= totalPages) {
       try {
         doc.save(filename);
       } catch (e) {
@@ -4400,12 +4476,23 @@ function saveSchedulePDF(){
         a.click();
         setTimeout(function() { URL.revokeObjectURL(url); }, 100);
       }
+      return;
+    }
+    var rowStart = pageIndex * ROWS_PER_PAGE;
+    var rowEnd = rowStart + ROWS_PER_PAGE;
+    var wrap = buildPageWrap(pageIndex === 0, rowStart, rowEnd);
+    capturePage(wrap).then(function(canvas) {
+      if (pageIndex > 0) doc.addPage("a4", "l");
+      addPageFromCanvas(canvas, pageIndex === 0);
+      pageIndex++;
+      nextPage();
     }).catch(function(err) {
-      wrap.remove();
       console.error("PDF capture failed", err);
       alert("Could not generate PDF. Try Print instead.");
     });
-  }, 50);
+  }
+
+  nextPage();
 }
 
 /* SCHEDULE EXPORT (isolated; does not affect scheduling logic) */
