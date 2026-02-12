@@ -368,6 +368,39 @@ body.light-mode .demo-tip {
   0%, 100% { box-shadow: 0 0 0 0 rgba(78, 154, 241, 0.5); }
   50% { box-shadow: 0 0 0 8px rgba(78, 154, 241, 0); }
 }
+
+/* Edit employee modal */
+#employeeEditModalOverlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+}
+#employeeEditModalOverlay.employee-edit-visible {
+  display: flex;
+}
+#employeeEditModal {
+  background: #2c3e50;
+  color: #ecf0f1;
+  padding: 24px;
+  border-radius: 12px;
+  min-width: 320px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+}
+#employeeEditModal h3 { margin-top: 0; color: #4e9af1; }
+#employeeEditModal .edit-row { margin: 12px 0; }
+#employeeEditModal label { display: block; margin-bottom: 4px; font-size: 13px; color: #bdc3c7; }
+#employeeEditModal select, #employeeEditModal input[type="checkbox"] { margin-right: 8px; }
+#employeeEditModal .edit-actions { margin-top: 20px; display: flex; gap: 10px; }
+#employeeEditModal .edit-actions button { padding: 10px 20px; border-radius: 6px; cursor: pointer; border: none; font-weight: bold; }
+#employeeEditModal .edit-actions .save-btn { background: #27ae60; color: #fff; }
+#employeeEditModal .edit-actions .cancel-btn { background: #7f8c8d; color: #fff; }
+body.light-mode #employeeEditModal { background: #ecf0f1; color: #2c3e50; }
+body.light-mode #employeeEditModal h3 { color: #2980b9; }
+body.light-mode #employeeEditModal label { color: #7f8c8d; }
 </style>
 </head>
 
@@ -469,6 +502,36 @@ body.light-mode .demo-tip {
 </thead>
 <tbody id="employeesTable"></tbody>
 </table>
+</div>
+
+<div id="employeeEditModalOverlay" class="employee-edit-overlay">
+  <div id="employeeEditModal">
+    <h3 id="employeeEditTitle">Edit employee</h3>
+    <p id="employeeEditName" style="margin: 0 0 16px 0; font-size: 15px;"></p>
+    <div class="edit-row">
+      <label for="employeeEditType">Full-time / Part-time</label>
+      <select id="employeeEditType">
+        <option value="FT">Full-time (FT)</option>
+        <option value="PT">Part-time (PT)</option>
+      </select>
+    </div>
+    <div class="edit-row">
+      <label for="employeeEditPref">AM / PM preference</label>
+      <select id="employeeEditPref">
+        <option value="">No preference</option>
+        <option value="AM">AM (morning)</option>
+        <option value="PM">PM (afternoon)</option>
+      </select>
+    </div>
+    <div class="edit-row">
+      <label><input type="checkbox" id="employeeEditSick" /> Mark as sick (unavailable this week)</label>
+    </div>
+    <p style="font-size: 12px; color: #95a5a6; margin: 12px 0 0 0;">Changes apply to future schedule generation only. Existing shifts are not changed.</p>
+    <div class="edit-actions">
+      <button type="button" class="save-btn" id="employeeEditSaveBtn">Save</button>
+      <button type="button" class="cancel-btn" id="employeeEditCancelBtn">Cancel</button>
+    </div>
+  </div>
 </div>
 
 <!-- EVENTS -->
@@ -1758,30 +1821,65 @@ function setMaxDaysPerWeek(empId, maxDays) {
   console.log(`${emp.name} max days set to ${maxDays}/week`);
 }
 
+var editingEmployeeId = null;
+
 function viewEmployeeInfo(empId) {
   const emp = employees.find(e => e.id === empId);
+  if (!emp) return;
+  editingEmployeeId = empId;
   
-  let info = `Employee Information: ${emp.name}\n`;
-  info += `━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
-  info += `Name: ${emp.name}\n`;
-  info += `Type: ${emp.type}\n`;
-  info += `Seniority: ${emp.seniority}\n`;
-  info += `Preference: ${emp.pref || 'None'}\n`;
-  info += `Max Days/Week: ${emp.maxDaysPerWeek || 5}\n\n`;
+  document.getElementById('employeeEditTitle').textContent = 'Edit employee';
+  document.getElementById('employeeEditName').textContent = emp.name;
+  document.getElementById('employeeEditType').value = emp.type || 'FT';
+  document.getElementById('employeeEditPref').value = emp.pref || '';
+  document.getElementById('employeeEditSick').checked = !!emp.sick;
   
-  info += `📧 Email: ${emp.email || '(not set - required for schedule sending)'}\n`;
-  info += `🆔 Employee ID: ${emp.employeeId || '(optional - not set)'}\n`;
-  info += `📅 Hire Date: ${emp.hireDate ? new Date(emp.hireDate).toLocaleDateString() : '(optional - not set)'}\n`;
-  info += `🎂 Birthdate: ${emp.birthdate ? new Date(emp.birthdate).toLocaleDateString() : '(optional - not set)'}\n\n`;
+  var overlay = document.getElementById('employeeEditModalOverlay');
+  overlay.classList.add('employee-edit-visible');
+}
+
+function closeEmployeeEditModal() {
+  editingEmployeeId = null;
+  document.getElementById('employeeEditModalOverlay').classList.remove('employee-edit-visible');
+}
+
+function saveEmployeeEdit() {
+  if (!editingEmployeeId) return;
+  const emp = employees.find(e => e.id === editingEmployeeId);
+  if (!emp) return;
   
-  info += `Status:\n`;
-  info += `- Sick: ${emp.sick ? 'Yes' : 'No'}\n`;
-  info += `- Retired: ${emp.retired ? 'Yes' : 'No'}\n\n`;
+  var typeEl = document.getElementById('employeeEditType');
+  var prefEl = document.getElementById('employeeEditPref');
+  var sickEl = document.getElementById('employeeEditSick');
   
-  info += `Note: Hire date does not affect seniority ranking.\n`;
-  info += `Seniority is manually set and independent of hire date.`;
+  var oldType = emp.type;
+  var oldPref = emp.pref || '';
+  var oldSick = emp.sick;
   
-  alert(info);
+  emp.type = typeEl.value;
+  emp.pref = prefEl.value || null;
+  emp.sick = sickEl.checked;
+  
+  var changes = [];
+  if (oldType !== emp.type) changes.push('type ' + oldType + ' → ' + emp.type);
+  if (oldPref !== (emp.pref || '')) changes.push('preference ' + (oldPref || 'none') + ' → ' + (emp.pref || 'none'));
+  if (oldSick !== emp.sick) changes.push('sick ' + (oldSick ? 'yes' : 'no') + ' → ' + (emp.sick ? 'yes' : 'no'));
+  
+  if (changes.length) {
+    addAuditEntry('Employee Updated', emp.id, null, changes.join('; '), emp.name);
+  }
+  
+  save();
+  renderEmployees();
+  closeEmployeeEditModal();
+}
+
+function initEmployeeEditModal() {
+  document.getElementById('employeeEditSaveBtn').onclick = saveEmployeeEdit;
+  document.getElementById('employeeEditCancelBtn').onclick = closeEmployeeEditModal;
+  document.getElementById('employeeEditModalOverlay').onclick = function(e) {
+    if (e.target === this) closeEmployeeEditModal();
+  };
 }
 
 /* EVENTS */
@@ -3367,6 +3465,7 @@ function demoStep11_Complete() {
 
 /* INIT */
 try {
+  initEmployeeEditModal();
   renderEmployees();
   renderEvents();
   showTab("employeesTab");
