@@ -401,6 +401,8 @@ body.light-mode .demo-tip {
 body.light-mode #employeeEditModal { background: #ecf0f1; color: #2c3e50; }
 body.light-mode #employeeEditModal h3 { color: #2980b9; }
 body.light-mode #employeeEditModal label { color: #7f8c8d; }
+
+.override-indicator { color: #f39c12; font-size: 12px; cursor: help; }
 </style>
 </head>
 
@@ -2211,6 +2213,67 @@ function toggleLock(empId, date){
   displaySchedule(); // Just refresh display, don't regenerate
 }
 
+var OVERRIDE_REASONS = [
+  'Manager discretion',
+  'Training / development',
+  'Employee request',
+  'Coverage need',
+  'Other'
+];
+
+function getEligibleEmployeesForDate(dateStr) {
+  return employees.filter(function(e) {
+    if (e.retired || e.sick) return false;
+    var vk = e.id + '_' + dateStr;
+    if (manualEdits[vk] && manualEdits[vk].status === 'vacation') return false;
+    return true;
+  });
+}
+
+function getEmployeesWithShiftOnDate(dateStr) {
+  return employees.filter(function(e) {
+    if (e.retired) return false;
+    var k = e.id + '_' + dateStr;
+    var edit = manualEdits[k];
+    return edit && edit.status !== 'sick' && edit.status !== 'vacation' && (edit.hours || edit.start || edit.end);
+  });
+}
+
+function checkSeniorityViolation(empIdReceiving, dateStr) {
+  var receiving = employees.find(function(e) { return e.id === empIdReceiving; });
+  if (!receiving || receiving.retired) return { violated: false };
+  var eligible = getEligibleEmployeesForDate(dateStr);
+  var hasShift = {};
+  eligible.forEach(function(e) {
+    var k = e.id + '_' + dateStr;
+    var ed = manualEdits[k];
+    hasShift[e.id] = !!(ed && ed.status !== 'sick' && ed.status !== 'vacation' && (ed.hours || ed.start || ed.end));
+  });
+  var higherRankNoShift = eligible.filter(function(e) {
+    return e.id !== empIdReceiving && !hasShift[e.id] && (e.seniority != null) && (receiving.seniority != null) && e.seniority < receiving.seniority;
+  });
+  if (higherRankNoShift.length === 0) return { violated: false };
+  return { violated: true, names: higherRankNoShift.map(function(e) { return e.name; }) };
+}
+
+function promptOverrideReason() {
+  var msg = 'Reason for override (required):\n\n';
+  OVERRIDE_REASONS.forEach(function(r, i) { msg += (i + 1) + ' = ' + r + '\n'; });
+  msg += '\nEnter number or type your reason:';
+  var raw = prompt(msg);
+  if (raw === null || (raw && raw.trim()) === '') return null;
+  var n = parseInt(raw.trim(), 10);
+  if (!isNaN(n) && n >= 1 && n <= OVERRIDE_REASONS.length) return OVERRIDE_REASONS[n - 1];
+  return raw.trim();
+}
+
+function applyOverrideToEdit(edit, reason) {
+  if (!edit) return;
+  edit.seniorityOverride = true;
+  edit.overrideReason = reason;
+  edit.overrideTimestamp = new Date().toISOString();
+}
+
 function editScheduleCell(empId, date){
   // Check global lock first
   if(scheduleGlobalLock) {
@@ -2229,6 +2292,7 @@ function editScheduleCell(empId, date){
   const ev = events.find(e => e.date === date);
   
   let currentEdit = manualEdits[key];
+  var hasShift = currentEdit && currentEdit.status !== 'sick' && currentEdit.status !== 'vacation' && (currentEdit.hours || currentEdit.start || currentEdit.end);
   
   // Create a clearer menu dialog
   let dialog = "Edit shift for " + emp.name + " on " + date + ":\n\n";
@@ -2240,6 +2304,10 @@ function editScheduleCell(empId, date){
   dialog += "  sick\n";
   dialog += "  vacation\n\n";
   dialog += "ACTIONS:\n";
+  if (hasShift) {
+    dialog += "  swap    (swap this shift with another employee)\n";
+    dialog += "  reassign (give this shift to another employee)\n";
+  }
   dialog += "  lock\n";
   dialog += "  clear\n";
   dialog += "━━━━━━━━━━━━━━━━━━━━\n\n";
@@ -2308,6 +2376,118 @@ function editScheduleCell(empId, date){
     save();
     displaySchedule();
     return;
+  }
+  
+  if (hasShift && (trimmed === 'swap' || trimmed === 'reassign')) {
+    if (trimmed === 'swap') {
+      var withShift = getEmployeesWithShiftOnDate(date).filter(function(e) {
+        if (e.id === empId) return false;
+        var k = e.id + '_' + date;
+        return !lockedCells[k] && !lockedRows[e.id];
+      });
+      if (withShift.length === 0) {
+        alert('No other employee has an unlocked shift on this date to swap with.');
+        return;
+      }
+      var list = withShift.map(function(e) { return e.name; }).join(', ');
+      var otherName = prompt('Swap this shift with which employee?\n\n' + list);
+      if (otherName === null) return;
+      var other = employees.find(function(e) { return e.id !== empId && e.name.toLowerCase() === (otherName || '').trim().toLowerCase(); });
+      if (!other) other = withShift.find(function(e) { return e.name.toLowerCase().indexOf((otherName || '').trim().toLowerCase()) >= 0; });
+      if (!other) {
+        alert('Employee not found. Use a name from the list: ' + list);
+        return;
+      }
+      var keyB = other.id + '_' + date;
+      if (lockedCells[key] || lockedCells[keyB] || lockedRows[other.id]) {
+        alert('Cannot swap: one of the shifts or rows is locked.');
+        return;
+      }
+      var editB = manualEdits[keyB];
+      if (!editB || editB.status === 'sick' || editB.status === 'vacation') {
+        alert(other.name + ' does not have a shift on this date.');
+        return;
+      }
+      var violA = checkSeniorityViolation(empId, date);
+      var violB = checkSeniorityViolation(other.id, date);
+      var violated = violA.violated || violB.violated;
+      var overrideReason = null;
+      if (violated) {
+        var warnMsg = 'Seniority warning: a higher-seniority employee (without a shift this day) could have had this shift.\n\n';
+        if (violA.violated) warnMsg += 'After swap, ' + emp.name + ' receives a shift; higher seniority available: ' + (violA.names || []).join(', ') + '.\n';
+        if (violB.violated) warnMsg += 'After swap, ' + other.name + ' receives a shift; higher seniority available: ' + (violB.names || []).join(', ') + '.\n';
+        warnMsg += '\nDo you want to override and proceed?';
+        if (!confirm(warnMsg)) return;
+        overrideReason = promptOverrideReason();
+        if (!overrideReason) {
+          alert('Override cancelled. Reason is required to proceed.');
+          return;
+        }
+      }
+      var copyA = JSON.parse(JSON.stringify(currentEdit));
+      var copyB = JSON.parse(JSON.stringify(editB));
+      manualEdits[key] = copyB;
+      manualEdits[keyB] = copyA;
+      if (violated && overrideReason) {
+        applyOverrideToEdit(manualEdits[key], overrideReason);
+        applyOverrideToEdit(manualEdits[keyB], overrideReason);
+      }
+      delete assignmentReasonTags[key]; delete assignmentReasons[key];
+      delete assignmentReasonTags[keyB]; delete assignmentReasons[keyB];
+      var logNew = 'Swap: ' + emp.name + ' \u2194 ' + other.name + '. Seniority violated: ' + (violated ? 'Yes' : 'No') + '. Override: ' + (overrideReason ? 'Yes (' + overrideReason + ')' : 'No') + '. ' + new Date().toISOString();
+      addAuditEntry('Shift Swapped', empId, date, emp.name + ' / ' + other.name, logNew);
+      save();
+      displaySchedule();
+      return;
+    }
+    if (trimmed === 'reassign') {
+      var eligible = getEligibleEmployeesForDate(date).filter(function(e) { return e.id !== empId; });
+      if (eligible.length === 0) {
+        alert('No other eligible employee to reassign this shift to.');
+        return;
+      }
+      var list = eligible.map(function(e) { return e.name; }).join(', ');
+      var toName = prompt('Reassign this shift to which employee?\n\n' + list);
+      if (toName === null) return;
+      var toEmp = employees.find(function(e) { return e.id !== empId && e.name.toLowerCase() === (toName || '').trim().toLowerCase(); });
+      if (!toEmp) toEmp = eligible.find(function(e) { return e.name.toLowerCase().indexOf((toName || '').trim().toLowerCase()) >= 0; });
+      if (!toEmp) {
+        alert('Employee not found. Use a name from the list: ' + list);
+        return;
+      }
+      var keyTo = toEmp.id + '_' + date;
+      if (lockedCells[key] || lockedCells[keyTo] || lockedRows[toEmp.id]) {
+        alert('Cannot reassign: this shift or the target row/cell is locked.');
+        return;
+      }
+      if (manualEdits[keyTo] && manualEdits[keyTo].status !== 'sick' && manualEdits[keyTo].status !== 'vacation') {
+        alert(toEmp.name + ' already has a shift on this date. Use "swap" to exchange shifts.');
+        return;
+      }
+      var viol = checkSeniorityViolation(toEmp.id, date);
+      var overrideReason = null;
+      if (viol.violated) {
+        var warnMsg = 'Seniority warning: a higher-seniority employee (without a shift this day) could have had this shift: ' + (viol.names || []).join(', ') + '.\n\nDo you want to override and reassign anyway?';
+        if (!confirm(warnMsg)) return;
+        overrideReason = promptOverrideReason();
+        if (!overrideReason) {
+          alert('Override cancelled. Reason is required to proceed.');
+          return;
+        }
+      }
+      var shiftCopy = JSON.parse(JSON.stringify(currentEdit));
+      shiftCopy.manualOverride = true;
+      if (overrideReason) applyOverrideToEdit(shiftCopy, overrideReason);
+      delete manualEdits[key];
+      manualEdits[keyTo] = shiftCopy;
+      delete assignmentReasonTags[key]; delete assignmentReasons[key];
+      delete assignmentReasonTags[keyTo]; delete assignmentReasons[keyTo];
+      var logNew = 'Reassign: from ' + emp.name + ' to ' + toEmp.name + '. Seniority violated: ' + (viol.violated ? 'Yes' : 'No') + '. Override: ' + (overrideReason ? 'Yes (' + overrideReason + ')' : 'No') + '. ' + new Date().toISOString();
+      addAuditEntry('Shift Reassigned', empId, date, emp.name, logNew);
+      save();
+      displaySchedule();
+      return;
+    }
   }
   
   // Parse shift input: start and end time; hours calculated automatically
@@ -2621,9 +2801,11 @@ function displaySchedule(){
             cell.classList.add('conflict-cell');
             cell.title = (cell.title || '') + ' Less than 8 hours rest from another shift.';
           }
-          cell.innerHTML = `${h}h<br><small>${edit.start}–${edit.end}</small><br><a href="#" class="schedule-why-link" title="Why this employee?">Why?</a>`;
+          var overrideInd = edit.seniorityOverride ? ' <span class="override-indicator" title="Seniority override' + (edit.overrideReason ? ': ' + edit.overrideReason : '') + '">&#9888;</span>' : '';
+          cell.innerHTML = `${h}h<br><small>${edit.start}–${edit.end}</small>${overrideInd}<br><a href="#" class="schedule-why-link" title="Why this employee?">Why?</a>`;
         } else {
-          cell.innerHTML = `${h}h<br><a href="#" class="schedule-why-link" title="Why this employee?">Why?</a>`;
+          var overrideInd = edit.seniorityOverride ? ' <span class="override-indicator" title="Seniority override' + (edit.overrideReason ? ': ' + edit.overrideReason : '') + '">&#9888;</span>' : '';
+          cell.innerHTML = `${h}h<br>${overrideInd}<a href="#" class="schedule-why-link" title="Why this employee?">Why?</a>`;
         }
         var whyLink = cell.querySelector('.schedule-why-link');
         if (whyLink) {
