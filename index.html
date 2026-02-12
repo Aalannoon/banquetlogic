@@ -405,32 +405,55 @@ body.light-mode .audit-empty { color: #6b7280; background: #f9fafb; border-color
 }
 
 /* PRINT */
+@page {
+  size: landscape;
+  margin: 12mm;
+}
 @media print {
-  body { background:#fff !important; color:#000 !important; padding: 0 12px 0 12px !important; margin: 0 !important; }
-  .tabs, button, input, select, textarea { display:none !important; }
-  .tab { display:none !important; }
-  #scheduleTab { display:block !important; padding: 0 !important; margin: 0 !important; }
+  body {
+    background: #fff !important;
+    color: #000 !important;
+    padding: 0 12px !important;
+    margin: 0 !important;
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+  .tabs, button, input, select, textarea { display: none !important; }
+  .tab { display: none !important; }
+  #scheduleTab {
+    display: block !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    position: static !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
   #scheduleTab h2 { display: none !important; }
-  /* Header: no top margin/padding, keep with schedule (no page break after) */
   .app-header {
     padding: 0 0 6px 0 !important;
     margin: 0 0 4px 0 !important;
     page-break-after: avoid !important;
     page-break-inside: avoid !important;
     position: static !important;
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
   }
   .app-header .logo-wordmark { font-size: 1.1rem !important; }
   .tagline { font-size: 12px !important; margin: 0 !important; }
   .week-header { font-size: 12px !important; }
-  /* Schedule: no break before so header and table stay on same first page */
   .schedule-container {
     margin: 0 !important;
     padding: 0 !important;
     min-height: 0 !important;
+    width: 100% !important;
+    height: auto !important;
     overflow: visible !important;
     page-break-before: avoid !important;
+    position: static !important;
+    display: block !important;
   }
-  /* Hide all UI-only instructional text and controls */
   .schedule-actions,
   .schedule-grid-helper,
   .schedule-lock-helper,
@@ -439,21 +462,36 @@ body.light-mode .audit-empty { color: #6b7280; background: #f9fafb; border-color
   .demo-tip,
   .demo-tip-visible,
   .schedule-why-link { display: none !important; }
-  /* Table: allow page breaks between rows only; repeat thead on each page */
-  table { font-size: 13px; border-collapse: collapse !important; }
-  #scheduleTable { border-collapse: collapse !important; page-break-inside: auto !important; }
+  table {
+    width: 100% !important;
+    table-layout: fixed !important;
+    font-size: 10px !important;
+    border-collapse: collapse !important;
+  }
+  #scheduleTable {
+    width: 100% !important;
+    table-layout: fixed !important;
+    border-collapse: collapse !important;
+    page-break-inside: auto !important;
+  }
   #scheduleTable thead { display: table-header-group !important; }
   #scheduleTable tbody tr { page-break-inside: avoid !important; page-break-after: auto !important; }
   #scheduleTable th,
-  #scheduleTable td { border: 1px solid #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; padding: 7px 6px !important; }
-  th { background:#ddd !important; color:#000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  #scheduleTable td {
+    border: 1px solid #000 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    padding: 5px 4px !important;
+    white-space: nowrap !important;
+  }
+  th { background: #ddd !important; color: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .locked-cell::after, .conflict-cell::before { display: none !important; }
   .shift-4, .shift-5, .shift-6, .shift-7, .shift-8, .shift-ot {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
   #scheduleTable th:last-child,
-  #scheduleTable td:last-child { min-width: 4.5em !important; white-space: nowrap !important; text-align: center !important; }
+  #scheduleTable td:last-child { min-width: 4em !important; white-space: nowrap !important; text-align: center !important; }
   #scheduleTable th:nth-last-child(2),
   #scheduleTable td:nth-last-child(2) { text-align: center !important; }
   h1, .logo-wordmark, .tagline, .week-header { color: #000 !important; }
@@ -468,18 +506,21 @@ body.light-mode .audit-empty { color: #6b7280; background: #f9fafb; border-color
 body.print-pending * { transition: none !important; }
 body.print-pending { max-width: 100% !important; }
 
-/* PDF capture: off-screen container for html2canvas (schedule only) */
+/* PDF capture: container for html2canvas (in-viewport so table renders) */
 .pdf-capture-view {
-  position: fixed;
-  left: -99999px;
+  position: absolute;
+  left: 0;
   top: 0;
   width: 1100px;
+  min-height: 100px;
+  height: auto;
+  overflow: visible;
   background: #fff;
   color: #000;
   padding: 0 10px 10px 10px;
   margin: 0;
   box-sizing: border-box;
-  z-index: -1;
+  z-index: 99999;
   pointer-events: none;
 }
 .pdf-capture-view .pdf-header {
@@ -507,8 +548,8 @@ body.print-pending { max-width: 100% !important; }
 .pdf-capture-view td {
   border: 1px solid #000;
   padding: 8px 6px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: visible;
 }
 .pdf-capture-view th { background: #ddd; color: #000; }
 .pdf-capture-view th:first-child,
