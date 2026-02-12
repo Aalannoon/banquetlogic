@@ -505,6 +505,7 @@ body.light-mode .demo-tip {
 <button type="button" onclick="emailSchedulesToAll()" style="background:#27ae60;">📧 Email Schedules</button>
 <button type="button" onclick="showGenerationRules()" style="background:#9b59b6;">📋 Generation Rules</button>
 <button type="button" onclick="showConflictReport()" id="conflictReportBtn" style="background:#e74c3c; display:none;">⚠️ Conflicts</button>
+<button type="button" onclick="exportScheduleToCSV()" style="background:#16a085;">📥 Export CSV</button>
 
 <div class="schedule-container">
   <table id="scheduleTable"></table>
@@ -2731,6 +2732,56 @@ function printSchedule(){
   setTimeout(() => {
     window.print();
   }, 500);
+}
+
+/* SCHEDULE EXPORT (isolated; does not affect scheduling logic) */
+function exportScheduleToCSV() {
+  const start = getWeekStart();
+  const days = [...Array(7)].map((_, i) => {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    return d;
+  });
+  const header = ['Employee Name', 'Role', 'Date', 'Hours'];
+  const rows = [];
+  employees.filter(e => !e.retired).forEach(emp => {
+    days.forEach(d => {
+      const dateStr = iso(d);
+      const key = emp.id + '_' + dateStr;
+      const edit = manualEdits[key];
+      if (!edit) return;
+      let hours;
+      if (edit.status === 'sick' || edit.status === 'vacation') {
+        hours = '0';
+      } else {
+        const h = edit.hours != null ? edit.hours : edit;
+        hours = String(typeof h === 'number' ? h : (h || 0));
+      }
+      rows.push([
+        emp.name || '',
+        emp.type || '',
+        dateStr,
+        hours
+      ]);
+    });
+  });
+  function escapeCsvField(val) {
+    const s = String(val);
+    if (/[,"\r\n]/.test(s)) {
+      return '"' + s.replace(/"/g, '""') + '"';
+    }
+    return s;
+  }
+  const csvContent = '\uFEFF' + [header.map(escapeCsvField).join(',')]
+    .concat(rows.map(r => r.map(escapeCsvField).join(',')))
+    .join('\r\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'BanquetLogic_Schedule_' + iso(start) + '_to_' + iso(days[6]) + '.csv';
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 /* AUDIT LOG */
