@@ -781,7 +781,15 @@ let lockedCells = JSON.parse(localStorage.getItem("lockedCells") || "{}");
 let lockedRows = JSON.parse(localStorage.getItem("lockedRows") || "{}");
 let scheduleGlobalLock = JSON.parse(localStorage.getItem("scheduleGlobalLock") || "false");
 let auditLog = JSON.parse(localStorage.getItem("auditLog") || "[]");
-let assignmentReasons = JSON.parse(localStorage.getItem("assignmentReasons") || "{}"); // Store why each shift was assigned
+(function() {
+  var reasonVersion = localStorage.getItem("assignmentReasonVersion");
+  if (reasonVersion !== "2") {
+    localStorage.removeItem("assignmentReasons");
+    localStorage.removeItem("assignmentReasonTags");
+    localStorage.setItem("assignmentReasonVersion", "2");
+  }
+})();
+let assignmentReasons = JSON.parse(localStorage.getItem("assignmentReasons") || "{}"); // Store why each shift was assigned (plain-language only)
 let assignmentReasonTags = JSON.parse(localStorage.getItem("assignmentReasonTags") || "{}"); // Abstract tags for human-readable explanations
 let generationConflicts = [];
 
@@ -2694,59 +2702,34 @@ function assignEmployeesToWeek(days) {
         // NEW: Increment work day counter for this employee
         employeeWorkDays[emp.id] += 1;
         
-        // NEW: Record WHY this employee was assigned
+        // NEW: Record WHY this employee was assigned (plain-language only; no numbers, weights, or scoring)
         const key = emp.id + "_" + dateStr;
         const reasons = [];
         
-        reasons.push(`📊 Event: ${ev.name}`);
-        reasons.push(`👥 Required Staff: ${ev.staff} servers`);
-        reasons.push(`🎯 Assigned as #${assignIndex + 1} of ${assigned.length}`);
-        reasons.push(`📈 Final Score: ${emp.score} points`);
-        reasons.push('');
-        reasons.push('SCORING BREAKDOWN:');
+        reasons.push('Event: ' + ev.name);
+        reasons.push('Chosen among eligible staff for this shift.');
         
         if(assignmentStyle === 'strict') {
-          const seniorityScore = (100 - emp.seniority) * 10000;
-          reasons.push(`✓ Seniority ${emp.seniority} = ${seniorityScore} pts (DOMINANT)`);
-          if(emp.type === 'FT') reasons.push(`✓ Full-time status = +1,000 pts`);
-          if(emp.pref === 'AM' && isEarliestShift) reasons.push(`✓ Prefers AM shifts = +50 pts`);
-          if(emp.pref === 'PM' && isLatestShift) reasons.push(`✓ Prefers PM shifts = +50 pts`);
-          const dayOfWeek = d.getDay();
-          if(emp.dayPreferences && emp.dayPreferences[dayOfWeek] === true) {
-            const dayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][dayOfWeek];
-            reasons.push(`✓ Prefers ${dayName} = +50 pts`);
-          }
+          reasons.push('Seniority was the main factor.');
+          if(emp.type === 'FT') reasons.push('Full-time status considered.');
+          if((emp.pref === 'AM' && isEarliestShift) || (emp.pref === 'PM' && isLatestShift)) reasons.push('Shift preference matched.');
+          if(emp.dayPreferences && emp.dayPreferences[d.getDay()] === true) reasons.push('Day preference matched.');
         } else if(assignmentStyle === 'balanced') {
-          if(emp.type === 'FT') reasons.push(`✓ Full-time status = +10,000 pts`);
-          const seniorityScore = (100 - emp.seniority) * 100;
-          reasons.push(`✓ Seniority ${emp.seniority} = +${seniorityScore} pts`);
-          if(emp.pref === 'AM' && isEarliestShift) reasons.push(`✓ Prefers AM shifts = +200 pts`);
-          if(emp.pref === 'PM' && isLatestShift) reasons.push(`✓ Prefers PM shifts = +200 pts`);
-          const dayOfWeek = d.getDay();
-          if(emp.dayPreferences && emp.dayPreferences[dayOfWeek] === true) {
-            const dayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][dayOfWeek];
-            reasons.push(`✓ Prefers ${dayName} = +150 pts`);
-          }
+          reasons.push('Balance of full-time and part-time coverage.');
+          reasons.push('Seniority considered within that balance.');
+          if(emp.type === 'FT') reasons.push('Full-time status considered.');
+          if((emp.pref === 'AM' && isEarliestShift) || (emp.pref === 'PM' && isLatestShift)) reasons.push('Shift preference matched.');
+          if(emp.dayPreferences && emp.dayPreferences[d.getDay()] === true) reasons.push('Day preference matched.');
         } else if(assignmentStyle === 'fair') {
-          const currentHours = employeeTotalHours[emp.id] - s.h; // Before this shift
-          const hourScore = (100 - currentHours) * 1000;
-          reasons.push(`✓ Had ${currentHours}h (low hours) = +${hourScore} pts (DOMINANT)`);
-          if(emp.pref === 'AM' && isEarliestShift) reasons.push(`✓ Prefers AM shifts = +200 pts`);
-          if(emp.pref === 'PM' && isLatestShift) reasons.push(`✓ Prefers PM shifts = +200 pts`);
-          const dayOfWeek = d.getDay();
-          if(emp.dayPreferences && emp.dayPreferences[dayOfWeek] === true) {
-            const dayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][dayOfWeek];
-            reasons.push(`✓ Prefers ${dayName} = +150 pts`);
-          }
-          const seniorityScore = (100 - emp.seniority) * 10;
-          reasons.push(`✓ Seniority ${emp.seniority} (tie-breaker) = +${seniorityScore} pts`);
+          reasons.push('Hours so far were among the lowest.');
+          if((emp.pref === 'AM' && isEarliestShift) || (emp.pref === 'PM' && isLatestShift)) reasons.push('Shift preference matched.');
+          if(emp.dayPreferences && emp.dayPreferences[d.getDay()] === true) reasons.push('Day preference matched.');
+          reasons.push('Seniority used only to break ties.');
         }
         
-        reasons.push('');
-        reasons.push('CONSTRAINTS MET:');
-        reasons.push(`✓ Available (not sick/vacation)`);
-        reasons.push(`✓ Within max ${emp.maxDaysPerWeek || 5} days/week`);
-        reasons.push(`✓ 8-hour rest period maintained`);
+        reasons.push('Available (not sick or on vacation).');
+        reasons.push('Within allowed working days for the week.');
+        reasons.push('Rest period between shifts respected.');
         
         assignmentReasons[key] = reasons;
         var tags = ['availability', 'no_conflicts', 'within_max_days', 'seniority'];
