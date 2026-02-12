@@ -955,6 +955,7 @@ function showConflictReport() {
 
 function getAssignmentExplanation(empId, dateStr) {
   const key = empId + "_" + dateStr;
+  if (manualEdits[key] && manualEdits[key].manualOverride) return 'Manually assigned by scheduler.';
   if (lockedCells[key]) return REASON_TAG_EXPLANATIONS.manual_lock;
   const tags = assignmentReasonTags[key];
   if (!tags || !tags.length) return null;
@@ -1546,7 +1547,9 @@ function openVacationPicker(empId) {
     days.forEach(d => {
       const dateStr = iso(d);
       const key = empId + "_" + dateStr;
-      manualEdits[key] = { status: 'vacation' };
+      manualEdits[key] = { status: 'vacation', manualOverride: true };
+      delete assignmentReasonTags[key];
+      delete assignmentReasons[key];
     });
     
     addAuditEntry('Vacation Set', empId, null, null, 'Entire week');
@@ -1579,7 +1582,9 @@ function openVacationPicker(empId) {
     if (d) {
       const dateStr = iso(d);
       const key = empId + "_" + dateStr;
-      manualEdits[key] = { status: 'vacation' };
+      manualEdits[key] = { status: 'vacation', manualOverride: true };
+      delete assignmentReasonTags[key];
+      delete assignmentReasons[key];
       vacationDates.push(d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' }));
     }
   });
@@ -2101,7 +2106,9 @@ function editScheduleCell(empId, date){
   // Mark as sick
   if(trimmed === 'sick') {
     const oldValue = currentEdit ? JSON.stringify(currentEdit) : null;
-    manualEdits[key] = { status: 'sick' };
+    manualEdits[key] = { status: 'sick', manualOverride: true };
+    delete assignmentReasonTags[key];
+    delete assignmentReasons[key];
     addAuditEntry('Marked Sick', empId, date, oldValue, 'SICK');
     save();
     displaySchedule();
@@ -2111,7 +2118,9 @@ function editScheduleCell(empId, date){
   // Mark as vacation
   if(trimmed === 'vacation' || trimmed === 'vac') {
     const oldValue = currentEdit ? JSON.stringify(currentEdit) : null;
-    manualEdits[key] = { status: 'vacation' };
+    manualEdits[key] = { status: 'vacation', manualOverride: true };
+    delete assignmentReasonTags[key];
+    delete assignmentReasons[key];
     addAuditEntry('Marked Vacation', empId, date, oldValue, 'VACATION');
     save();
     displaySchedule();
@@ -2134,7 +2143,8 @@ function editScheduleCell(empId, date){
       newEdit = {
         hours: hours,
         start: start,
-        end: end
+        end: end,
+        manualOverride: true
       };
     }
   }
@@ -2146,6 +2156,8 @@ function editScheduleCell(empId, date){
   
   const oldValue = currentEdit ? JSON.stringify(currentEdit) : 'Auto-assigned';
   manualEdits[key] = newEdit;
+  delete assignmentReasonTags[key];
+  delete assignmentReasons[key];
   addAuditEntry('Shift Manually Edited', empId, date, oldValue, JSON.stringify(newEdit));
   
   save(); 
