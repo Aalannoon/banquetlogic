@@ -268,6 +268,96 @@ td[onclick]:hover, td.clickable:hover { outline:2px dashed #4e9af1; }
     min-width: 60px;
   }
 }
+
+/* Demo mode active state */
+.demo-mode-banner {
+  display: none;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: linear-gradient(90deg, #e67e22 0%, #d35400 100%);
+  color: #fff;
+  padding: 14px 20px;
+  text-align: center;
+  font-weight: bold;
+  font-size: 15px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+  border-bottom: 3px solid #fff;
+}
+.demo-mode-banner.demo-mode-banner-visible {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+.demo-mode-banner .demo-banner-stop {
+  margin-left: 0;
+  padding: 12px 24px;
+  font-size: 16px;
+  background: #fff;
+  color: #c0392b;
+  border: 2px solid #fff;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.demo-mode-banner .demo-banner-stop:hover {
+  background: #f5f5f5;
+  transform: scale(1.02);
+}
+.tabs button.demo-active {
+  background: #d35400 !important;
+  color: #fff !important;
+  box-shadow: 0 0 0 2px #fff;
+}
+body.light-mode .demo-mode-banner {
+  border-bottom-color: #333;
+}
+body.light-mode .demo-mode-banner .demo-banner-stop {
+  background: #fff;
+  color: #c0392b;
+  border-color: #333;
+}
+
+/* Demo-only instructional tip (only visible during demo) */
+.demo-tip {
+  display: none;
+  position: sticky;
+  top: 0;
+  z-index: 99;
+  background: #2c3e50;
+  color: #ecf0f1;
+  padding: 12px 20px;
+  font-size: 14px;
+  line-height: 1.5;
+  border-bottom: 2px solid #4e9af1;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+.demo-tip.demo-tip-visible {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.demo-tip-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+.demo-tip strong { color: #4e9af1; }
+body.light-mode .demo-tip {
+  background: #ecf0f1;
+  color: #2c3e50;
+  border-bottom-color: #4e9af1;
+}
+/* Temporary highlight for demo (demo only, no core change) */
+.demo-highlight {
+  animation: demo-highlight-pulse 1.2s ease-in-out 2;
+}
+@keyframes demo-highlight-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(78, 154, 241, 0.5); }
+  50% { box-shadow: 0 0 0 8px rgba(78, 154, 241, 0); }
+}
 </style>
 </head>
 
@@ -289,6 +379,16 @@ td[onclick]:hover, td.clickable:hover { outline:2px dashed #4e9af1; }
   <button type="button" id="tabSettingsBtn" onclick="showTab('settingsTab')">Settings</button>
   <button type="button" id="tabSupportBtn" onclick="showTab('supportTab')">Support / Contact</button>
   <button type="button" id="tabDemoBtn" onclick="showTab('demoTab')" style="background:#e67e22;">🎬 Demo Mode</button>
+</div>
+
+<div id="demoModeBanner" class="demo-mode-banner">
+  <span>🎬 <strong>Demo Mode Active</strong> — All data you see is temporary and will be removed when you stop. Your real data is safely stored and will be restored.</span>
+  <button type="button" class="demo-banner-stop" onclick="stopDemo()">⏹️ Stop Demo &amp; Restore My Data</button>
+</div>
+
+<div id="demoTip" class="demo-tip">
+  <span class="demo-tip-icon">💡</span>
+  <span id="demoTipText"></span>
 </div>
 
 <!-- EMPLOYEES -->
@@ -578,12 +678,11 @@ td[onclick]:hover, td.clickable:hover { outline:2px dashed #4e9af1; }
     </p>
     
     <div style="padding: 15px; background: #34495e; border-radius: 6px; margin: 15px 0;">
-      <strong style="color: #f39c12;">⚠️ Important:</strong>
+      <strong style="color: #f39c12;">⚠️ Important — Demo data is temporary</strong>
       <ul style="margin: 10px 0; padding-left: 20px;">
-        <li>Demo will use sample data (your real data is safe)</li>
-        <li>Takes approximately 3-5 minutes</li>
-        <li>You can stop the demo at any time</li>
-        <li>Demo data will be cleared when finished</li>
+        <li>Demo uses sample data only. Your real data is <strong>not</strong> modified.</li>
+        <li>When you click <strong>Stop Demo</strong>, all demo data is removed and your real employees, events, and schedules are restored.</li>
+        <li>Takes approximately 3–5 minutes. You can stop the demo at any time.</li>
       </ul>
     </div>
     
@@ -591,14 +690,18 @@ td[onclick]:hover, td.clickable:hover { outline:2px dashed #4e9af1; }
       <button type="button" onclick="startDemo()" style="background: #27ae60; font-size: 18px; padding: 15px 30px;">
         ▶️ Start Demo
       </button>
-      <button type="button" id="stopDemoBtn" onclick="stopDemo()" style="background: #e74c3c; font-size: 18px; padding: 15px 30px; display: none;">
-        ⏹️ Stop Demo
-      </button>
+      <div id="demoStopArea" style="display: none; margin-top: 20px; padding: 20px; background: #1e1e2f; border-radius: 8px; border: 2px solid #e74c3c;">
+        <p style="margin: 0 0 15px 0; font-size: 16px; color: #f0f0f0;">To exit demo and restore your real data, click below:</p>
+        <button type="button" id="stopDemoBtn" onclick="stopDemo()" style="background: #e74c3c; color: #fff; font-size: 20px; padding: 16px 32px; border: 2px solid #fff; border-radius: 8px; font-weight: bold; cursor: pointer;">
+          ⏹️ Stop Demo &amp; Restore My Data
+        </button>
+      </div>
     </div>
   </div>
   
-  <div id="demoStatus" style="padding: 15px; background: #1e1e2f; border-radius: 8px; margin-bottom: 20px; display: none;">
+  <div id="demoStatus" style="padding: 15px; background: #1e1e2f; border-radius: 8px; margin-bottom: 20px; display: none; border-left: 4px solid #e67e22;">
     <h4 style="margin-top: 0; color: #4e9af1;">Demo Progress</h4>
+    <p style="margin: 0 0 10px 0; font-size: 13px; color: #95a5a6;">All data shown is temporary. Your real data will be restored when you click <strong>Stop Demo</strong> (in the orange banner above or below).</p>
     <div id="demoStepInfo" style="font-size: 15px; line-height: 1.8;"></div>
     <div style="margin-top: 10px; background: #2e2e3d; border-radius: 4px; height: 30px; overflow: hidden;">
       <div id="demoProgress" style="background: #27ae60; height: 100%; width: 0%; transition: width 0.5s;"></div>
@@ -2789,9 +2892,11 @@ function startDemo() {
   };
   
   demoInProgress = true;
-  document.getElementById('stopDemoBtn').style.display = 'inline-block';
+  document.getElementById('demoModeBanner').classList.add('demo-mode-banner-visible');
+  document.getElementById('demoStopArea').style.display = 'block';
   document.getElementById('demoStatus').style.display = 'block';
   document.getElementById('demoInstructions').style.display = 'none';
+  if(typeof tabDemoBtn !== 'undefined') tabDemoBtn.classList.add('demo-active');
   
   // Run demo steps
   runDemoSequence();
@@ -2819,9 +2924,12 @@ function stopDemo() {
   displaySchedule();
   
   demoInProgress = false;
-  document.getElementById('stopDemoBtn').style.display = 'none';
+  document.getElementById('demoModeBanner').classList.remove('demo-mode-banner-visible');
+  document.getElementById('demoTip').classList.remove('demo-tip-visible');
+  document.getElementById('demoStopArea').style.display = 'none';
   document.getElementById('demoStatus').style.display = 'none';
   document.getElementById('demoInstructions').style.display = 'block';
+  if(typeof tabDemoBtn !== 'undefined') tabDemoBtn.classList.remove('demo-active');
   
   alert('Demo stopped. Your original data has been restored.');
 }
@@ -2830,6 +2938,27 @@ function updateDemoStatus(step, total, message) {
   const progress = (step / total) * 100;
   document.getElementById('demoProgress').style.width = progress + '%';
   document.getElementById('demoStepInfo').innerHTML = `<strong>Step ${step}/${total}:</strong> ${message}`;
+}
+
+function showDemoTip(html) {
+  if(!demoInProgress) return;
+  const el = document.getElementById('demoTip');
+  if(el) {
+    document.getElementById('demoTipText').innerHTML = html;
+    el.classList.add('demo-tip-visible');
+  }
+}
+function hideDemoTip() {
+  const el = document.getElementById('demoTip');
+  if(el) el.classList.remove('demo-tip-visible');
+}
+function demoHighlightElement(id, durationMs) {
+  if(!demoInProgress) return;
+  const el = document.getElementById(id);
+  if(el) {
+    el.classList.add('demo-highlight');
+    setTimeout(function() { if(el) el.classList.remove('demo-highlight'); }, durationMs || 3000);
+  }
 }
 
 function runDemoSequence() {
@@ -2865,7 +2994,8 @@ function runDemoSequence() {
 }
 
 function demoStep1_ClearData() {
-  updateDemoStatus(1, 11, 'Clearing existing data and preparing demo environment...');
+  hideDemoTip();
+  updateDemoStatus(1, 11, 'Setting the scene: preparing a fresh demo workspace for a realistic banquet week...');
   employees = [];
   events = [];
   manualEdits = {};
@@ -2875,7 +3005,7 @@ function demoStep1_ClearData() {
 }
 
 function demoStep2_AddEmployees() {
-  updateDemoStatus(2, 11, 'Adding sample employees with different seniority levels...');
+  updateDemoStatus(2, 11, 'Building your team: adding 5 banquet staff with different seniority, types (FT/PT), and shift preferences...');
   
   const sampleEmployees = [
     { name: 'Alice Johnson', type: 'FT', seniority: 1, pref: 'AM', email: 'alice@example.com', maxDaysPerWeek: 5 },
@@ -2897,13 +3027,15 @@ function demoStep2_AddEmployees() {
 }
 
 function demoStep3_ShowEmployees() {
-  updateDemoStatus(3, 11, 'Displaying employee roster with FT/PT status and seniority...');
+  showDemoTip('This roster drives <strong>who gets first pick</strong> of shifts. Seniority and FT/PT status are used when you Generate.');
+  updateDemoStatus(3, 11, 'Your team roster — seniority and type (FT/PT) determine who gets first choice of shifts when you generate.');
   showTab('employeesTab');
   renderEmployees();
 }
 
 function demoStep4_SetPreferences() {
-  updateDemoStatus(4, 11, 'Configuring employee preferences (weekday/weekend availability)...');
+  showDemoTip('Day preferences help the system avoid scheduling someone on days they prefer off when possible.');
+  updateDemoStatus(4, 11, 'Setting preferences: e.g. Alice prefers weekdays — the system will favor that when assigning shifts.');
   // Set Alice to prefer weekdays
   if(employees[0]) {
     employees[0].dayPreferences = { 0: false, 1: true, 2: true, 3: true, 4: true, 5: true, 6: false };
@@ -2911,7 +3043,8 @@ function demoStep4_SetPreferences() {
 }
 
 function demoStep5_AddEvents() {
-  updateDemoStatus(5, 11, 'Creating sample banquet events for this week...');
+  hideDemoTip();
+  updateDemoStatus(5, 11, 'Adding this week\'s events: a corporate lunch, a wedding reception, and a birthday party — each with guest-based staff needs.');
   
   const today = new Date();
   const weekStart = new Date(today);
@@ -2943,13 +3076,15 @@ function demoStep5_AddEvents() {
 }
 
 function demoStep6_ShowEvents() {
-  updateDemoStatus(6, 11, 'Showing event calendar with staff requirements...');
+  showDemoTip('Events drive <strong>how many staff</strong> you need each day. Plated service needs more servers per guest than buffet.');
+  updateDemoStatus(6, 11, 'Events drive staffing: guest count and service type determine how many servers are needed each day.');
   showTab('eventsTab');
   renderEvents();
 }
 
 function demoStep7_GenerateSchedule() {
-  updateDemoStatus(7, 11, 'Auto-generating schedule using smart algorithm...');
+  hideDemoTip();
+  updateDemoStatus(7, 11, 'Generating the schedule: assigning shifts by seniority, preferences, rest rules, and max days — so it\'s fair and explainable.');
   const start = getWeekStart();
   const days = [...Array(7)].map((_, i) => {
     const d = new Date(start);
@@ -2980,13 +3115,18 @@ function demoStep7_GenerateSchedule() {
 }
 
 function demoStep8_ShowSchedule() {
-  updateDemoStatus(8, 11, 'Displaying color-coded schedule with shift assignments...');
+  showDemoTip('Click any <strong>colored shift</strong> to see why that employee was assigned (seniority, preferences, rest rules). Try the 📋 Generation Rules button to see the full logic.');
+  updateDemoStatus(8, 11, 'Your schedule — colors show shift length. Every assignment has a reason; click a shift to see why that person was chosen.');
   showTab('scheduleTab');
   displaySchedule();
+  demoHighlightElement('scheduleTable', 4500);
+  var rulesBtn = document.querySelector('button[onclick="showGenerationRules()"]');
+  if(rulesBtn) { rulesBtn.classList.add('demo-highlight'); setTimeout(function() { rulesBtn.classList.remove('demo-highlight'); }, 4500); }
 }
 
 function demoStep9_ManualEdit() {
-  updateDemoStatus(9, 11, 'Demonstrating manual editing and locking features...');
+  showDemoTip('The 🔒 lock means this row won\'t be changed if you run Generate again. Use it when someone\'s schedule is final.');
+  updateDemoStatus(9, 11, 'Locking Alice\'s row — her shifts are now protected from being overwritten when you run Generate. Useful when a schedule is final.');
   // Lock one employee's row
   if(employees[0]) {
     lockedRows[employees[0].id] = true;
@@ -2995,15 +3135,17 @@ function demoStep9_ManualEdit() {
 }
 
 function demoStep10_ShowFeatures() {
-  updateDemoStatus(10, 11, 'Reviewing advanced features: Audit Log, Settings, Email...');
+  showDemoTip('Every change is logged here. In Settings you can switch how shifts are assigned (strict seniority vs. fair distribution).');
+  updateDemoStatus(10, 11, 'Audit Log — every change is recorded for accountability. In Settings you can change how the system assigns shifts (e.g. strict seniority vs. fair distribution).');
   showTab('auditTab');
   renderAuditLog();
 }
 
 function demoStep11_Complete() {
-  updateDemoStatus(11, 11, '✅ Demo complete! Click "Stop Demo" to restore your data.');
+  hideDemoTip();
+  updateDemoStatus(11, 11, '✅ Demo complete! You\'ve seen how BanquetLogic keeps scheduling fair, explainable, and auditable. Click Stop Demo to restore your data.');
   
-  alert('🎉 Demo Complete!\n\nYou\'ve seen:\n• Employee management\n• Event creation\n• Smart scheduling\n• Manual editing\n• Locking features\n• Audit logging\n\nClick "Stop Demo" to restore your original data.');
+  alert('🎉 Demo Complete!\n\nYou\'ve seen how BanquetLogic:\n• Builds a roster where seniority and preferences drive who gets shifts\n• Turns events into staff needs automatically\n• Generates schedules that are fair and explainable (click any shift to see why)\n• Protects finalized rows with locking\n• Logs every change for accountability\n\nClick "Stop Demo" to restore your original data.');
 }
 
 /* INIT */
