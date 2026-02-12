@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" role="img" aria-hidden="true">
+  <!-- 3x3 scheduling grid, one highlighted cell (center); flat, no gradients -->
+  <g stroke="#4e9af1" stroke-width="1.25" fill="none" opacity="0.5">
+    <rect x="0.5" y="0.5" width="7" height="7" rx="0.5"/>
+    <rect x="8.5" y="0.5" width="7" height="7" rx="0.5"/>
+    <rect x="16.5" y="0.5" width="7" height="7" rx="0.5"/>
+    <rect x="0.5" y="8.5" width="7" height="7" rx="0.5"/>
+    <rect x="16.5" y="8.5" width="7" height="7" rx="0.5"/>
+    <rect x="0.5" y="16.5" width="7" height="7" rx="0.5"/>
+    <rect x="8.5" y="16.5" width="7" height="7" rx="0.5"/>
+    <rect x="16.5" y="16.5" width="7" height="7" rx="0.5"/>
+  </g>
+  <rect x="8.5" y="8.5" width="7" height="7" rx="0.5" fill="#4e9af1"/>
+</svg>
