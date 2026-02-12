@@ -378,6 +378,67 @@ body.light-mode .events-table tbody tr:hover { background: #f3f4f6; }
 .events-table th:nth-child(3), .events-table td:nth-child(3) { border-right: 2px solid var(--brand-border); }
 body.light-mode .events-table th:nth-child(3), body.light-mode .events-table td:nth-child(3) { border-right-color: #e5e7eb; }
 
+/* Schedule: action button groups and lock helper */
+.schedule-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 4px;
+  margin-bottom: 12px;
+}
+.schedule-action-group {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.schedule-action-sep {
+  color: var(--brand-text-quiet);
+  padding: 0 6px;
+  font-size: 12px;
+  user-select: none;
+}
+body.light-mode .schedule-action-sep { color: #9ca3af; }
+.schedule-lock-helper {
+  font-size: 12px;
+  color: var(--brand-text-muted);
+  margin-left: 4px;
+  margin-right: 4px;
+}
+body.light-mode .schedule-lock-helper { color: #6b7280; }
+
+/* Schedule: one-line helper above grid */
+.schedule-grid-helper {
+  font-size: 12px;
+  color: var(--brand-text-muted);
+  margin: 0 0 10px 0;
+}
+body.light-mode .schedule-grid-helper { color: #6b7280; }
+
+/* Schedule table: alternating row shading (tbody only, subtle) */
+#scheduleTable tbody tr:nth-child(odd) { background: rgba(0, 0, 0, 0.06); }
+#scheduleTable tbody tr:nth-child(even) { background: transparent; }
+body.light-mode #scheduleTable tbody tr:nth-child(odd) { background: rgba(0, 0, 0, 0.03); }
+
+/* Schedule table: editable day cell hover (visual only) */
+#scheduleTable td.clickable:hover {
+  cursor: pointer;
+  outline: 1px solid var(--brand-primary);
+  outline-offset: -1px;
+  background-color: rgba(78, 154, 241, 0.08) !important;
+}
+body.light-mode #scheduleTable td.clickable:hover {
+  background-color: rgba(78, 154, 241, 0.12) !important;
+}
+
+/* Schedule table: Total/Days column header helper text */
+.schedule-th-helper {
+  display: block;
+  font-weight: 400;
+  font-size: 10px;
+  opacity: 0.85;
+}
+
 /* RESPONSIVE: Make table scrollable on smaller screens */
 @media (max-width: 1024px) {
   body {
@@ -825,16 +886,28 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
 <div id="scheduleTab" class="tab">
 <h2>Schedule</h2>
 
-<button type="button" onclick="changeWeek(-1)">⬅ Previous Week</button>
-<button type="button" onclick="changeWeek(1)">Next Week ➡</button>
-<button type="button" onclick="generateSchedule()">Generate</button>
-<button type="button" onclick="regenerateSchedule()">Regenerate</button>
-<button type="button" id="globalLockBtn" onclick="toggleGlobalLock()" style="background:#f39c12;">🔓 Unlock Schedule</button>
-<button type="button" onclick="emailSchedulesToAll()" style="background:#27ae60;">📧 Email Schedules</button>
-<button type="button" onclick="showGenerationRules()" style="background:#9b59b6;">📋 Generation Rules</button>
-<button type="button" onclick="showConflictReport()" id="conflictReportBtn" style="background:#e74c3c; display:none;">⚠️ Conflicts</button>
-<button type="button" onclick="exportScheduleToCSV()" style="background:#16a085;">📥 Export CSV</button>
+<div class="schedule-actions">
+  <span class="schedule-action-group">
+    <button type="button" onclick="changeWeek(-1)">⬅ Previous Week</button>
+    <button type="button" onclick="changeWeek(1)">Next Week ➡</button>
+  </span>
+  <span class="schedule-action-sep" aria-hidden="true">|</span>
+  <span class="schedule-action-group">
+    <button type="button" onclick="generateSchedule()">Generate</button>
+    <button type="button" onclick="regenerateSchedule()">Regenerate</button>
+  </span>
+  <span class="schedule-action-sep" aria-hidden="true">|</span>
+  <span class="schedule-action-group">
+    <button type="button" id="globalLockBtn" onclick="toggleGlobalLock()" style="background:#f39c12;">🔓 Unlock Schedule</button>
+    <span id="scheduleLockHelperText" class="schedule-lock-helper">Edits enabled — changes will affect assignments</span>
+    <button type="button" onclick="emailSchedulesToAll()" style="background:#27ae60;">📧 Email Schedules</button>
+    <button type="button" onclick="showGenerationRules()" style="background:#9b59b6;">📋 Generation Rules</button>
+    <button type="button" onclick="showConflictReport()" id="conflictReportBtn" style="background:#e74c3c; display:none;">⚠️ Conflicts</button>
+    <button type="button" onclick="exportScheduleToCSV()" style="background:#16a085;">📥 Export CSV</button>
+  </span>
+</div>
 
+<p class="schedule-grid-helper">Click a cell to assign an employee to an event or mark time off</p>
 <div class="schedule-container">
   <table id="scheduleTable"></table>
 </div>
@@ -2998,10 +3071,14 @@ function toggleGlobalLock(){
   if(scheduleGlobalLock) {
     btn.innerHTML = '🔒 Locked Schedule';
     btn.style.background = '#e74c3c';
+    var hel = document.getElementById('scheduleLockHelperText');
+    if (hel) hel.textContent = 'Locked schedules cannot be edited';
     addAuditEntry('Schedule Locked', null, null, 'Unlocked', 'Locked');
   } else {
     btn.innerHTML = '🔓 Unlock Schedule';
     btn.style.background = '#f39c12';
+    var hel = document.getElementById('scheduleLockHelperText');
+    if (hel) hel.textContent = 'Edits enabled — changes will affect assignments';
     addAuditEntry('Schedule Unlocked', null, null, 'Locked', 'Unlocked');
   }
   
@@ -3546,7 +3623,7 @@ function displaySchedule(){
     headerRow.appendChild(th);
   });
   
-  headerRow.innerHTML += '<th>Total</th><th>Days</th>';
+  headerRow.innerHTML += '<th>Total<br><small class="schedule-th-helper">Total scheduled hours</small></th><th>Days<br><small class="schedule-th-helper">Days worked this week</small></th>';
   scheduleTable.appendChild(headerRow);
 
   employees.filter(e=>!e.retired).forEach(emp=>{
@@ -3701,7 +3778,7 @@ function displaySchedule(){
     scheduleTable.appendChild(emptyRow);
   }
   
-  // Update global lock button state
+  // Update global lock button state and helper text
   const btn = document.getElementById('globalLockBtn');
   if(btn) {
     if(scheduleGlobalLock) {
@@ -3712,6 +3789,8 @@ function displaySchedule(){
       btn.style.background = '#f39c12';
     }
   }
+  var lockHelper = document.getElementById('scheduleLockHelperText');
+  if (lockHelper) lockHelper.textContent = scheduleGlobalLock ? 'Locked schedules cannot be edited' : 'Edits enabled — changes will affect assignments';
   } catch(error) {
     console.error('Error in displaySchedule:', error);
     console.error('Error details:', error.message, error.stack);
