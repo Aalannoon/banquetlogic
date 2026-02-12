@@ -551,6 +551,14 @@ body.light-mode #employeeEditModal h3 { color: #2980b9; }
 body.light-mode #employeeEditModal label { color: #7f8c8d; }
 
 .override-indicator { color: #f39c12; font-size: 12px; cursor: help; }
+
+/* Inline editable email in employees table */
+.email-cell-wrap { cursor: pointer; padding: 4px 6px; border-radius: 4px; min-height: 1.5em; display: block; }
+.email-cell-wrap:hover { background: var(--brand-bg-elevated); }
+body.light-mode .email-cell-wrap:hover { background: #f3f4f6; }
+.email-cell-placeholder { color: var(--brand-text-quiet); font-style: italic; font-size: 13px; }
+.email-cell-input { width: 100%; max-width: 220px; padding: 4px 6px; border: 1px solid var(--brand-primary); border-radius: 4px; font-size: 13px; background: var(--brand-bg-elevated); color: var(--brand-text); box-sizing: border-box; }
+body.light-mode .email-cell-input { background: #fff; color: #1f2937; border-color: var(--brand-primary); }
 </style>
 </head>
 
@@ -1307,7 +1315,7 @@ function emailSchedulesToAll() {
     employeesWithoutEmail.forEach(name => {
       warning += `• ${name}\n`;
     });
-    warning += '\nPlease add email addresses in the Employees tab (click ℹ️ button).\n\n';
+    warning += '\nPlease add or edit email addresses in the Employees tab (click the email cell).\n\n';
     
     if(employeesWithSchedule.length > 0) {
       warning += `Continue sending to ${employeesWithSchedule.length} employee(s) with valid emails?`;
@@ -1719,14 +1727,12 @@ function renderEmployees(){
     row.className = e.retired ? 'status-retired' : '';
     
     const maxDays = e.maxDaysPerWeek !== undefined ? e.maxDaysPerWeek : 5;
-    const emailDisplay = e.email ? (e.email.length > 20 ? e.email.substring(0, 17) + '...' : e.email) : '(not set)';
-    const emailStyle = e.email ? '' : 'color: #e74c3c; font-style: italic;';
     
     row.innerHTML = `
       <td>${e.name}</td>
       <td>${e.type}</td>
       <td>${e.retired ? '-' : e.seniority}</td>
-      <td style="${emailStyle}" title="${e.email || 'Email not set - required for schedule sending'}">${emailDisplay}</td>
+      <td class="email-cell-td" data-emp-id="${e.id}" title="${e.email ? 'Click to edit' : 'Click to add email'}"></td>
       <td>${e.pref || "-"}</td>
       <td><input type="number" class="max-days-input" value="${maxDays}" min="1" max="5" placeholder="5" style="width:50px;" ${e.retired ? 'disabled' : ''}></td>
       <td><button type="button" class="vacation-btn" style="background:#3498db; padding:4px 8px;">Vacation</button></td>
@@ -1737,6 +1743,51 @@ function renderEmployees(){
         ${e.retired ? "—" : '<button type="button" class="retire">Retire</button>'}
       </td>
     `;
+    
+    const emailTd = row.querySelector('.email-cell-td');
+    if (emailTd) {
+      function setEmailCellDisplay() {
+        const emp = employees.find(function(x) { return x.id === e.id; });
+        const val = emp ? emp.email : '';
+        const display = val ? (val.length > 20 ? val.substring(0, 17) + '...' : val) : '';
+        emailTd.innerHTML = '';
+        const wrap = document.createElement('span');
+        wrap.className = 'email-cell-wrap' + (display ? '' : ' email-cell-placeholder');
+        wrap.textContent = display || 'Add email';
+        wrap.title = display ? 'Click to edit' : 'Click to add email';
+        wrap.onclick = function() {
+          const inp = document.createElement('input');
+          inp.type = 'email';
+          inp.className = 'email-cell-input';
+          inp.placeholder = 'email@example.com';
+          inp.value = (employees.find(function(x) { return x.id === e.id; }) || {}).email || '';
+          emailTd.innerHTML = '';
+          emailTd.appendChild(inp);
+          inp.focus();
+          inp.select();
+          function saveEmail() {
+            const newVal = (inp.value || '').trim() || null;
+            const emp = employees.find(function(x) { return x.id === e.id; });
+            if (emp) {
+              const oldVal = emp.email || null;
+              if (oldVal !== newVal) {
+                emp.email = newVal;
+                addAuditEntry('Email Updated', e.id, null, oldVal || '(none)', newVal || '(none)');
+                save();
+              }
+            }
+            setEmailCellDisplay();
+          }
+          inp.onblur = saveEmail;
+          inp.onkeydown = function(ev) {
+            if (ev.key === 'Enter') { inp.blur(); ev.preventDefault(); }
+            if (ev.key === 'Escape') { setEmailCellDisplay(); ev.preventDefault(); }
+          };
+        };
+        emailTd.appendChild(wrap);
+      }
+      setEmailCellDisplay();
+    }
     
     const maxDaysInput = row.querySelector('.max-days-input');
     const vacationBtn = row.querySelector('.vacation-btn');
