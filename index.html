@@ -159,17 +159,25 @@ td[onclick]:hover, td.clickable:hover { outline:2px dashed #4e9af1; }
 /* PRINT */
 @media print {
   body { background:#fff !important; color:#000 !important; }
-  .tabs, button, input, select { display:none !important; }
+  .tabs, button, input, select, textarea { display:none !important; }
   .tab { display:none !important; }
   #scheduleTab { display:block !important; }
   table { font-size:12px; page-break-inside: avoid; }
   th { background:#ddd !important; color:#000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .locked-cell::after, .conflict-cell::before { display: none; }
+  .locked-cell::after, .conflict-cell::before { display: none !important; }
   .shift-4, .shift-5, .shift-6, .shift-7, .shift-8, .shift-ot {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
   h1 { color: #000 !important; }
+  /* Hide lock column and all lock controls in schedule */
+  #scheduleTable th:first-child,
+  #scheduleTable td:first-child { display: none !important; }
+  #scheduleTable th br { display: none !important; }
+  /* Hide demo UI and other interactive elements in print */
+  .demo-mode-banner,
+  .demo-tip,
+  .demo-tip-visible { display: none !important; }
 }
 
 /* TABS */
