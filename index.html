@@ -288,16 +288,120 @@ td[onclick]:hover, td.clickable:hover { outline:2px dashed #4e9af1; }
 }
 
 /* AUDIT LOG */
+.audit-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  margin-bottom: 16px;
+  padding: 12px 0;
+}
+.audit-filters .audit-filters-inputs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.audit-filters .audit-filters-inputs input {
+  min-width: 140px;
+}
+.audit-filters .audit-filters-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 4px;
+}
+.audit-filters .audit-filters-actions button:first-child {
+  font-weight: 500;
+}
+
 .audit-entry {
-  padding: 10px 12px;
-  margin: 4px 0;
+  padding: 12px 14px;
+  margin: 6px 0;
   background: var(--brand-bg-elevated);
   border-radius: 6px;
   font-size: 13px;
   border: 1px solid var(--brand-border);
+  border-left-width: 3px;
+  border-left-color: var(--brand-border);
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px 0;
 }
-.audit-filters {
-  margin-bottom: 15px;
+.audit-entry__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 12px;
+}
+.audit-entry__action {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--brand-text);
+}
+.audit-entry__time {
+  font-size: 12px;
+  color: var(--brand-text-muted);
+  font-weight: 400;
+}
+.audit-entry__details {
+  font-size: 12px;
+  color: var(--brand-text-muted);
+  line-height: 1.5;
+}
+.audit-entry__details span {
+  display: inline-block;
+  margin-right: 12px;
+  margin-bottom: 2px;
+}
+.audit-entry__details strong {
+  color: var(--brand-text-quiet);
+  font-weight: 500;
+  margin-right: 4px;
+}
+/* Action-type accents (inferred from log text) */
+.audit-entry--add { border-left-color: #27ae60; }
+.audit-entry--edit { border-left-color: #3498db; }
+.audit-entry--remove { border-left-color: #e74c3c; }
+body.light-mode .audit-entry__action { color: #1f2937; }
+body.light-mode .audit-entry__time,
+body.light-mode .audit-entry__details { color: #6b7280; }
+body.light-mode .audit-entry__details strong { color: #9ca3af; }
+
+.audit-empty {
+  padding: 24px 16px;
+  text-align: center;
+  font-size: 14px;
+  color: var(--brand-text-muted);
+  background: var(--brand-bg-elevated);
+  border-radius: 8px;
+  border: 1px solid var(--brand-border);
+  margin-top: 8px;
+}
+body.light-mode .audit-empty { color: #6b7280; background: #f9fafb; border-color: #e5e7eb; }
+
+@media (max-width: 640px) {
+  #auditTab .audit-entry {
+    padding: 10px 12px;
+    word-break: break-word;
+  }
+  #auditTab .audit-entry__header {
+    flex-direction: column;
+    gap: 4px;
+  }
+  #auditTab .audit-entry__details span {
+    display: block;
+    margin-right: 0;
+    margin-bottom: 4px;
+  }
+  .audit-filters {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .audit-filters .audit-filters-actions {
+    margin-left: 0;
+    justify-content: flex-start;
+  }
 }
 
 /* PRINT */
@@ -918,10 +1022,14 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
 <h2>Audit Log</h2>
 
 <div class="audit-filters">
-  <input type="text" id="auditEmployee" placeholder="Filter by employee" />
-  <input id="auditDate" type="date" placeholder="Filter by date" />
-  <button type="button" onclick="filterAuditLog()">Filter</button>
-  <button type="button" onclick="clearAuditFilter()">Clear Filter</button>
+  <div class="audit-filters-inputs">
+    <input type="text" id="auditEmployee" placeholder="Filter by employee" />
+    <input id="auditDate" type="date" placeholder="Filter by date" />
+  </div>
+  <div class="audit-filters-actions">
+    <button type="button" onclick="filterAuditLog()">Filter</button>
+    <button type="button" onclick="clearAuditFilter()">Clear Filter</button>
+  </div>
 </div>
 
 <div id="auditLogContainer"></div>
@@ -4152,23 +4260,38 @@ function renderAuditLog(filter = {}){
   }
   
   if(filtered.length === 0) {
-    container.innerHTML = '<p>No audit entries found.</p>';
+    const hasFilters = !!(filter.employee || filter.date);
+    const emptyMsg = hasFilters ? 'No audit entries match your filters.' : 'No audit entries found.';
+    container.innerHTML = '<div class="audit-empty">' + emptyMsg + '</div>';
     return;
   }
   
   filtered.forEach(entry => {
     const div = document.createElement('div');
-    div.className = 'audit-entry';
+    const a = (entry.action || '').toLowerCase();
+    let typeClass = '';
+    if (a.indexOf('added') !== -1 || a.indexOf('created') !== -1 || a.indexOf('imported') !== -1 || a.indexOf('set') !== -1) typeClass = ' audit-entry--add';
+    else if (a.indexOf('updated') !== -1 || a.indexOf('edited') !== -1 || a.indexOf('modified') !== -1 || a.indexOf('changed') !== -1) typeClass = ' audit-entry--edit';
+    else if (a.indexOf('removed') !== -1 || a.indexOf('deleted') !== -1 || a.indexOf('retired') !== -1 || a.indexOf('cleared') !== -1) typeClass = ' audit-entry--remove';
+    div.className = 'audit-entry' + typeClass;
     
     const timestamp = new Date(entry.timestamp).toLocaleString();
-    let html = `<strong>${entry.action}</strong> - ${timestamp}<br>`;
+    const header = document.createElement('div');
+    header.className = 'audit-entry__header';
+    header.innerHTML = '<span class="audit-entry__action">' + entry.action + '</span><span class="audit-entry__time">' + timestamp + '</span>';
+    div.appendChild(header);
     
-    if(entry.employee) html += `Employee: ${entry.employee}<br>`;
-    if(entry.date) html += `Date: ${entry.date}<br>`;
-    if(entry.oldValue) html += `Old: ${entry.oldValue}<br>`;
-    if(entry.newValue) html += `New: ${entry.newValue}`;
-    
-    div.innerHTML = html;
+    const parts = [];
+    if(entry.employee) parts.push('<span><strong>Employee:</strong> ' + entry.employee + '</span>');
+    if(entry.date) parts.push('<span><strong>Date:</strong> ' + entry.date + '</span>');
+    if(entry.oldValue) parts.push('<span><strong>Old:</strong> ' + entry.oldValue + '</span>');
+    if(entry.newValue) parts.push('<span><strong>New:</strong> ' + entry.newValue + '</span>');
+    if(parts.length) {
+      const details = document.createElement('div');
+      details.className = 'audit-entry__details';
+      details.innerHTML = parts.join('');
+      div.appendChild(details);
+    }
     container.appendChild(div);
   });
 }
