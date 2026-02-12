@@ -2932,14 +2932,14 @@ function submitSupport(){
 /* DEMO MODE */
 let demoInProgress = false;
 let demoTimer = null;
-let demoBackupData = {};
+let demoBackupData = null;
 
 function startDemo() {
   if(!confirm('Start the BanquetLogic demo?\n\nThis will temporarily replace your data with sample data. Your real data will be restored when the demo ends.')) {
     return;
   }
   
-  // Backup current data
+  // Backup all state that can be modified during demo or persisted to storage
   demoBackupData = {
     employees: JSON.parse(JSON.stringify(employees)),
     events: JSON.parse(JSON.stringify(events)),
@@ -2947,7 +2947,9 @@ function startDemo() {
     lockedCells: JSON.parse(JSON.stringify(lockedCells)),
     lockedRows: JSON.parse(JSON.stringify(lockedRows)),
     scheduleGlobalLock: scheduleGlobalLock,
-    currentWeekOffset: currentWeekOffset
+    currentWeekOffset: currentWeekOffset,
+    auditLog: JSON.parse(JSON.stringify(auditLog)),
+    assignmentReasons: JSON.parse(JSON.stringify(assignmentReasons))
   };
   
   demoInProgress = true;
@@ -2957,40 +2959,60 @@ function startDemo() {
   document.getElementById('demoInstructions').style.display = 'none';
   if(typeof tabDemoBtn !== 'undefined') tabDemoBtn.classList.add('demo-active');
   
-  // Run demo steps
   runDemoSequence();
 }
 
-function stopDemo() {
-  if(!confirm('Stop the demo and restore your real data?')) {
-    return;
+function performDemoCleanup(skipConfirm) {
+  clearTimeout(demoTimer);
+  demoTimer = null;
+  
+  const hasValidBackup = demoBackupData && Array.isArray(demoBackupData.employees);
+  if (hasValidBackup) {
+    employees = demoBackupData.employees;
+    events = demoBackupData.events;
+    manualEdits = demoBackupData.manualEdits;
+    lockedCells = demoBackupData.lockedCells;
+    lockedRows = demoBackupData.lockedRows;
+    scheduleGlobalLock = demoBackupData.scheduleGlobalLock;
+    currentWeekOffset = demoBackupData.currentWeekOffset;
+    auditLog = demoBackupData.auditLog != null ? demoBackupData.auditLog : auditLog;
+    assignmentReasons = demoBackupData.assignmentReasons != null ? demoBackupData.assignmentReasons : assignmentReasons;
+    generationConflicts = [];
+    const conflictBtn = document.getElementById('conflictReportBtn');
+    if (conflictBtn) { conflictBtn.style.display = 'none'; conflictBtn.textContent = '⚠️ Conflicts'; }
+    save();
+    renderEmployees();
+    renderEvents();
+    displaySchedule();
+  } else {
+    generationConflicts = [];
   }
   
-  clearTimeout(demoTimer);
-  
-  // Restore original data
-  employees = demoBackupData.employees;
-  events = demoBackupData.events;
-  manualEdits = demoBackupData.manualEdits;
-  lockedCells = demoBackupData.lockedCells;
-  lockedRows = demoBackupData.lockedRows;
-  scheduleGlobalLock = demoBackupData.scheduleGlobalLock;
-  currentWeekOffset = demoBackupData.currentWeekOffset;
-  
-  save();
-  renderEmployees();
-  renderEvents();
-  displaySchedule();
-  
   demoInProgress = false;
-  document.getElementById('demoModeBanner').classList.remove('demo-mode-banner-visible');
-  document.getElementById('demoTip').classList.remove('demo-tip-visible');
-  document.getElementById('demoStopArea').style.display = 'none';
-  document.getElementById('demoStatus').style.display = 'none';
-  document.getElementById('demoInstructions').style.display = 'block';
-  if(typeof tabDemoBtn !== 'undefined') tabDemoBtn.classList.remove('demo-active');
+  demoBackupData = null;
+  const banner = document.getElementById('demoModeBanner');
+  if (banner) banner.classList.remove('demo-mode-banner-visible');
+  const tip = document.getElementById('demoTip');
+  if (tip) tip.classList.remove('demo-tip-visible');
+  const stopArea = document.getElementById('demoStopArea');
+  if (stopArea) stopArea.style.display = 'none';
+  const status = document.getElementById('demoStatus');
+  if (status) status.style.display = 'none';
+  const instructions = document.getElementById('demoInstructions');
+  if (instructions) instructions.style.display = 'block';
+  if (typeof tabDemoBtn !== 'undefined') tabDemoBtn.classList.remove('demo-active');
   
-  alert('Demo stopped. Your original data has been restored.');
+  if (!skipConfirm && hasValidBackup) {
+    alert('Demo stopped. Your original data has been restored.');
+  }
+}
+
+function stopDemo() {
+  if (!demoInProgress) return;
+  if (!confirm('Stop the demo and restore your real data?')) {
+    return;
+  }
+  performDemoCleanup(false);
 }
 
 function updateDemoStatus(step, total, message) {
@@ -3039,13 +3061,16 @@ function runDemoSequence() {
   
   function runNextStep() {
     if(!demoInProgress || currentStep >= steps.length) return;
-    
-    const step = steps[currentStep];
-    step.action();
-    currentStep++;
-    
-    if(currentStep < steps.length) {
-      demoTimer = setTimeout(runNextStep, steps[currentStep].delay);
+    try {
+      const step = steps[currentStep];
+      step.action();
+      currentStep++;
+      if(currentStep < steps.length) {
+        demoTimer = setTimeout(runNextStep, steps[currentStep].delay);
+      }
+    } catch (err) {
+      console.error('Demo step error:', err);
+      performDemoCleanup(true);
     }
   }
   
