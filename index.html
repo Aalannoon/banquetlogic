@@ -440,10 +440,14 @@ body.light-mode #employeeEditModal label { color: #7f8c8d; }
 
 <div style="margin-bottom: 15px; padding: 10px; background: #2e2e3d; border-radius: 8px;">
   <h3 style="margin-top: 0;">Add Employee Manually</h3>
-  <div style="margin-bottom: 10px;">
+  <div style="margin-bottom: 10px; display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px;">
     <input type="text" id="empName" placeholder="Name" />
     <select id="empType"><option value="FT">FT</option><option value="PT">PT</option></select>
-    <input id="empSeniority" type="number" placeholder="Seniority" />
+    <div>
+      <label for="empSeniority" style="display: block; margin-bottom: 2px; font-size: 13px;">Seniority</label>
+      <input id="empSeniority" type="number" min="1" placeholder="Auto" style="width: 70px;" />
+      <small style="display: block; margin-top: 2px; color: #95a5a6; font-size: 11px;">Auto-assigned; you can change it. Must be unique.</small>
+    </div>
     <select id="empPref">
       <option value="">No Pref</option>
       <option value="AM">AM</option>
@@ -530,6 +534,10 @@ body.light-mode #employeeEditModal label { color: #7f8c8d; }
         <option value="AM">AM (morning)</option>
         <option value="PM">PM (afternoon)</option>
       </select>
+    </div>
+    <div class="edit-row">
+      <label for="employeeEditSeniority">Seniority (unique number, 1 = highest)</label>
+      <input type="number" id="employeeEditSeniority" min="1" style="width: 80px;" />
     </div>
     <div class="edit-row">
       <label><input type="checkbox" id="employeeEditSick" /> Mark as sick (unavailable this week)</label>
@@ -1250,13 +1258,45 @@ function generateEmployeeScheduleEmail(emp, days) {
 }
 
 /* EMPLOYEES */
+function getNextSeniority() {
+  if (employees.length === 0) return 1;
+  var max = Math.max.apply(null, employees.map(function(e) { return e.seniority || 0; }));
+  return max + 1;
+}
+
+function validateSeniority(value, excludeEmployeeId) {
+  var num = parseInt(value, 10);
+  if (value === '' || value === null || value === undefined) return { ok: false, message: 'Seniority is required.' };
+  if (isNaN(num)) return { ok: false, message: 'Seniority must be a number.' };
+  if (num < 1) return { ok: false, message: 'Seniority must be at least 1.' };
+  var taken = employees.some(function(e) { return e.id !== excludeEmployeeId && e.seniority === num; });
+  if (taken) return { ok: false, message: 'Another employee already has this seniority number. Each employee must have a unique seniority.' };
+  return { ok: true, value: num };
+}
+
+function updateSeniorityPreFill() {
+  var el = document.getElementById('empSeniority');
+  if (el) el.value = getNextSeniority();
+}
+
 function addEmployee(){
   if(!empName.value) return;
+  var suggested = getNextSeniority();
+  var rawSeniority = (empSeniority.value || '').trim();
+  var seniorityVal = rawSeniority === '' ? suggested : null;
+  if (rawSeniority !== '') {
+    var check = validateSeniority(rawSeniority, null);
+    if (!check.ok) {
+      alert(check.message);
+      return;
+    }
+    seniorityVal = check.value;
+  }
   const newEmp = {
     id: crypto.randomUUID(),
     name: empName.value,
     type: empType.value,
-    seniority:+empSeniority.value || employees.filter(e=>!e.retired).length + 1,
+    seniority: seniorityVal,
     pref: empPref.value,
     email: document.getElementById('empEmail').value || null,
     employeeId: document.getElementById('empEmployeeId').value || null,
@@ -1271,12 +1311,11 @@ function addEmployee(){
   };
   employees.push(newEmp);
   empName.value = "";
-  empSeniority.value = "";
   document.getElementById('empEmail').value = "";
   document.getElementById('empEmployeeId').value = "";
   document.getElementById('empHireDate').value = "";
   document.getElementById('empBirthdate').value = "";
-  rebalanceSeniority();
+  updateSeniorityPreFill();
   
   addAuditEntry('Employee Added', newEmp.id, null, null, `${newEmp.name} (${newEmp.type}, Seniority ${newEmp.seniority})`);
   save(); 
@@ -1840,6 +1879,7 @@ function viewEmployeeInfo(empId) {
   document.getElementById('employeeEditName').textContent = emp.name;
   document.getElementById('employeeEditType').value = emp.type || 'FT';
   document.getElementById('employeeEditPref').value = emp.pref || '';
+  document.getElementById('employeeEditSeniority').value = emp.seniority != null ? emp.seniority : '';
   document.getElementById('employeeEditSick').checked = !!emp.sick;
   
   var overlay = document.getElementById('employeeEditModalOverlay');
@@ -1858,19 +1898,30 @@ function saveEmployeeEdit() {
   
   var typeEl = document.getElementById('employeeEditType');
   var prefEl = document.getElementById('employeeEditPref');
+  var seniorityEl = document.getElementById('employeeEditSeniority');
   var sickEl = document.getElementById('employeeEditSick');
+  
+  var rawSeniority = (seniorityEl.value || '').trim();
+  var check = validateSeniority(rawSeniority, editingEmployeeId);
+  if (!check.ok) {
+    alert(check.message);
+    return;
+  }
   
   var oldType = emp.type;
   var oldPref = emp.pref || '';
+  var oldSeniority = emp.seniority;
   var oldSick = emp.sick;
   
   emp.type = typeEl.value;
   emp.pref = prefEl.value || null;
+  emp.seniority = check.value;
   emp.sick = sickEl.checked;
   
   var changes = [];
   if (oldType !== emp.type) changes.push('type ' + oldType + ' → ' + emp.type);
   if (oldPref !== (emp.pref || '')) changes.push('preference ' + (oldPref || 'none') + ' → ' + (emp.pref || 'none'));
+  if (oldSeniority !== emp.seniority) changes.push('seniority ' + oldSeniority + ' → ' + emp.seniority);
   if (oldSick !== emp.sick) changes.push('sick ' + (oldSick ? 'yes' : 'no') + ' → ' + (emp.sick ? 'yes' : 'no'));
   
   if (changes.length) {
@@ -3474,6 +3525,7 @@ function demoStep11_Complete() {
 /* INIT */
 try {
   initEmployeeEditModal();
+  updateSeniorityPreFill();
   renderEmployees();
   renderEvents();
   showTab("employeesTab");
