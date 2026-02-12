@@ -1003,11 +1003,15 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
   <h3 style="margin-top: 0;">Add Employee Manually</h3>
   <div style="margin-bottom: 10px; display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px;">
     <input type="text" id="empName" placeholder="Name" />
+    <div>
+      <label for="empLaborPool" style="display: block; margin-bottom: 2px; font-size: 13px;">Labor Pool <span style="color:#e74c3c;">*</span></label>
+      <select id="empLaborPool" required onchange="updateSeniorityPreFill()"></select>
+    </div>
     <select id="empType"><option value="FT">FT</option><option value="PT">PT</option></select>
     <div>
-      <label for="empSeniority" style="display: block; margin-bottom: 2px; font-size: 13px;">Seniority</label>
+      <label for="empSeniority" style="display: block; margin-bottom: 2px; font-size: 13px;">Seniority (within pool)</label>
       <input id="empSeniority" type="number" min="1" placeholder="Auto" style="width: 70px;" />
-      <small style="display: block; margin-top: 2px; color: #95a5a6; font-size: 11px;">Auto-assigned; you can change it. Must be unique.</small>
+      <small style="display: block; margin-top: 2px; color: #95a5a6; font-size: 11px;">Auto-assigned; you can change it. Unique per labor pool.</small>
     </div>
     <select id="empPref">
       <option value="">No Pref</option>
@@ -1069,7 +1073,7 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
 <table>
 <thead>
 <tr>
-  <th>Name</th><th>Type</th><th>Seniority</th><th>Email</th><th>Pref</th>
+  <th>Name</th><th>Pool</th><th>Type</th><th>Seniority</th><th>Email</th><th>Pref</th>
   <th>Max Days/Wk</th><th>Vacation</th><th>Day Prefs</th><th>Time Off</th><th>Sick</th><th>Actions</th>
 </tr>
 </thead>
@@ -1089,6 +1093,10 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
       </select>
     </div>
     <div class="edit-row">
+      <label for="employeeEditLaborPool">Labor Pool</label>
+      <select id="employeeEditLaborPool"></select>
+    </div>
+    <div class="edit-row">
       <label for="employeeEditPref">AM / PM preference</label>
       <select id="employeeEditPref">
         <option value="">No preference</option>
@@ -1097,7 +1105,7 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
       </select>
     </div>
     <div class="edit-row">
-      <label for="employeeEditSeniority">Seniority (unique number, 1 = highest)</label>
+      <label for="employeeEditSeniority">Seniority (within pool, 1 = highest)</label>
       <input type="number" id="employeeEditSeniority" min="1" style="width: 80px;" />
     </div>
     <div class="edit-row">
@@ -1126,7 +1134,14 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
 <select id="eventService" onchange="autoRecommendStaff()"></select>
 <p class="event-type-helper">Affects staffing ratios and scheduling logic</p>
 
-<input id="eventStaff" type="number" placeholder="Staff Needed" />
+<div class="event-pool-reqs-section" style="margin-top: 12px;">
+  <label style="display: block; margin-bottom: 6px; font-size: 13px;">Labor pool requirements</label>
+  <p class="event-type-helper" style="margin: 0 0 8px 0;">Which pools are needed and how many (e.g. 1 Cashier, 2 Housemen).</p>
+  <div id="eventLaborPoolReqsContainer"></div>
+  <button type="button" onclick="addEventPoolReqRow()" style="margin-top: 6px;">Add pool requirement</button>
+</div>
+
+<input id="eventStaff" type="number" placeholder="Staff Needed (legacy)" style="margin-top: 8px;" />
 <button type="button" id="eventSubmitBtn" onclick="addEvent()">Add Event</button>
 
 <table class="events-table">
@@ -1223,6 +1238,56 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
   </div>
   
   <button type="button" onclick="saveSettings()">Save Settings</button>
+</div>
+
+<div class="settings-section" id="laborPoolsSection">
+  <h3>Labor Pools</h3>
+  <p>Create pools (e.g. Servers, Cashiers, Housemen). Each employee is assigned to one pool. Seniority is tracked separately within each pool. Control whether a pool can be scheduled and whether it appears in event requirements.</p>
+  
+  <table class="settings-table event-types-table">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Default wage</th>
+        <th>Can schedule</th>
+        <th>In events</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="laborPoolsTableBody"></tbody>
+  </table>
+  <button type="button" onclick="openLaborPoolModal()" class="event-type-add-btn">Add labor pool</button>
+</div>
+
+<div id="laborPoolModalOverlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 10000; align-items: center; justify-content: center;" onclick="if(event.target===this) closeLaborPoolModal();">
+  <div id="laborPoolModal" style="background: #2c3e50; padding: 24px; border-radius: 8px; min-width: 320px; max-width: 90%;" onclick="event.stopPropagation();">
+    <h3 style="margin-top: 0;" id="laborPoolModalTitle">Add labor pool</h3>
+    <input type="hidden" id="laborPoolEditId" value="" />
+    <div style="margin-bottom: 12px;">
+      <label for="laborPoolName" style="display: block; margin-bottom: 4px;">Name</label>
+      <input type="text" id="laborPoolName" placeholder="e.g. Servers" style="width: 100%; padding: 8px; box-sizing: border-box;" />
+    </div>
+    <div style="margin-bottom: 12px;">
+      <label for="laborPoolWage" style="display: block; margin-bottom: 4px;">Default hourly wage</label>
+      <input type="number" id="laborPoolWage" min="0" step="0.01" value="0" style="width: 120px; padding: 8px;" />
+    </div>
+    <div style="margin-bottom: 12px;">
+      <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+        <input type="checkbox" id="laborPoolCanSchedule" checked />
+        Can be scheduled
+      </label>
+    </div>
+    <div style="margin-bottom: 16px;">
+      <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+        <input type="checkbox" id="laborPoolAppearsInEvents" checked />
+        Appears in events
+      </label>
+    </div>
+    <div style="display: flex; gap: 8px; justify-content: flex-end;">
+      <button type="button" onclick="closeLaborPoolModal()">Cancel</button>
+      <button type="button" onclick="saveLaborPoolFromModal()">Save</button>
+    </div>
+  </div>
 </div>
 
 <div class="settings-section" id="eventTypesSection">
@@ -1517,6 +1582,25 @@ if (!eventTypes || eventTypes.length === 0) {
   localStorage.setItem("eventTypes", JSON.stringify(eventTypes));
 }
 function getActiveEventTypes() { return eventTypes.filter(function(t) { return t.active; }); }
+
+var DEFAULT_SERVERS_POOL_ID = 'default-servers';
+function getDefaultLaborPools() {
+  return [
+    { id: DEFAULT_SERVERS_POOL_ID, name: 'Servers', defaultHourlyWage: 0, canBeScheduled: true, appearsInEvents: true }
+  ];
+}
+var laborPools = JSON.parse(localStorage.getItem("laborPools") || "null");
+if (!laborPools || laborPools.length === 0) {
+  laborPools = getDefaultLaborPools();
+  localStorage.setItem("laborPools", JSON.stringify(laborPools));
+}
+function getLaborPoolById(id) { return laborPools.find(function(p) { return p.id === id; }); }
+ensureEmployeeDefaults(employees);
+function getSchedulableLaborPools() { return laborPools.filter(function(p) { return p.canBeScheduled; }); }
+function getEventLaborPools() { return laborPools.filter(function(p) { return p.appearsInEvents; }); }
+function isLaborPoolUsedByEmployees(pool) {
+  return employees.some(function(e) { return e.laborPoolId === pool.id; });
+}
 function getEventTypeById(id) { return eventTypes.find(function(t) { return t.id === id; }); }
 function getEventTypeByName(name) { return eventTypes.find(function(t) { return t.name === name; }); }
 function isEventTypeUsedByEvents(type) {
@@ -1543,7 +1627,9 @@ let currentWeekOffset = 0;
     currentWeekOffset = 0;
     settings = { assignmentStyle: 'strict', ratios: { 'Plated Service': 20, 'Buffet Service': 30, 'Reception': 40, 'Coffee Break': 50 } };
     eventTypes = getDefaultEventTypes();
+    laborPools = getDefaultLaborPools();
     localStorage.setItem('eventTypes', JSON.stringify(eventTypes));
+    localStorage.setItem('laborPools', JSON.stringify(laborPools));
     localStorage.setItem('employees', '[]');
     localStorage.setItem('events', '[]');
     localStorage.setItem('manualEdits', '{}');
@@ -1584,6 +1670,7 @@ function save(){
   localStorage.setItem("assignmentReasonTags", JSON.stringify(assignmentReasonTags));
   localStorage.setItem("settings", JSON.stringify(settings));
   localStorage.setItem("eventTypes", JSON.stringify(eventTypes));
+  localStorage.setItem("laborPools", JSON.stringify(laborPools));
   scheduleAutoBackup();
 }
 
@@ -1601,6 +1688,7 @@ function getDataForExport() {
     assignmentReasonTags: assignmentReasonTags,
     settings: settings,
     eventTypes: eventTypes,
+    laborPools: laborPools,
     metadata: {
       schemaVersion: SCHEMA_VERSION,
       appVersion: APP_VERSION,
@@ -1842,6 +1930,7 @@ function validateImportData(data) {
   if (data.events !== undefined && !Array.isArray(data.events)) return 'Event data in the file is invalid.';
   if (data.auditLog !== undefined && !Array.isArray(data.auditLog)) return 'Audit log data in the file is invalid.';
   if (data.eventTypes !== undefined && !Array.isArray(data.eventTypes)) return 'Event types in the file are invalid.';
+  if (data.laborPools !== undefined && !Array.isArray(data.laborPools)) return 'Labor pools in the file are invalid.';
   if (data.manualEdits !== undefined && (typeof data.manualEdits !== 'object' || data.manualEdits === null)) return 'Schedule data in the file is invalid.';
   if (data.lockedCells !== undefined && (typeof data.lockedCells !== 'object' || data.lockedCells === null)) return 'Lock data in the file is invalid.';
   if (data.lockedRows !== undefined && (typeof data.lockedRows !== 'object' || data.lockedRows === null)) return 'Lock data in the file is invalid.';
@@ -1871,6 +1960,9 @@ function migrateImportData(data) {
       return { id: crypto.randomUUID(), name: name, guestsPerServer: r[name], active: true };
     });
   }
+  if (!Array.isArray(result.laborPools)) {
+    result.laborPools = getDefaultLaborPools();
+  }
   if (!result.metadata || typeof result.metadata !== 'object') result.metadata = {};
   result.metadata.schemaVersion = SCHEMA_VERSION;
   return result;
@@ -1878,7 +1970,11 @@ function migrateImportData(data) {
 
 function ensureEmployeeDefaults(list) {
   if (!Array.isArray(list)) return;
+  var defaultPoolId = (laborPools.length && getLaborPoolById(DEFAULT_SERVERS_POOL_ID)) ? DEFAULT_SERVERS_POOL_ID : (laborPools[0] ? laborPools[0].id : null);
   list.forEach(function(emp) {
+    if (!emp.laborPoolId) emp.laborPoolId = defaultPoolId || (laborPools[0] ? laborPools[0].id : null);
+    if (!emp.seniorityByPool) emp.seniorityByPool = {};
+    if (emp.seniority != null && emp.laborPoolId && emp.seniorityByPool[emp.laborPoolId] === undefined) emp.seniorityByPool[emp.laborPoolId] = emp.seniority;
     if (!emp.dayPreferences) {
       emp.dayPreferences = { 0: null, 1: null, 2: null, 3: null, 4: null, 5: null, 6: null };
     }
@@ -1899,6 +1995,7 @@ function applyImportedData(data) {
   assignmentReasonTags = data.assignmentReasonTags && typeof data.assignmentReasonTags === 'object' ? data.assignmentReasonTags : {};
   settings = data.settings && typeof data.settings === 'object' ? data.settings : { assignmentStyle: 'strict', ratios: {} };
   eventTypes = Array.isArray(data.eventTypes) ? data.eventTypes : getDefaultEventTypes();
+  laborPools = Array.isArray(data.laborPools) ? data.laborPools : getDefaultLaborPools();
   editingEventId = null;
 }
 
@@ -1910,6 +2007,7 @@ function reRenderAfterImport() {
   loadSettings();
   renderAuditLog();
   populateEventServiceDropdown();
+  populateLaborPoolDropdowns();
 }
 
 function handleImportFile(ev) {
@@ -1974,7 +2072,7 @@ function showTab(id){
   document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
   document.querySelectorAll(".tabs button").forEach(b=>b.classList.remove("active"));
   document.getElementById(id).classList.add("active");
-  if(id==="employeesTab") tabEmpBtn.classList.add("active");
+  if(id==="employeesTab") { tabEmpBtn.classList.add("active"); populateLaborPoolDropdowns(); }
   if(id==="eventsTab") { tabEvBtn.classList.add("active"); populateEventServiceDropdown(); }
   if(id==="scheduleTab") { tabSchBtn.classList.add("active"); displaySchedule(); }
   if(id==="auditTab") { tabAuditBtn.classList.add("active"); renderAuditLog(); }
@@ -2258,59 +2356,81 @@ function generateEmployeeScheduleEmail(emp, days) {
 }
 
 /* EMPLOYEES */
-function getNextSeniority() {
-  if (employees.length === 0) return 1;
-  var max = Math.max.apply(null, employees.map(function(e) { return e.seniority || 0; }));
+function getSeniorityForEmployee(emp) {
+  if (!emp) return null;
+  if (emp.laborPoolId && emp.seniorityByPool && emp.seniorityByPool[emp.laborPoolId] != null) return emp.seniorityByPool[emp.laborPoolId];
+  return emp.seniority != null ? emp.seniority : null;
+}
+
+function getNextSeniority(poolId) {
+  var inPool = employees.filter(function(e) { return e.laborPoolId === poolId; });
+  if (inPool.length === 0) return 1;
+  var max = Math.max.apply(null, inPool.map(function(e) { return getSeniorityForEmployee(e) || 0; }));
   return max + 1;
 }
 
-function validateSeniority(value, excludeEmployeeId) {
+function validateSeniority(value, excludeEmployeeId, poolId) {
   var num = parseInt(value, 10);
   if (value === '' || value === null || value === undefined) return { ok: false, message: 'Seniority is required.' };
   if (isNaN(num)) return { ok: false, message: 'Seniority must be a number.' };
   if (num < 1) return { ok: false, message: 'Seniority must be at least 1.' };
-  var taken = employees.some(function(e) { return e.id !== excludeEmployeeId && e.seniority === num; });
-  if (taken) return { ok: false, message: 'Another employee already has this seniority number. Each employee must have a unique seniority.' };
+  var inPool = employees.filter(function(e) { return e.laborPoolId === poolId; });
+  var taken = inPool.some(function(e) { return e.id !== excludeEmployeeId && (getSeniorityForEmployee(e)) === num; });
+  if (taken) return { ok: false, message: 'Another employee in this labor pool already has this seniority number. Seniority must be unique within each pool.' };
   return { ok: true, value: num };
 }
 
 function updateSeniorityPreFill() {
+  var poolSel = document.getElementById('empLaborPool');
+  var poolId = poolSel && poolSel.value ? poolSel.value : (laborPools[0] ? laborPools[0].id : null);
   var el = document.getElementById('empSeniority');
-  if (el) el.value = getNextSeniority();
+  if (el && poolId) el.value = getNextSeniority(poolId);
 }
 
 function addEmployee(){
-  if(!empName.value) return;
-  var suggested = getNextSeniority();
-  var rawSeniority = (empSeniority.value || '').trim();
+  var empNameEl = document.getElementById('empName');
+  var empLaborPoolEl = document.getElementById('empLaborPool');
+  if (!empNameEl || !empNameEl.value) return;
+  if (!empLaborPoolEl || !empLaborPoolEl.value) {
+    alert('Please select a Labor Pool.');
+    return;
+  }
+  var poolId = empLaborPoolEl.value;
+  var suggested = getNextSeniority(poolId);
+  var empSeniorityEl = document.getElementById('empSeniority');
+  var rawSeniority = (empSeniorityEl && empSeniorityEl.value || '').trim();
   var seniorityVal = rawSeniority === '' ? suggested : null;
   if (rawSeniority !== '') {
-    var check = validateSeniority(rawSeniority, null);
+    var check = validateSeniority(rawSeniority, null, poolId);
     if (!check.ok) {
       alert(check.message);
       return;
     }
     seniorityVal = check.value;
   }
+  var seniorityByPool = {};
+  seniorityByPool[poolId] = seniorityVal;
   const newEmp = {
     id: crypto.randomUUID(),
-    name: empName.value,
-    type: empType.value,
+    name: empNameEl.value,
+    laborPoolId: poolId,
+    seniorityByPool: seniorityByPool,
     seniority: seniorityVal,
-    pref: empPref.value,
+    type: document.getElementById('empType').value,
+    pref: document.getElementById('empPref').value,
     email: document.getElementById('empEmail').value || null,
     employeeId: document.getElementById('empEmployeeId').value || null,
     hireDate: document.getElementById('empHireDate').value || null,
     birthdate: document.getElementById('empBirthdate').value || null,
-    sick:false,
-    retired:false,
-    maxDaysPerWeek: 5, // Default to 5 days
+    sick: false,
+    retired: false,
+    maxDaysPerWeek: 5,
     dayPreferences: {
       0: null, 1: null, 2: null, 3: null, 4: null, 5: null, 6: null
     }
   };
   employees.push(newEmp);
-  empName.value = "";
+  empNameEl.value = "";
   document.getElementById('empEmail').value = "";
   document.getElementById('empEmployeeId').value = "";
   document.getElementById('empHireDate').value = "";
@@ -2472,23 +2592,29 @@ function parseAndImportText(text) {
     employees = [];
   }
   
-  // Import employees
+  var defaultPoolId = (laborPools.length && getLaborPoolById(DEFAULT_SERVERS_POOL_ID)) ? DEFAULT_SERVERS_POOL_ID : (laborPools[0] ? laborPools[0].id : null);
   let imported = 0;
   parsed.forEach(emp => {
+    var seniorityByPool = {};
+    if (defaultPoolId) seniorityByPool[defaultPoolId] = emp.seniority;
     employees.push({
       id: crypto.randomUUID(),
       name: emp.name,
-      type: emp.type,
+      laborPoolId: defaultPoolId,
+      seniorityByPool: seniorityByPool,
       seniority: emp.seniority,
-      pref: emp.pref,
+      type: emp.type,
+      pref: emp.pref || null,
       sick: false,
-      retired: false
+      retired: false,
+      maxDaysPerWeek: 5,
+      dayPreferences: { 0: null, 1: null, 2: null, 3: null, 4: null, 5: null, 6: null }
     });
     imported++;
   });
   
-  // Rebalance seniority
   rebalanceSeniority();
+  ensureEmployeeDefaults(employees);
   
   addAuditEntry('Employees Imported', null, null, null, `${imported} employees imported (${mode ? 'Replace' : 'Merge'} mode)`);
   save();
@@ -2526,9 +2652,15 @@ function exportEmployeeList() {
 }
 
 function rebalanceSeniority(){
-  employees.filter(e=>!e.retired)
-    .sort((a,b)=>a.seniority-b.seniority)
-    .forEach((e,i)=>e.seniority=i+1);
+  laborPools.forEach(function(pool) {
+    var inPool = employees.filter(function(e) { return !e.retired && e.laborPoolId === pool.id; });
+    inPool.sort(function(a, b) { return (getSeniorityForEmployee(a) || 999) - (getSeniorityForEmployee(b) || 999); });
+    inPool.forEach(function(e, i) {
+      if (!e.seniorityByPool) e.seniorityByPool = {};
+      e.seniorityByPool[pool.id] = i + 1;
+      e.seniority = i + 1;
+    });
+  });
 }
 
 function retireEmployee(id){
@@ -2544,16 +2676,23 @@ function retireEmployee(id){
 
 function renderEmployees(){
   employeesTable.innerHTML="";
-  employees.sort((a,b)=>a.seniority-b.seniority).forEach(e=>{
+  employees.sort(function(a,b){
+    var poolA = (a.laborPoolId || '') || '';
+    var poolB = (b.laborPoolId || '') || '';
+    if (poolA !== poolB) return poolA.localeCompare(poolB);
+    return (getSeniorityForEmployee(a) || 999) - (getSeniorityForEmployee(b) || 999);
+  }).forEach(e=>{
     const row = document.createElement('tr');
     row.className = e.retired ? 'status-retired' : '';
     
     const maxDays = e.maxDaysPerWeek !== undefined ? e.maxDaysPerWeek : 5;
     
+    var poolName = e.laborPoolId ? (getLaborPoolById(e.laborPoolId) ? getLaborPoolById(e.laborPoolId).name : e.laborPoolId) : '-';
     row.innerHTML = `
       <td>${e.name}</td>
+      <td>${poolName}</td>
       <td>${e.type}</td>
-      <td>${e.retired ? '-' : e.seniority}</td>
+      <td>${e.retired ? '-' : (getSeniorityForEmployee(e) != null ? getSeniorityForEmployee(e) : '-')}</td>
       <td class="email-cell-td" data-emp-id="${e.id}" title="${e.email ? 'Click to edit' : 'Click to add email'}"></td>
       <td>${e.pref || "-"}</td>
       <td><input type="number" class="max-days-input" value="${maxDays}" min="1" max="5" placeholder="5" style="width:50px;" ${e.retired ? 'disabled' : ''}></td>
@@ -3000,14 +3139,14 @@ function viewEmployeeInfo(empId) {
   const emp = employees.find(e => e.id === empId);
   if (!emp) return;
   editingEmployeeId = empId;
-  
+  populateLaborPoolDropdowns();
   document.getElementById('employeeEditTitle').textContent = 'Edit employee';
   document.getElementById('employeeEditName').textContent = emp.name;
   document.getElementById('employeeEditType').value = emp.type || 'FT';
+  document.getElementById('employeeEditLaborPool').value = emp.laborPoolId || (laborPools[0] ? laborPools[0].id : '');
   document.getElementById('employeeEditPref').value = emp.pref || '';
-  document.getElementById('employeeEditSeniority').value = emp.seniority != null ? emp.seniority : '';
+  document.getElementById('employeeEditSeniority').value = getSeniorityForEmployee(emp) != null ? getSeniorityForEmployee(emp) : '';
   document.getElementById('employeeEditSick').checked = !!emp.sick;
-  
   var overlay = document.getElementById('employeeEditModalOverlay');
   overlay.classList.add('employee-edit-visible');
 }
@@ -3023,29 +3162,40 @@ function saveEmployeeEdit() {
   if (!emp) return;
   
   var typeEl = document.getElementById('employeeEditType');
+  var poolEl = document.getElementById('employeeEditLaborPool');
   var prefEl = document.getElementById('employeeEditPref');
   var seniorityEl = document.getElementById('employeeEditSeniority');
   var sickEl = document.getElementById('employeeEditSick');
   
+  var poolId = poolEl && poolEl.value ? poolEl.value : emp.laborPoolId;
+  if (!poolId) {
+    alert('Please select a Labor Pool.');
+    return;
+  }
   var rawSeniority = (seniorityEl.value || '').trim();
-  var check = validateSeniority(rawSeniority, editingEmployeeId);
+  var check = validateSeniority(rawSeniority, editingEmployeeId, poolId);
   if (!check.ok) {
     alert(check.message);
     return;
   }
   
   var oldType = emp.type;
+  var oldPoolId = emp.laborPoolId;
   var oldPref = emp.pref || '';
-  var oldSeniority = emp.seniority;
+  var oldSeniority = getSeniorityForEmployee(emp);
   var oldSick = emp.sick;
   
   emp.type = typeEl.value;
-  emp.pref = prefEl.value || null;
+  emp.laborPoolId = poolId;
+  if (!emp.seniorityByPool) emp.seniorityByPool = {};
+  emp.seniorityByPool[poolId] = check.value;
   emp.seniority = check.value;
+  emp.pref = prefEl.value || null;
   emp.sick = sickEl.checked;
   
   var changes = [];
   if (oldType !== emp.type) changes.push('type ' + oldType + ' → ' + emp.type);
+  if (oldPoolId !== emp.laborPoolId) changes.push('labor pool → ' + (getLaborPoolById(emp.laborPoolId) ? getLaborPoolById(emp.laborPoolId).name : emp.laborPoolId));
   if (oldPref !== (emp.pref || '')) changes.push('preference ' + (oldPref || 'none') + ' → ' + (emp.pref || 'none'));
   if (oldSeniority !== emp.seniority) changes.push('seniority ' + oldSeniority + ' → ' + emp.seniority);
   if (oldSick !== emp.sick) changes.push('sick ' + (oldSick ? 'yes' : 'no') + ' → ' + (emp.sick ? 'yes' : 'no'));
@@ -3090,11 +3240,61 @@ function autoRecommendStaff(){
   eventStaff.value = Math.ceil(guests / ratio);
 }
 
+function addEventPoolReqRow(poolId, quantity) {
+  var container = document.getElementById('eventLaborPoolReqsContainer');
+  if (!container) return;
+  var row = document.createElement('div');
+  row.className = 'event-pool-req-row';
+  row.style.cssText = 'display: flex; align-items: center; gap: 8px; margin-bottom: 6px;';
+  var sel = document.createElement('select');
+  sel.className = 'event-pool-req-pool';
+  var pools = getEventLaborPools();
+  pools.forEach(function(p) {
+    var opt = document.createElement('option');
+    opt.value = p.id;
+    opt.textContent = p.name || p.id;
+    sel.appendChild(opt);
+  });
+  if (poolId) sel.value = poolId;
+  var qty = document.createElement('input');
+  qty.type = 'number';
+  qty.min = 1;
+  qty.className = 'event-pool-req-qty';
+  qty.value = quantity != null ? quantity : 1;
+  qty.style.width = '60px';
+  var btn = document.createElement('button');
+  btn.type = 'button';
+  btn.textContent = 'Remove';
+  btn.onclick = function() { row.remove(); };
+  row.appendChild(sel);
+  row.appendChild(qty);
+  row.appendChild(btn);
+  container.appendChild(row);
+}
+
+function getEventLaborPoolReqsFromForm() {
+  var container = document.getElementById('eventLaborPoolReqsContainer');
+  if (!container) return [];
+  var rows = container.querySelectorAll('.event-pool-req-row');
+  var reqs = [];
+  rows.forEach(function(row) {
+    var sel = row.querySelector('.event-pool-req-pool');
+    var qty = row.querySelector('.event-pool-req-qty');
+    if (sel && sel.value && qty) {
+      var n = parseInt(qty.value, 10);
+      if (!isNaN(n) && n >= 1) reqs.push({ laborPoolId: sel.value, quantity: n });
+    }
+  });
+  return reqs;
+}
+
 function addEvent(){
   if(!eventName.value || !eventDate.value) return;
   var typeId = eventService.value;
   var type = getEventTypeById(typeId);
   var typeName = type ? type.name : (eventService.options[eventService.selectedIndex] ? eventService.options[eventService.selectedIndex].text : '');
+  var poolReqs = getEventLaborPoolReqsFromForm();
+  var totalStaff = poolReqs.length ? poolReqs.reduce(function(s, r) { return s + r.quantity; }, 0) : (+eventStaff.value || 1);
   const data={
     id: editingEventId || crypto.randomUUID(),
     name: eventName.value,
@@ -3105,7 +3305,8 @@ function addEvent(){
     service: typeName,
     eventTypeId: typeId || undefined,
     eventTypeName: typeName,
-    staff: +eventStaff.value || 1
+    staff: totalStaff,
+    laborPoolRequirements: poolReqs
   };
   
   if(editingEventId){
@@ -3126,22 +3327,36 @@ function addEvent(){
   eventEnd.value="";
   eventGuests.value="";
   eventStaff.value="";
+  var container = document.getElementById('eventLaborPoolReqsContainer');
+  if (container) container.innerHTML = '';
   
   save(); 
   renderEvents();
+}
+
+function formatEventPoolReqs(ev) {
+  if (ev.laborPoolRequirements && ev.laborPoolRequirements.length) {
+    return ev.laborPoolRequirements.map(function(r) {
+      var p = getLaborPoolById(r.laborPoolId);
+      return (r.quantity || 1) + ' ' + (p ? p.name : r.laborPoolId);
+    }).join(', ');
+  }
+  return ev.staff != null ? String(ev.staff) : '-';
 }
 
 function renderEvents(){
   eventsTable.innerHTML="";
   events.forEach(ev=>{
     const row = document.createElement('tr');
+    var staffDisplay = formatEventPoolReqs(ev);
+    if (ev.laborPoolRequirements && ev.laborPoolRequirements.length && ev.staff != null) staffDisplay = ev.staff + ' total (' + staffDisplay + ')';
     row.innerHTML = `
       <td>${ev.name}</td>
       <td>${ev.date}</td>
       <td>${ev.start}–${ev.end}</td>
       <td>${ev.guests}</td>
       <td>${ev.eventTypeName || ev.service || ev.serviceType || ''}</td>
-      <td>${ev.staff}</td>
+      <td>${staffDisplay}</td>
       <td><button type="button" class="edit-btn">Edit</button></td>
       <td><button type="button" class="delete">Delete</button></td>
     `;
@@ -3182,6 +3397,16 @@ function editEvent(id){
   }
   eventService.value = typeId || (eventService.options.length ? eventService.options[0].value : '');
   eventStaff.value = e.staff;
+  var container = document.getElementById('eventLaborPoolReqsContainer');
+  if (container) {
+    container.innerHTML = '';
+    var reqs = e.laborPoolRequirements;
+    if (reqs && reqs.length) {
+      reqs.forEach(function(r) { addEventPoolReqRow(r.laborPoolId, r.quantity); });
+    } else if (e.staff) {
+      addEventPoolReqRow(getLaborPoolById(DEFAULT_SERVERS_POOL_ID) ? DEFAULT_SERVERS_POOL_ID : (laborPools[0] ? laborPools[0].id : ''), e.staff);
+    }
+  }
 }
 
 function deleteEvent(id){
@@ -4476,13 +4701,131 @@ function clearAuditFilter(){
 
 /* SETTINGS */
 function loadSettings(){
-  // Load assignment style
   const assignmentStyle = settings.assignmentStyle || 'strict';
   const radioButtons = document.querySelectorAll('input[name="assignmentStyle"]');
   radioButtons.forEach(radio => {
     radio.checked = radio.value === assignmentStyle;
   });
+  renderLaborPoolsTable();
   renderEventTypesTable();
+}
+
+function renderLaborPoolsTable() {
+  var tbody = document.getElementById('laborPoolsTableBody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  laborPools.forEach(function(p) {
+    var tr = document.createElement('tr');
+    tr.setAttribute('data-labor-pool-id', p.id);
+    tr.innerHTML =
+      '<td>' + (p.name || '') + '</td>' +
+      '<td>' + (p.defaultHourlyWage != null ? p.defaultHourlyWage : 0) + '</td>' +
+      '<td class="event-type-active-cell"><input type="checkbox" ' + (p.canBeScheduled !== false ? 'checked' : '') + ' onchange="toggleLaborPoolCanSchedule(\'' + p.id + '\')" /></td>' +
+      '<td class="event-type-active-cell"><input type="checkbox" ' + (p.appearsInEvents !== false ? 'checked' : '') + ' onchange="toggleLaborPoolAppearsInEvents(\'' + p.id + '\')" /></td>' +
+      '<td class="event-type-actions-cell"><span class="event-type-actions"><button type="button" onclick="openLaborPoolModal(\'' + p.id + '\')">Edit</button><button type="button" onclick="deleteLaborPool(\'' + p.id + '\')">Delete</button></span></td>';
+    tbody.appendChild(tr);
+  });
+}
+
+function openLaborPoolModal(editId) {
+  document.getElementById('laborPoolModalTitle').textContent = editId ? 'Edit labor pool' : 'Add labor pool';
+  document.getElementById('laborPoolEditId').value = editId || '';
+  if (editId) {
+    var p = getLaborPoolById(editId);
+    if (p) {
+      document.getElementById('laborPoolName').value = p.name || '';
+      document.getElementById('laborPoolWage').value = p.defaultHourlyWage != null ? p.defaultHourlyWage : 0;
+      document.getElementById('laborPoolCanSchedule').checked = p.canBeScheduled !== false;
+      document.getElementById('laborPoolAppearsInEvents').checked = p.appearsInEvents !== false;
+    }
+  } else {
+    document.getElementById('laborPoolName').value = '';
+    document.getElementById('laborPoolWage').value = 0;
+    document.getElementById('laborPoolCanSchedule').checked = true;
+    document.getElementById('laborPoolAppearsInEvents').checked = true;
+  }
+  document.getElementById('laborPoolModalOverlay').style.display = 'flex';
+}
+
+function closeLaborPoolModal() {
+  document.getElementById('laborPoolModalOverlay').style.display = 'none';
+}
+
+function saveLaborPoolFromModal() {
+  var name = document.getElementById('laborPoolName').value.trim();
+  var wage = parseFloat(document.getElementById('laborPoolWage').value, 10);
+  if (isNaN(wage) || wage < 0) wage = 0;
+  var editId = document.getElementById('laborPoolEditId').value;
+  var canSchedule = document.getElementById('laborPoolCanSchedule').checked;
+  var appearsInEvents = document.getElementById('laborPoolAppearsInEvents').checked;
+  if (!name) { alert('Please enter a name.'); return; }
+  if (editId) {
+    var p = getLaborPoolById(editId);
+    if (p) { p.name = name; p.defaultHourlyWage = wage; p.canBeScheduled = canSchedule; p.appearsInEvents = appearsInEvents; }
+  } else {
+    laborPools.push({ id: crypto.randomUUID(), name: name, defaultHourlyWage: wage, canBeScheduled: canSchedule, appearsInEvents: appearsInEvents });
+  }
+  save();
+  renderLaborPoolsTable();
+  closeLaborPoolModal();
+  populateLaborPoolDropdowns();
+}
+
+function toggleLaborPoolCanSchedule(id) {
+  var p = getLaborPoolById(id);
+  if (p) { p.canBeScheduled = !p.canBeScheduled; save(); renderLaborPoolsTable(); }
+}
+
+function toggleLaborPoolAppearsInEvents(id) {
+  var p = getLaborPoolById(id);
+  if (p) { p.appearsInEvents = !p.appearsInEvents; save(); renderLaborPoolsTable(); }
+}
+
+function deleteLaborPool(id) {
+  var p = getLaborPoolById(id);
+  if (!p) return;
+  if (p.id === DEFAULT_SERVERS_POOL_ID) {
+    alert('The default Servers pool cannot be deleted.');
+    return;
+  }
+  if (isLaborPoolUsedByEmployees(p)) {
+    alert('This labor pool cannot be deleted because one or more employees are assigned to it. Reassign them in the Employees tab first.');
+    return;
+  }
+  if (!confirm('Delete labor pool "' + p.name + '"?')) return;
+  laborPools = laborPools.filter(function(x) { return x.id !== id; });
+  save();
+  renderLaborPoolsTable();
+  populateLaborPoolDropdowns();
+}
+
+function populateLaborPoolDropdowns() {
+  var sel = document.getElementById('empLaborPool');
+  if (sel) {
+    var cur = sel.value;
+    sel.innerHTML = '';
+    laborPools.forEach(function(p) {
+      var opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = p.name || p.id;
+      sel.appendChild(opt);
+    });
+    if (cur && getLaborPoolById(cur)) sel.value = cur;
+    else if (sel.options.length) sel.selectedIndex = 0;
+  }
+  var editSel = document.getElementById('employeeEditLaborPool');
+  if (editSel) {
+    var curEdit = editSel.value;
+    editSel.innerHTML = '';
+    laborPools.forEach(function(p) {
+      var opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = p.name || p.id;
+      editSel.appendChild(opt);
+    });
+    if (curEdit && getLaborPoolById(curEdit)) editSel.value = curEdit;
+    else if (editSel.options.length) editSel.selectedIndex = 0;
+  }
 }
 
 function renderEventTypesTable(){
@@ -4601,6 +4944,7 @@ function clearAllData() {
     }
   };
   eventTypes = getDefaultEventTypes();
+  laborPools = getDefaultLaborPools();
   save();
   var banner = document.getElementById('demoModeBanner');
   if (banner) banner.classList.remove('demo-mode-banner-visible');
@@ -4849,10 +5193,15 @@ function demoStep2_AddEmployees() {
     { name: 'Emma Wilson', type: 'PT', seniority: 5, pref: 'PM', email: 'emma@example.com', maxDaysPerWeek: 5 }
   ];
   
+  var defaultPoolId = (laborPools.length && getLaborPoolById(DEFAULT_SERVERS_POOL_ID)) ? DEFAULT_SERVERS_POOL_ID : (laborPools[0] ? laborPools[0].id : null);
   sampleEmployees.forEach(emp => {
+    var seniorityByPool = {};
+    if (defaultPoolId) seniorityByPool[defaultPoolId] = emp.seniority;
     employees.push({
       id: crypto.randomUUID(),
       ...emp,
+      laborPoolId: defaultPoolId,
+      seniorityByPool: seniorityByPool,
       sick: false,
       retired: false,
       dayPreferences: { 0: null, 1: null, 2: null, 3: null, 4: null, 5: null, 6: null }
