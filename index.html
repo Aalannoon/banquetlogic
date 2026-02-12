@@ -1180,7 +1180,28 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
     <button type="button" onclick="showGenerationRules()" style="background:#9b59b6;">📋 Generation Rules</button>
     <button type="button" onclick="showConflictReport()" id="conflictReportBtn" style="background:#e74c3c; display:none;">⚠️ Conflicts</button>
     <button type="button" onclick="exportScheduleToCSV()" style="background:#16a085;">📥 Export CSV</button>
+    <button type="button" onclick="openApplyRecommendationsModal()" style="background:#8e44ad;">Apply Recommendations</button>
+    <span id="applyRecommendationsUndoWrap" style="display:none; margin-left: 8px;">
+      <button type="button" id="applyRecommendationsUndoBtn" onclick="undoApplyRecommendations()" style="background:#c0392b;">Undo Apply Recommendations</button>
+    </span>
   </span>
+</div>
+
+<div id="applyRecommendationsModalOverlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 10000;">
+  <div id="applyRecommendationsModal" style="background: #2c3e50; padding: 24px; border-radius: 8px; min-width: 320px; max-width: 90%;">
+    <h3 style="margin-top: 0;">Apply Recommendations</h3>
+    <p id="applyRecommendationsModalText">This will assign the recommended staff for the selected role to shifts this week, in seniority order. Only the selected role is affected. Assignments can be undone immediately after.</p>
+    <p style="margin-top: 12px;"><label>Role: </label>
+      <select id="applyRecommendationsRole">
+        <option value="cashiers">Cashiers</option>
+        <option value="housemen">Housemen</option>
+      </select>
+    </p>
+    <div style="margin-top: 16px; display: flex; gap: 8px; justify-content: flex-end;">
+      <button type="button" onclick="closeApplyRecommendationsModal()">Cancel</button>
+      <button type="button" id="applyRecommendationsConfirmBtn" onclick="confirmApplyRecommendations()">Apply</button>
+    </div>
+  </div>
 </div>
 
 <p class="schedule-grid-helper">Click a cell to assign an employee to an event or mark time off</p>
@@ -1239,7 +1260,14 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
     </label>
   </div>
   
-  <p style="margin-top: 16px;"><label>Cash bar recommendation: 1 cashier per <input type="number" id="settingsCashierRatio" min="1" value="150" style="width: 70px; padding: 6px;" /> guests</label><br><small class="event-type-helper">Used only to show a non-binding recommendation when an event has Cash Bar enabled.</small></p>
+  <h3 style="margin-top: 20px;">Staffing ratios (recommendations only)</h3>
+  <p class="event-type-helper">These affect suggested staff counts only. They do not force assignments.</p>
+  <p style="margin-top: 10px;"><label>Servers:</label> <span id="settingsServersRatioLabel">Uses event type ratios (e.g. 1 server per 20 guests for Plated Service). Edit in Event Types below.</span></p>
+  <p style="margin-top: 10px;"><label>Cashiers:</label> 1 cashier per <input type="number" id="settingsCashierRatio" min="1" value="150" style="width: 70px; padding: 6px;" /> guests</p>
+  <p style="margin-top: 10px;"><label>Housemen:</label>
+    <label style="display: inline-flex; align-items: center; gap: 6px; margin-left: 8px;"><input type="radio" name="housemenRatioMode" value="per_guests" /> 1 houseman per <input type="number" id="settingsHousemenPerGuests" min="1" value="100" style="width: 60px; padding: 6px;" /> guests</label>
+    <label style="display: inline-flex; align-items: center; gap: 6px; margin-left: 12px;"><input type="radio" name="housemenRatioMode" value="flat" /> Flat: <input type="number" id="settingsHousemenFlat" min="0" value="2" style="width: 50px; padding: 6px;" /> per event</label>
+  </p>
   <button type="button" onclick="saveSettings()">Save Settings</button>
 </div>
 
@@ -1537,6 +1565,7 @@ let auditLog = JSON.parse(localStorage.getItem("auditLog") || "[]");
 let assignmentReasons = JSON.parse(localStorage.getItem("assignmentReasons") || "{}"); // Store why each shift was assigned (plain-language only)
 let assignmentReasonTags = JSON.parse(localStorage.getItem("assignmentReasonTags") || "{}"); // Abstract tags for human-readable explanations
 let generationConflicts = [];
+var lastApplyRecommendationsSnapshot = null;
 var APP_VERSION = '1.0';
 var SCHEMA_VERSION = 1;
 
@@ -1571,7 +1600,10 @@ let settings = JSON.parse(localStorage.getItem("settings") || JSON.stringify({
     "Reception": 40,
     "Coffee Break": 50
   },
-  cashierRecommendationRatio: 150 // 1 cashier per N guests for recommendation only
+  cashierRecommendationRatio: 150,
+  housemenRecommendationMode: 'per_guests',
+  housemenPerGuests: 100,
+  housemenFlatCount: 2
 }));
 
 function getDefaultEventTypes() {
@@ -1589,10 +1621,12 @@ function getActiveEventTypes() { return eventTypes.filter(function(t) { return t
 
 var DEFAULT_SERVERS_POOL_ID = 'default-servers';
 var DEFAULT_CASHIERS_POOL_ID = 'default-cashiers';
+var DEFAULT_HOUSEMEN_POOL_ID = 'default-housemen';
 function getDefaultLaborPools() {
   return [
     { id: DEFAULT_SERVERS_POOL_ID, name: 'Servers', defaultHourlyWage: 0, canBeScheduled: true, appearsInEvents: true },
-    { id: DEFAULT_CASHIERS_POOL_ID, name: 'Cashiers', defaultHourlyWage: 0, canBeScheduled: true, appearsInEvents: true }
+    { id: DEFAULT_CASHIERS_POOL_ID, name: 'Cashiers', defaultHourlyWage: 0, canBeScheduled: true, appearsInEvents: true },
+    { id: DEFAULT_HOUSEMEN_POOL_ID, name: 'Housemen', defaultHourlyWage: 0, canBeScheduled: true, appearsInEvents: true }
   ];
 }
 var laborPools = JSON.parse(localStorage.getItem("laborPools") || "null");
@@ -1606,9 +1640,19 @@ if (!cashierPool) {
   laborPools.push({ id: DEFAULT_CASHIERS_POOL_ID, name: 'Cashiers', defaultHourlyWage: 0, canBeScheduled: true, appearsInEvents: true });
   localStorage.setItem("laborPools", JSON.stringify(laborPools));
 }
+// Ensure Housemen pool exists for existing installs
+var housemenPool = laborPools.find(function(p) { return p.id === DEFAULT_HOUSEMEN_POOL_ID || (p.name && p.name.toLowerCase() === 'housemen'); });
+if (!housemenPool) {
+  laborPools.push({ id: DEFAULT_HOUSEMEN_POOL_ID, name: 'Housemen', defaultHourlyWage: 0, canBeScheduled: true, appearsInEvents: true });
+  localStorage.setItem("laborPools", JSON.stringify(laborPools));
+}
 function getLaborPoolById(id) { return laborPools.find(function(p) { return p.id === id; }); }
 function getCashierPoolId() {
   var p = laborPools.find(function(x) { return x.id === DEFAULT_CASHIERS_POOL_ID || (x.name && x.name.toLowerCase() === 'cashiers'); });
+  return p ? p.id : null;
+}
+function getHousemenPoolId() {
+  var p = laborPools.find(function(x) { return x.id === DEFAULT_HOUSEMEN_POOL_ID || (x.name && x.name.toLowerCase() === 'housemen'); });
   return p ? p.id : null;
 }
 function getCashierRecommendationForDate(dateStr) {
@@ -1623,7 +1667,11 @@ function getCashierRecommendationForDate(dateStr) {
   });
   if (totalRecommended <= 0) return { count: 0, names: [] };
   var cashiers = employees.filter(function(e) {
-    return !e.retired && e.laborPoolId === cashierPoolId;
+    if (e.retired || e.laborPoolId !== cashierPoolId) return false;
+    var k = e.id + '_' + dateStr;
+    var ed = manualEdits[k];
+    if (ed && isFullAbsenceStatus(ed.status)) return false;
+    return true;
   });
   cashiers.sort(function(a, b) {
     var sa = getSeniorityForEmployee(a);
@@ -1634,6 +1682,76 @@ function getCashierRecommendationForDate(dateStr) {
   });
   var names = cashiers.slice(0, totalRecommended).map(function(e) { return e.name; });
   return { count: totalRecommended, names: names };
+}
+function getHousemenRecommendationForDate(dateStr) {
+  var housemenPoolId = getHousemenPoolId();
+  if (!housemenPoolId) return { count: 0, names: [] };
+  var dayEvents = events.filter(function(e) { return e.date === dateStr; });
+  var mode = settings.housemenRecommendationMode === 'flat' ? 'flat' : 'per_guests';
+  var perGuests = (settings.housemenPerGuests != null && settings.housemenPerGuests >= 1) ? settings.housemenPerGuests : 100;
+  var flatCount = (settings.housemenFlatCount != null && settings.housemenFlatCount >= 0) ? settings.housemenFlatCount : 2;
+  var totalRecommended = 0;
+  dayEvents.forEach(function(ev) {
+    if (mode === 'flat') {
+      totalRecommended += flatCount;
+    } else {
+      var guests = (ev.guests != null && !isNaN(ev.guests)) ? +ev.guests : 0;
+      if (guests > 0) totalRecommended += Math.ceil(guests / perGuests);
+    }
+  });
+  if (totalRecommended <= 0) return { count: 0, names: [] };
+  var housemen = employees.filter(function(e) {
+    if (e.retired || e.laborPoolId !== housemenPoolId) return false;
+    var k = e.id + '_' + dateStr;
+    var ed = manualEdits[k];
+    if (ed && isFullAbsenceStatus(ed.status)) return false;
+    return true;
+  });
+  housemen.sort(function(a, b) {
+    var sa = getSeniorityForEmployee(a);
+    var sb = getSeniorityForEmployee(b);
+    sa = sa != null ? sa : 999;
+    sb = sb != null ? sb : 999;
+    return sa - sb;
+  });
+  var names = housemen.slice(0, totalRecommended).map(function(e) { return e.name; });
+  return { count: totalRecommended, names: names };
+}
+function getRecommendedCashiersForDate(dateStr) {
+  var rec = getCashierRecommendationForDate(dateStr);
+  var cashierPoolId = getCashierPoolId();
+  if (!cashierPoolId || rec.count <= 0) return [];
+  var cashiers = employees.filter(function(e) {
+    if (e.retired || e.laborPoolId !== cashierPoolId) return false;
+    var k = e.id + '_' + dateStr;
+    var ed = manualEdits[k];
+    if (ed && isFullAbsenceStatus(ed.status)) return false;
+    return true;
+  });
+  cashiers.sort(function(a, b) {
+    var sa = getSeniorityForEmployee(a);
+    var sb = getSeniorityForEmployee(b);
+    return (sa != null ? sa : 999) - (sb != null ? sb : 999);
+  });
+  return cashiers.slice(0, rec.count);
+}
+function getRecommendedHousemenForDate(dateStr) {
+  var rec = getHousemenRecommendationForDate(dateStr);
+  var housemenPoolId = getHousemenPoolId();
+  if (!housemenPoolId || rec.count <= 0) return [];
+  var housemen = employees.filter(function(e) {
+    if (e.retired || e.laborPoolId !== housemenPoolId) return false;
+    var k = e.id + '_' + dateStr;
+    var ed = manualEdits[k];
+    if (ed && isFullAbsenceStatus(ed.status)) return false;
+    return true;
+  });
+  housemen.sort(function(a, b) {
+    var sa = getSeniorityForEmployee(a);
+    var sb = getSeniorityForEmployee(b);
+    return (sa != null ? sa : 999) - (sb != null ? sb : 999);
+  });
+  return housemen.slice(0, rec.count);
 }
 ensureEmployeeDefaults(employees);
 function getSchedulableLaborPools() { return laborPools.filter(function(p) { return p.canBeScheduled; }); }
@@ -1665,7 +1783,7 @@ let currentWeekOffset = 0;
     generationConflicts = [];
     editingEventId = null;
     currentWeekOffset = 0;
-    settings = { assignmentStyle: 'strict', ratios: { 'Plated Service': 20, 'Buffet Service': 30, 'Reception': 40, 'Coffee Break': 50 }, cashierRecommendationRatio: 150 };
+    settings = { assignmentStyle: 'strict', ratios: { 'Plated Service': 20, 'Buffet Service': 30, 'Reception': 40, 'Coffee Break': 50 }, cashierRecommendationRatio: 150, housemenRecommendationMode: 'per_guests', housemenPerGuests: 100, housemenFlatCount: 2 };
     eventTypes = getDefaultEventTypes();
     laborPools = getDefaultLaborPools();
     localStorage.setItem('eventTypes', JSON.stringify(eventTypes));
@@ -4159,6 +4277,114 @@ function generateSchedule(){
   
   addAuditEntry('Schedule Generated', null, null, null, `Generated ${shiftsCreated} shifts, ${understaffedEvents.length} understaffed events`);
   save();
+  lastApplyRecommendationsSnapshot = null;
+  displaySchedule();
+}
+
+function openApplyRecommendationsModal() {
+  var overlay = document.getElementById('applyRecommendationsModalOverlay');
+  if (overlay) {
+    overlay.style.display = 'flex';
+    overlay.style.alignItems = 'center';
+    overlay.style.justifyContent = 'center';
+  }
+}
+function closeApplyRecommendationsModal() {
+  var overlay = document.getElementById('applyRecommendationsModalOverlay');
+  if (overlay) { overlay.style.display = 'none'; }
+}
+function confirmApplyRecommendations() {
+  var roleSel = document.getElementById('applyRecommendationsRole');
+  var role = (roleSel && roleSel.value === 'housemen') ? 'housemen' : 'cashiers';
+  closeApplyRecommendationsModal();
+  applyRecommendations(role);
+}
+function applyRecommendations(role) {
+  if (scheduleGlobalLock) {
+    alert('Schedule is locked. Unlock it first to apply recommendations.');
+    return;
+  }
+  var start = getWeekStart();
+  var days = [];
+  for (var i = 0; i < 7; i++) {
+    var d = new Date(start);
+    d.setDate(start.getDate() + i);
+    days.push(d);
+  }
+  var poolId = role === 'housemen' ? getHousemenPoolId() : getCashierPoolId();
+  if (!poolId) {
+    alert('No ' + role + ' labor pool found.');
+    return;
+  }
+  var keysToTouch = {};
+  var assignmentsToMake = [];
+  days.forEach(function(d) {
+    var dateStr = iso(d);
+    var recommended = role === 'housemen' ? getRecommendedHousemenForDate(dateStr) : getRecommendedCashiersForDate(dateStr);
+    var dayEvents = events.filter(function(e) { return e.date === dateStr; });
+    dayEvents.sort(function(a, b) { return (a.start || '').localeCompare(b.start || ''); });
+    var ev = dayEvents[0];
+    if (!ev) return;
+    var s = normalizeHours(ev.start || '09:00', ev.end || '17:00');
+    var t = calculateSmartShift(ev, s.h);
+    var startStr = timeStr(t.start);
+    var endStr = timeStr(t.end);
+    recommended.forEach(function(emp) {
+      var key = emp.id + '_' + dateStr;
+      if (lockedCells[key] || lockedRows[emp.id]) return;
+      var ed = manualEdits[key];
+      if (ed && isFullAbsenceStatus(ed.status)) return;
+      keysToTouch[key] = true;
+      assignmentsToMake.push({ empId: emp.id, dateStr: dateStr, key: key, hours: s.h, start: startStr, end: endStr, emp: emp });
+    });
+  });
+  if (assignmentsToMake.length === 0) {
+    alert('No recommended ' + role + ' to assign for this week (or all are already assigned / locked).');
+    return;
+  }
+  var roleLabel = role === 'housemen' ? 'Housemen' : 'Cashiers';
+  var existingViolations = [];
+  days.forEach(function(d) {
+    var dateStr = iso(d);
+    var recommendedForDay = role === 'housemen' ? getRecommendedHousemenForDate(dateStr) : getRecommendedCashiersForDate(dateStr);
+    var minRecSeniority = 999;
+    recommendedForDay.forEach(function(r) {
+      var sr = getSeniorityForEmployee(r);
+      if (sr != null && sr < minRecSeniority) minRecSeniority = sr;
+    });
+    employees.forEach(function(emp) {
+      if (emp.retired || emp.laborPoolId !== poolId) return;
+      var key = emp.id + '_' + dateStr;
+      var ed = manualEdits[key];
+      if (!ed || isFullAbsenceStatus(ed.status) || (!ed.hours && !ed.start)) return;
+      var empSr = getSeniorityForEmployee(emp);
+      empSr = empSr != null ? empSr : 999;
+      var inRecommended = recommendedForDay.some(function(r) { return r.id === emp.id; });
+      if (!inRecommended && empSr > minRecSeniority) existingViolations.push({ dateStr: dateStr, name: emp.name });
+    });
+  });
+  var override = false;
+  if (existingViolations.length > 0 && !confirm('Some staff already assigned have lower seniority than staff we\'re about to assign. Do you want to override and continue?')) return;
+  if (existingViolations.length > 0) override = true;
+  lastApplyRecommendationsSnapshot = JSON.parse(JSON.stringify(manualEdits));
+  assignmentsToMake.forEach(function(a) {
+    manualEdits[a.key] = { hours: a.hours, start: a.start, end: a.end, manualOverride: true, applyRecommendations: true };
+    addAuditEntry('Apply Recommendations', a.empId, a.dateStr, null, roleLabel + ' assigned (recommendation)');
+  });
+  if (override) addAuditEntry('Apply Recommendations Override', null, null, null, 'Seniority order overridden for ' + roleLabel);
+  save();
+  var undoWrap = document.getElementById('applyRecommendationsUndoWrap');
+  if (undoWrap) undoWrap.style.display = 'inline';
+  displaySchedule();
+}
+function undoApplyRecommendations() {
+  if (!lastApplyRecommendationsSnapshot) return;
+  manualEdits = JSON.parse(JSON.stringify(lastApplyRecommendationsSnapshot));
+  lastApplyRecommendationsSnapshot = null;
+  addAuditEntry('Apply Recommendations Undone', null, null, null, 'Reverted to state before Apply Recommendations');
+  save();
+  var undoWrap = document.getElementById('applyRecommendationsUndoWrap');
+  if (undoWrap) undoWrap.style.display = 'none';
   displaySchedule();
 }
 
@@ -4223,6 +4449,40 @@ function displaySchedule(){
   recRow.appendChild(empty3);
   recRow.appendChild(empty4);
   scheduleTable.appendChild(recRow);
+
+  var housemenRecRow = document.createElement('tr');
+  housemenRecRow.className = 'schedule-housemen-rec-row';
+  var hmEmpty1 = document.createElement('td');
+  var hmEmpty2 = document.createElement('td');
+  hmEmpty1.style.border = 'none';
+  hmEmpty1.style.background = 'transparent';
+  hmEmpty2.style.border = 'none';
+  hmEmpty2.style.background = 'transparent';
+  housemenRecRow.appendChild(hmEmpty1);
+  housemenRecRow.appendChild(hmEmpty2);
+  days.forEach(function(d) {
+    var dateStr = iso(d);
+    var rec = getHousemenRecommendationForDate(dateStr);
+    var td = document.createElement('td');
+    td.style.fontSize = '12px';
+    td.style.color = 'var(--brand-text-muted, #7f8c8d)';
+    td.style.verticalAlign = 'top';
+    if (rec.count > 0) {
+      var text = rec.count + ' houseman' + (rec.count !== 1 ? 's' : '') + ' recommended';
+      if (rec.names.length > 0) text += ': ' + rec.names.join(', ');
+      td.textContent = text;
+    }
+    housemenRecRow.appendChild(td);
+  });
+  var hmEmpty3 = document.createElement('td');
+  var hmEmpty4 = document.createElement('td');
+  hmEmpty3.style.border = 'none';
+  hmEmpty3.style.background = 'transparent';
+  hmEmpty4.style.border = 'none';
+  hmEmpty4.style.background = 'transparent';
+  housemenRecRow.appendChild(hmEmpty3);
+  housemenRecRow.appendChild(hmEmpty4);
+  scheduleTable.appendChild(housemenRecRow);
 
   employees.filter(e=>!e.retired).forEach(emp=>{
     let total=0;
@@ -4389,6 +4649,8 @@ function displaySchedule(){
   }
   var lockHelper = document.getElementById('scheduleLockHelperText');
   if (lockHelper) lockHelper.textContent = scheduleGlobalLock ? 'Locked schedules cannot be edited' : 'Edits enabled — changes will affect assignments';
+  var undoWrap = document.getElementById('applyRecommendationsUndoWrap');
+  if (undoWrap) undoWrap.style.display = lastApplyRecommendationsSnapshot ? 'inline' : 'none';
   } catch(error) {
     console.error('Error in displaySchedule:', error);
     console.error('Error details:', error.message, error.stack);
@@ -4417,10 +4679,12 @@ function assignEmployeesToWeek(days) {
     dayEvents.sort((a, b) => a.start.localeCompare(b.start));
     
     var cashierPoolId = getCashierPoolId();
-    // Filter available employees (not retired, not sick, not on vacation; exclude Cashier pool from auto-assign)
+    var housemenPoolId = getHousemenPoolId();
+    // Filter available employees (not retired, not sick, not on vacation; exclude Cashier and Housemen from auto-assign)
     const available = employees.filter(e => {
       if(e.retired || e.sick) return false;
       if (cashierPoolId && e.laborPoolId === cashierPoolId) return false;
+      if (housemenPoolId && e.laborPoolId === housemenPoolId) return false;
       const vacationKey = e.id + "_" + dateStr;
       var ed = manualEdits[vacationKey];
       if (ed && isFullAbsenceStatus(ed.status)) return false;
@@ -4434,7 +4698,8 @@ function assignEmployeesToWeek(days) {
       const s = normalizeHours(ev.start, ev.end);
       const t = calculateSmartShift(ev, s.h);
       var cashierReq = (ev.laborPoolRequirements || []).find(function(r) { return r.laborPoolId === cashierPoolId; });
-      var serverSlots = ev.staff - (cashierReq ? (cashierReq.quantity || 0) : 0);
+      var housemenReq = (ev.laborPoolRequirements || []).find(function(r) { return r.laborPoolId === housemenPoolId; });
+      var serverSlots = ev.staff - (cashierReq ? (cashierReq.quantity || 0) : 0) - (housemenReq ? (housemenReq.quantity || 0) : 0);
       if (serverSlots <= 0) return;
       
       const scored = available
@@ -4824,6 +5089,13 @@ function loadSettings(){
   });
   var ratioEl = document.getElementById('settingsCashierRatio');
   if (ratioEl) ratioEl.value = (settings.cashierRecommendationRatio != null ? settings.cashierRecommendationRatio : 150);
+  var hmMode = (settings.housemenRecommendationMode === 'flat') ? 'flat' : 'per_guests';
+  var modeRadios = document.querySelectorAll('input[name="housemenRatioMode"]');
+  modeRadios.forEach(function(r) { r.checked = (r.value === hmMode); });
+  var hmPerGuests = document.getElementById('settingsHousemenPerGuests');
+  if (hmPerGuests) hmPerGuests.value = (settings.housemenPerGuests != null && settings.housemenPerGuests >= 1) ? settings.housemenPerGuests : 100;
+  var hmFlat = document.getElementById('settingsHousemenFlat');
+  if (hmFlat) hmFlat.value = (settings.housemenFlatCount != null && settings.housemenFlatCount >= 0) ? settings.housemenFlatCount : 2;
   renderLaborPoolsTable();
   renderEventTypesTable();
 }
@@ -5030,6 +5302,18 @@ function saveSettings(){
   if (ratioEl) {
     var n = parseInt(ratioEl.value, 10);
     settings.cashierRecommendationRatio = (!isNaN(n) && n >= 1) ? n : 150;
+  }
+  var hmModeRadio = document.querySelector('input[name="housemenRatioMode"]:checked');
+  settings.housemenRecommendationMode = (hmModeRadio && hmModeRadio.value === 'flat') ? 'flat' : 'per_guests';
+  var hmPerGuests = document.getElementById('settingsHousemenPerGuests');
+  if (hmPerGuests) {
+    n = parseInt(hmPerGuests.value, 10);
+    settings.housemenPerGuests = (!isNaN(n) && n >= 1) ? n : 100;
+  }
+  var hmFlat = document.getElementById('settingsHousemenFlat');
+  if (hmFlat) {
+    n = parseInt(hmFlat.value, 10);
+    settings.housemenFlatCount = (!isNaN(n) && n >= 0) ? n : 2;
   }
   save();
   alert('Settings saved!');
