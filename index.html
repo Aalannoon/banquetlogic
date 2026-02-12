@@ -175,7 +175,6 @@ td[onclick]:hover, td.clickable:hover { outline:2px dashed #4e9af1; }
   /* Hide lock column and all lock controls in schedule */
   #scheduleTable th:first-child,
   #scheduleTable td:first-child { display: none !important; }
-  #scheduleTable th br { display: none !important; }
   /* Hide demo UI and explanation link in print */
   .demo-mode-banner,
   .demo-tip,
@@ -2130,20 +2129,6 @@ function editScheduleCell(empId, date){
   displaySchedule();
 }
 
-function clearDay(dateStr){
-  if(!confirm("Clear all shifts for this day?")) return;
-
-  Object.keys(manualEdits).forEach(key=>{
-    if(key.endsWith("_"+dateStr)){
-      delete manualEdits[key];
-    }
-  });
-  
-  addAuditEntry('Day Cleared', null, dateStr, 'All shifts', null);
-  save();
-  displaySchedule(); // Just refresh display
-}
-
 function generateSchedule(){
   // This function GENERATES shifts from events
   if(!confirm("Generate schedule from events? This will create shifts for all employees based on events and settings.")) return;
@@ -2325,13 +2310,7 @@ function displaySchedule(){
   
   days.forEach(d=>{
     const th = document.createElement('th');
-    const ds = iso(d);
-    th.innerHTML = `
-      ${d.toLocaleDateString(undefined,{weekday:"short",day:"numeric"})}
-      <br>
-      <button type="button" class="delete clear-day-btn" style="margin-top:4px; font-size:10px;">🗑</button>
-    `;
-    th.querySelector('.clear-day-btn').onclick = () => clearDay(ds);
+    th.textContent = d.toLocaleDateString(undefined,{weekday:"short",day:"numeric"});
     headerRow.appendChild(th);
   });
   
