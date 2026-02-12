@@ -559,6 +559,20 @@ body.light-mode .email-cell-wrap:hover { background: #f3f4f6; }
 .email-cell-placeholder { color: var(--brand-text-quiet); font-style: italic; font-size: 13px; }
 .email-cell-input { width: 100%; max-width: 220px; padding: 4px 6px; border: 1px solid var(--brand-primary); border-radius: 4px; font-size: 13px; background: var(--brand-bg-elevated); color: var(--brand-text); box-sizing: border-box; }
 body.light-mode .email-cell-input { background: #fff; color: #1f2937; border-color: var(--brand-primary); }
+
+#absenceModalOverlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center; }
+#absenceModalOverlay.absence-visible { display: flex; }
+#absenceModal { background: var(--brand-bg-elevated); color: var(--brand-text); padding: 24px; border-radius: 12px; min-width: 340px; border: 1px solid var(--brand-border); }
+#absenceModal h3 { margin-top: 0; color: var(--brand-primary); }
+#absenceModal .edit-row { margin: 12px 0; }
+#absenceModal label { display: block; margin-bottom: 4px; font-size: 13px; color: var(--brand-text-muted); }
+#absenceModal input, #absenceModal select { width: 100%; max-width: 280px; padding: 8px; border-radius: 6px; border: 1px solid var(--brand-border); background: var(--brand-bg); color: var(--brand-text); font-size: 14px; box-sizing: border-box; }
+#absenceModal .modal-actions { margin-top: 20px; display: flex; gap: 10px; }
+#absenceModal .modal-actions button { padding: 10px 20px; border-radius: 6px; cursor: pointer; border: none; font-weight: 500; }
+#absenceModal .modal-actions .btn-primary { background: var(--brand-primary); color: #fff; }
+#absenceModal .modal-actions .btn-secondary { background: var(--brand-border); color: var(--brand-text); }
+body.light-mode #absenceModal { background: #fff; color: #1f2937; border-color: #e5e7eb; }
+body.light-mode #absenceModal input, body.light-mode #absenceModal select { background: #fff; color: #1f2937; border-color: #d1d5db; }
 </style>
 </head>
 
@@ -588,6 +602,36 @@ body.light-mode .email-cell-input { background: #fff; color: #1f2937; border-col
   </div>
   <span class="week-header" id="weekHeader"></span>
 </header>
+
+<div id="absenceModalOverlay">
+  <div id="absenceModal">
+    <h3 id="absenceModalTitle">Time Off / Sick</h3>
+    <p id="absenceModalEmpName" style="margin: 0 0 16px 0; font-size: 15px;"></p>
+    <div class="edit-row">
+      <label for="absenceStartDate">Start date</label>
+      <input type="date" id="absenceStartDate" />
+    </div>
+    <div class="edit-row">
+      <label for="absenceEndDate">End date (optional — leave blank for single day)</label>
+      <input type="date" id="absenceEndDate" placeholder="Optional" />
+    </div>
+    <div class="edit-row">
+      <label for="absenceType">Type</label>
+      <select id="absenceType">
+        <option value="sick">Sick</option>
+        <option value="vacation">Vacation (Paid)</option>
+        <option value="floating_holiday">Floating Holiday (Paid)</option>
+        <option value="unpaid_vacation">Unpaid Vacation</option>
+        <option value="requested_off">Request Off</option>
+      </select>
+    </div>
+    <p style="font-size: 12px; color: var(--brand-text-muted); margin: 8px 0 0 0;">Request Off is visual only; it does not remove an existing shift until you change it to another type.</p>
+    <div class="modal-actions">
+      <button type="button" class="btn-primary" id="absenceConfirmBtn">Confirm</button>
+      <button type="button" class="btn-secondary" id="absenceCancelBtn">Cancel</button>
+    </div>
+  </div>
+</div>
 
 <button type="button" onclick="toggleDarkMode()">Toggle Dark Mode</button>
 <button type="button" class="print" onclick="printSchedule()">Print / Save PDF</button>
@@ -687,7 +731,7 @@ body.light-mode .email-cell-input { background: #fff; color: #1f2937; border-col
 <thead>
 <tr>
   <th>Name</th><th>Type</th><th>Seniority</th><th>Email</th><th>Pref</th>
-  <th>Max Days/Wk</th><th>Vacation</th><th>Day Prefs</th><th>Sick</th><th>Actions</th>
+  <th>Max Days/Wk</th><th>Vacation</th><th>Day Prefs</th><th>Time Off</th><th>Sick</th><th>Actions</th>
 </tr>
 </thead>
 <tbody id="employeesTable"></tbody>
@@ -1061,6 +1105,17 @@ var REASON_TAG_EXPLANATIONS = {
   prefers_shift: 'Shift preference matched for this time.',
   day_preference: 'Day preference matched.'
 };
+
+var ABSENCE_TYPES = [
+  { id: 'sick', label: 'Sick', cellLabel: '(Sick)', reason: 'Marked Sick manually', paid: true },
+  { id: 'vacation', label: 'Vacation (Paid)', cellLabel: '(Vacation)', reason: 'Vacation added by manager', paid: true },
+  { id: 'floating_holiday', label: 'Floating Holiday (Paid)', cellLabel: '(Floating Holiday)', reason: 'Floating holiday added by manager', paid: true },
+  { id: 'unpaid_vacation', label: 'Unpaid Vacation', cellLabel: '(Unpaid Vacation)', reason: 'Unpaid vacation added by manager', paid: false },
+  { id: 'requested_off', label: 'Request Off', cellLabel: '(Requested Off)', reason: 'Request off (visual only)', paid: null }
+];
+function isFullAbsenceStatus(status) {
+  return status === 'sick' || status === 'vacation' || status === 'floating_holiday' || status === 'unpaid_vacation';
+}
 var REASON_TAG_PRIORITY = ['manual_lock', 'availability', 'seniority', 'no_conflicts', 'rotation_balance', 'within_max_days', 'full_time', 'prefers_shift', 'day_preference'];
 let settings = JSON.parse(localStorage.getItem("settings") || JSON.stringify({
   assignmentStyle: "strict", // Default: Strict Seniority
@@ -1229,7 +1284,9 @@ function showConflictReport() {
 
 function getAssignmentExplanation(empId, dateStr) {
   const key = empId + "_" + dateStr;
-  if (manualEdits[key] && manualEdits[key].manualOverride) return 'Manually assigned by scheduler.';
+  var edit = manualEdits[key];
+  if (edit && edit.absenceReason) return edit.absenceReason;
+  if (edit && edit.manualOverride) return 'Manually assigned by scheduler.';
   if (lockedCells[key]) return REASON_TAG_EXPLANATIONS.manual_lock;
   const tags = assignmentReasonTags[key];
   if (!tags || !tags.length) return null;
@@ -1294,7 +1351,7 @@ function emailSchedulesToAll() {
     days.forEach(d => {
       const dateStr = iso(d);
       const key = emp.id + "_" + dateStr;
-      if(manualEdits[key] && manualEdits[key].status !== 'sick' && manualEdits[key].status !== 'vacation') {
+      if(manualEdits[key] && !isFullAbsenceStatus(manualEdits[key].status) && (manualEdits[key].hours || manualEdits[key].start)) {
         hasShifts = true;
       }
     });
@@ -1393,14 +1450,11 @@ function generateEmployeeScheduleEmail(emp, days) {
     
     if(manualEdits[key]) {
       const edit = manualEdits[key];
-      
-      if(edit.status === 'sick') {
+      var absInfo = edit.status ? ABSENCE_TYPES.find(function(a) { return a.id === edit.status; }) : null;
+      if (absInfo && (isFullAbsenceStatus(edit.status) || (edit.status === 'requested_off' && !edit.hours && !edit.start))) {
         email += `${dayName}\n`;
-        email += `  Status: SICK DAY\n\n`;
-      } else if(edit.status === 'vacation') {
-        email += `${dayName}\n`;
-        email += `  Status: VACATION\n\n`;
-      } else {
+        email += `  Status: ${absInfo.cellLabel}\n\n`;
+      } else if (edit.hours || edit.start) {
         const hours = edit.hours || edit;
         totalHours += hours;
         daysWorked++;
@@ -1417,6 +1471,9 @@ function generateEmployeeScheduleEmail(emp, days) {
           email += `  Event: ${event.name}\n`;
         }
         email += '\n';
+      } else {
+        email += `${dayName}\n`;
+        email += `  OFF\n\n`;
       }
     } else {
       email += `${dayName}\n`;
@@ -1737,6 +1794,7 @@ function renderEmployees(){
       <td><input type="number" class="max-days-input" value="${maxDays}" min="1" max="5" placeholder="5" style="width:50px;" ${e.retired ? 'disabled' : ''}></td>
       <td><button type="button" class="vacation-btn" style="background:#3498db; padding:4px 8px;">Vacation</button></td>
       <td><button type="button" class="dayprefs-btn" style="background:#9b59b6; padding:4px 8px;">Day Prefs</button></td>
+      <td><button type="button" class="timeoff-btn" style="background:#6b7c8d; padding:4px 8px;" title="Time Off / Sick">Time Off</button></td>
       <td><input type="checkbox" class="sick-check" ${e.sick ? "checked" : ""}></td>
       <td>
         <button type="button" class="info-btn" style="background:#27ae60; padding:4px 8px;" title="View/Edit Info">ℹ️</button>
@@ -1792,9 +1850,14 @@ function renderEmployees(){
     const maxDaysInput = row.querySelector('.max-days-input');
     const vacationBtn = row.querySelector('.vacation-btn');
     const dayPrefsBtn = row.querySelector('.dayprefs-btn');
+    const timeoffBtn = row.querySelector('.timeoff-btn');
     const sickCheck = row.querySelector('.sick-check');
     const retireBtn = row.querySelector('.retire');
     const infoBtn = row.querySelector('.info-btn');
+    
+    if(timeoffBtn) {
+      timeoffBtn.onclick = function() { openAbsenceModal(e.id); };
+    }
     
     if(maxDaysInput) {
       maxDaysInput.onchange = function() {
@@ -1834,7 +1897,7 @@ function renderEmployees(){
   });
   if(employees.filter(e=>!e.retired).length === 0){
     const emptyRow = document.createElement('tr');
-    emptyRow.innerHTML = '<td colspan="10" style="text-align:center;padding:1.5rem;color:#7f8c8d;">No employees yet. Add an employee above to get started.</td>';
+    emptyRow.innerHTML = '<td colspan="11" style="text-align:center;padding:1.5rem;color:#7f8c8d;">No employees yet. Add an employee above to get started.</td>';
     employeesTable.appendChild(emptyRow);
   }
 }
@@ -1861,10 +1924,10 @@ function openVacationPicker(empId) {
     const dateStr = iso(d);
     const dayName = d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' });
     const key = empId + "_" + dateStr;
-    const isVacation = manualEdits[key] && manualEdits[key].status === 'vacation';
-    
-    dialog += `${index + 1}. ${dayName}${isVacation ? ' ✓' : ''}\n`;
-    dayOptions.push({ dateStr, dayName, isVacation });
+    const ed = manualEdits[key];
+    const isTimeOff = ed && ed.status && (isFullAbsenceStatus(ed.status) || ed.status === 'requested_off');
+    dialog += `${index + 1}. ${dayName}${isTimeOff ? ' ✓' : ''}\n`;
+    dayOptions.push({ dateStr, dayName, isTimeOff });
   });
   
   dialog += `━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
@@ -1884,12 +1947,12 @@ function openVacationPicker(empId) {
     days.forEach(d => {
       const dateStr = iso(d);
       const key = empId + "_" + dateStr;
-      if (manualEdits[key] && manualEdits[key].status === 'vacation') {
+      if (manualEdits[key] && isFullAbsenceStatus(manualEdits[key].status)) {
         delete manualEdits[key];
       }
     });
     
-    addAuditEntry('Vacation Cleared', empId, null, 'Has vacation', 'No vacation');
+    addAuditEntry('Time Off Cleared', empId, null, 'Had time off', 'Cleared');
     save();
     displaySchedule();
     return;
@@ -1923,7 +1986,7 @@ function openVacationPicker(empId) {
   days.forEach(d => {
     const dateStr = iso(d);
     const key = empId + "_" + dateStr;
-    if (manualEdits[key] && manualEdits[key].status === 'vacation') {
+    if (manualEdits[key] && isFullAbsenceStatus(manualEdits[key].status)) {
       delete manualEdits[key];
     }
   });
@@ -2054,6 +2117,83 @@ function openDayPreferences(empId) {
   addAuditEntry('Day Preferences Set', empId, null, null, auditMsg);
   save();
   alert(`Preferences saved!\n\nPrefers to work: ${workDays || 'none'}\nPrefers off: ${offDays || 'none'}`);
+}
+
+var absenceModalEmpId = null;
+
+function openAbsenceModal(empId) {
+  var emp = employees.find(function(e) { return e.id === empId; });
+  if (!emp) return;
+  absenceModalEmpId = empId;
+  document.getElementById('absenceModalTitle').textContent = 'Time Off / Sick';
+  document.getElementById('absenceModalEmpName').textContent = emp.name;
+  var start = getWeekStart();
+  document.getElementById('absenceStartDate').value = iso(start);
+  document.getElementById('absenceEndDate').value = '';
+  document.getElementById('absenceType').value = 'sick';
+  document.getElementById('absenceModalOverlay').classList.add('absence-visible');
+}
+
+function closeAbsenceModal() {
+  absenceModalEmpId = null;
+  document.getElementById('absenceModalOverlay').classList.remove('absence-visible');
+}
+
+function getDatesBetween(startStr, endStr) {
+  var out = [];
+  var d = new Date(startStr);
+  var end = new Date(endStr || startStr);
+  if (d > end) { var t = d; d = end; end = t; }
+  while (d <= end) {
+    out.push(iso(d));
+    d.setDate(d.getDate() + 1);
+  }
+  return out;
+}
+
+function applyAbsence() {
+  if (!absenceModalEmpId) return;
+  var startStr = document.getElementById('absenceStartDate').value;
+  if (!startStr) {
+    alert('Please select a start date.');
+    return;
+  }
+  var endStr = document.getElementById('absenceEndDate').value || startStr;
+  var typeId = document.getElementById('absenceType').value;
+  var typeInfo = ABSENCE_TYPES.find(function(t) { return t.id === typeId; });
+  if (!typeInfo) return;
+  var dateStrs = getDatesBetween(startStr, endStr);
+  var emp = employees.find(function(e) { return e.id === absenceModalEmpId; });
+  if (!emp) return;
+  var isRequestOff = typeId === 'requested_off';
+  dateStrs.forEach(function(dateStr) {
+    var key = absenceModalEmpId + '_' + dateStr;
+    if (isRequestOff) {
+      var existing = manualEdits[key];
+      if (existing && (existing.hours || existing.start)) {
+        manualEdits[key] = { status: 'requested_off', manualOverride: true, absenceReason: typeInfo.reason, requestedOff: true, hours: existing.hours, start: existing.start, end: existing.end };
+      } else {
+        manualEdits[key] = { status: 'requested_off', manualOverride: true, absenceReason: typeInfo.reason, requestedOff: true };
+      }
+    } else {
+      manualEdits[key] = { status: typeId, manualOverride: true, absenceReason: typeInfo.reason };
+      delete assignmentReasonTags[key];
+      delete assignmentReasons[key];
+    }
+  });
+  var actionLabel = typeInfo.label;
+  addAuditEntry('Absence Added', absenceModalEmpId, null, null, actionLabel + ': ' + (dateStrs.length === 1 ? dateStrs[0] : dateStrs[0] + ' to ' + dateStrs[dateStrs.length - 1]));
+  save();
+  displaySchedule();
+  closeAbsenceModal();
+}
+
+function initAbsenceModal() {
+  document.getElementById('absenceConfirmBtn').onclick = applyAbsence;
+  document.getElementById('absenceCancelBtn').onclick = closeAbsenceModal;
+  document.getElementById('absenceModalOverlay').onclick = function(e) {
+    if (e.target === this) closeAbsenceModal();
+  };
 }
 
 function toggleSick(id, checked){
@@ -2444,7 +2584,7 @@ function getEligibleEmployeesForDate(dateStr) {
   return employees.filter(function(e) {
     if (e.retired || e.sick) return false;
     var vk = e.id + '_' + dateStr;
-    if (manualEdits[vk] && manualEdits[vk].status === 'vacation') return false;
+    if (manualEdits[vk] && isFullAbsenceStatus(manualEdits[vk].status)) return false;
     return true;
   });
 }
@@ -2454,7 +2594,7 @@ function getEmployeesWithShiftOnDate(dateStr) {
     if (e.retired) return false;
     var k = e.id + '_' + dateStr;
     var edit = manualEdits[k];
-    return edit && edit.status !== 'sick' && edit.status !== 'vacation' && (edit.hours || edit.start || edit.end);
+    return edit && !isFullAbsenceStatus(edit.status) && (edit.hours || edit.start || edit.end);
   });
 }
 
@@ -2466,7 +2606,7 @@ function checkSeniorityViolation(empIdReceiving, dateStr) {
   eligible.forEach(function(e) {
     var k = e.id + '_' + dateStr;
     var ed = manualEdits[k];
-    hasShift[e.id] = !!(ed && ed.status !== 'sick' && ed.status !== 'vacation' && (ed.hours || ed.start || ed.end));
+    hasShift[e.id] = !!(ed && !isFullAbsenceStatus(ed.status) && (ed.hours || ed.start || ed.end));
   });
   var higherRankNoShift = eligible.filter(function(e) {
     return e.id !== empIdReceiving && !hasShift[e.id] && (e.seniority != null) && (receiving.seniority != null) && e.seniority < receiving.seniority;
@@ -2511,7 +2651,7 @@ function editScheduleCell(empId, date){
   const ev = events.find(e => e.date === date);
   
   let currentEdit = manualEdits[key];
-  var hasShift = currentEdit && currentEdit.status !== 'sick' && currentEdit.status !== 'vacation' && (currentEdit.hours || currentEdit.start || currentEdit.end);
+  var hasShift = currentEdit && !isFullAbsenceStatus(currentEdit.status) && (currentEdit.hours || currentEdit.start || currentEdit.end);
   
   // Create a clearer menu dialog
   let dialog = "Edit shift for " + emp.name + " on " + date + ":\n\n";
@@ -2536,10 +2676,9 @@ function editScheduleCell(empId, date){
   }
   
   if(currentEdit) {
-    if(currentEdit.status === 'sick') {
-      dialog += "Current: SICK\n";
-    } else if(currentEdit.status === 'vacation') {
-      dialog += "Current: VACATION\n";
+    var curAbsence = currentEdit.status ? ABSENCE_TYPES.find(function(a) { return a.id === currentEdit.status; }) : null;
+    if (curAbsence) {
+      dialog += "Current: " + curAbsence.cellLabel + "\n";
     } else if(currentEdit.start && currentEdit.end) {
       dialog += "Current: " + currentEdit.hours + "h (" + currentEdit.start + "-" + currentEdit.end + ")\n";
     } else {
@@ -2576,10 +2715,10 @@ function editScheduleCell(empId, date){
   // Mark as sick
   if(trimmed === 'sick') {
     const oldValue = currentEdit ? JSON.stringify(currentEdit) : null;
-    manualEdits[key] = { status: 'sick', manualOverride: true };
+    manualEdits[key] = { status: 'sick', manualOverride: true, absenceReason: 'Marked Sick manually' };
     delete assignmentReasonTags[key];
     delete assignmentReasons[key];
-    addAuditEntry('Marked Sick', empId, date, oldValue, 'SICK');
+    addAuditEntry('Absence Added', empId, date, oldValue, 'Sick');
     save();
     displaySchedule();
     return;
@@ -2588,10 +2727,10 @@ function editScheduleCell(empId, date){
   // Mark as vacation
   if(trimmed === 'vacation' || trimmed === 'vac') {
     const oldValue = currentEdit ? JSON.stringify(currentEdit) : null;
-    manualEdits[key] = { status: 'vacation', manualOverride: true };
+    manualEdits[key] = { status: 'vacation', manualOverride: true, absenceReason: 'Vacation added by manager' };
     delete assignmentReasonTags[key];
     delete assignmentReasons[key];
-    addAuditEntry('Marked Vacation', empId, date, oldValue, 'VACATION');
+    addAuditEntry('Absence Added', empId, date, oldValue, 'Vacation');
     save();
     displaySchedule();
     return;
@@ -2623,7 +2762,8 @@ function editScheduleCell(empId, date){
         return;
       }
       var editB = manualEdits[keyB];
-      if (!editB || editB.status === 'sick' || editB.status === 'vacation') {
+      var fullAbsence = editB && isFullAbsenceStatus(editB.status);
+      if (!editB || fullAbsence) {
         alert(other.name + ' does not have a shift on this date.');
         return;
       }
@@ -2679,7 +2819,8 @@ function editScheduleCell(empId, date){
         alert('Cannot reassign: this shift or the target row/cell is locked.');
         return;
       }
-      if (manualEdits[keyTo] && manualEdits[keyTo].status !== 'sick' && manualEdits[keyTo].status !== 'vacation') {
+      var toEd = manualEdits[keyTo];
+      if (toEd && !isFullAbsenceStatus(toEd.status) && (toEd.hours || toEd.start)) {
         alert(toEmp.name + ' already has a shift on this date. Use "swap" to exchange shifts.');
         return;
       }
@@ -2779,7 +2920,7 @@ function generateSchedule(){
     days.forEach(d => {
       const dateStr = iso(d);
       const key = e.id + "_" + dateStr;
-      if(manualEdits[key] && manualEdits[key].status !== 'sick' && manualEdits[key].status !== 'vacation') {
+      if(manualEdits[key] && !isFullAbsenceStatus(manualEdits[key].status) && (manualEdits[key].hours || manualEdits[key].start)) {
         employeeWorkDays[e.id]++;
       }
     });
@@ -2982,20 +3123,38 @@ function displaySchedule(){
       // Check for manual edits (includes generated shifts)
       if(manualEdits[key]){
         const edit = manualEdits[key];
+        var absenceInfo = edit.status ? ABSENCE_TYPES.find(function(a) { return a.id === edit.status; }) : null;
         
-        if(edit.status === 'sick') {
-          cell.style.background = '#95a5a6';
-          cell.innerHTML = 'SICK';
+        if (absenceInfo && absenceInfo.id === 'requested_off' && (edit.hours || edit.start)) {
+          const h = edit.hours || edit;
+          total += h;
+          daysWorked++;
+          cell.className += ' ' + getShiftClassByHours(h);
+          cell.style.position = 'relative';
+          cell.title = 'Click to edit or change status. ' + absenceInfo.cellLabel;
+          if(edit.start && edit.end) {
+            cell.innerHTML = h + 'h<br><small>' + edit.start + '–' + edit.end + '</small><br><span style="font-size:11px;color:var(--brand-text-muted);">' + (absenceInfo ? absenceInfo.cellLabel : '') + '</span>';
+          } else {
+            cell.innerHTML = h + 'h<br><span style="font-size:11px;color:var(--brand-text-muted);">' + (absenceInfo ? absenceInfo.cellLabel : '') + '</span>';
+          }
+          cell.onclick = function(ev) { if (!ev.target.closest('a')) editScheduleCell(emp.id, dateStr); };
+          row.appendChild(cell);
+          return;
+        }
+        
+        if (absenceInfo && absenceInfo.id !== 'requested_off') {
+          cell.style.background = absenceInfo.id === 'sick' ? '#95a5a6' : absenceInfo.id === 'vacation' || absenceInfo.id === 'floating_holiday' ? '#3498db' : absenceInfo.id === 'unpaid_vacation' ? '#7f8c8d' : '#6b7c8d';
+          cell.innerHTML = absenceInfo.cellLabel;
           cell.title = 'Click to edit or change status';
           cell.onclick = () => editScheduleCell(emp.id, dateStr);
           row.appendChild(cell);
           return;
         }
         
-        if(edit.status === 'vacation') {
-          cell.style.background = '#3498db';
-          cell.innerHTML = 'VAC';
-          cell.title = 'Click to edit or change status';
+        if (absenceInfo && absenceInfo.id === 'requested_off') {
+          cell.style.background = '#3d4550';
+          cell.innerHTML = absenceInfo.cellLabel;
+          cell.title = 'Click to edit or change status. Request Off is visual only until converted.';
           cell.onclick = () => editScheduleCell(emp.id, dateStr);
           row.appendChild(cell);
           return;
@@ -3119,11 +3278,9 @@ function assignEmployeesToWeek(days) {
     const available = employees.filter(e => {
       if(e.retired || e.sick) return false;
       
-      // Check if employee has vacation set for this specific day
       const vacationKey = e.id + "_" + dateStr;
-      if(manualEdits[vacationKey] && manualEdits[vacationKey].status === 'vacation') {
-        return false;
-      }
+      var ed = manualEdits[vacationKey];
+      if (ed && isFullAbsenceStatus(ed.status)) return false;
       
       return true;
     }).map(e => ({...e, assignedToday: false}));
@@ -3138,8 +3295,13 @@ function assignEmployeesToWeek(days) {
       const scored = available
         .filter(emp => {
           const key = emp.id + "_" + dateStr;
-          // Skip if locked or manually edited
-          if(lockedCells[key] || manualEdits[key]) return false;
+          if(lockedCells[key]) return false;
+          var ed = manualEdits[key];
+          if (ed) {
+            if (isFullAbsenceStatus(ed.status)) return false;
+            if (ed.status === 'requested_off' && !ed.hours && !ed.start) { /* still available for assignment */ }
+            else return false;
+          }
           // Skip if already assigned today
           if(emp.assignedToday) return false;
           
@@ -3393,7 +3555,9 @@ function exportScheduleToCSV() {
       const edit = manualEdits[key];
       if (!edit) return;
       let hours;
-      if (edit.status === 'sick' || edit.status === 'vacation') {
+      if (edit.status && isFullAbsenceStatus(edit.status)) {
+        hours = '0';
+      } else if (edit.status === 'requested_off' && !edit.hours && !edit.start) {
         hours = '0';
       } else {
         const h = edit.hours != null ? edit.hours : edit;
@@ -3926,6 +4090,7 @@ function demoStep11_Complete() {
 /* INIT */
 try {
   initEmployeeEditModal();
+  initAbsenceModal();
   updateSeniorityPreFill();
   renderEmployees();
   renderEvents();
