@@ -786,16 +786,17 @@ let assignmentReasonTags = JSON.parse(localStorage.getItem("assignmentReasonTags
 let generationConflicts = [];
 
 var REASON_TAG_EXPLANATIONS = {
-  seniority: 'seniority',
-  availability: 'availability',
-  no_conflicts: 'no scheduling conflicts this week',
-  within_max_days: 'within allowed days per week',
-  full_time: 'full-time status',
-  prefers_shift: 'shift preference matched',
-  day_preference: 'day preference matched',
-  rotation_balance: 'balanced hours under policy',
-  manual_lock: 'manually assigned or locked'
-}; // NEW: Store conflicts from last generation
+  manual_lock: 'This shift was manually assigned or locked.',
+  availability: 'Employee was available for this shift.',
+  seniority: 'Selected in line with seniority policy.',
+  no_conflicts: 'No scheduling conflicts this week.',
+  rotation_balance: 'Assigned to support balanced hours under current policy.',
+  within_max_days: 'Within allowed working days for the week.',
+  full_time: 'Full-time status under current policy.',
+  prefers_shift: 'Shift preference matched for this time.',
+  day_preference: 'Day preference matched.'
+};
+var REASON_TAG_PRIORITY = ['manual_lock', 'availability', 'seniority', 'no_conflicts', 'rotation_balance', 'within_max_days', 'full_time', 'prefers_shift', 'day_preference'];
 let settings = JSON.parse(localStorage.getItem("settings") || JSON.stringify({
   assignmentStyle: "strict", // Default: Strict Seniority
   ratios: {
@@ -954,17 +955,32 @@ function showConflictReport() {
 
 function getAssignmentExplanation(empId, dateStr) {
   const key = empId + "_" + dateStr;
+  if (lockedCells[key]) return REASON_TAG_EXPLANATIONS.manual_lock;
   const tags = assignmentReasonTags[key];
-  if (tags && tags.length) {
-    var parts = tags.map(function(t) { return REASON_TAG_EXPLANATIONS[t] || t; }).filter(Boolean);
-    if (parts.length) {
-      var tail = parts.length > 1 ? parts.slice(-1)[0] : '';
-      var rest = parts.length > 1 ? parts.slice(0, -1).join(', ') + ' and ' + tail : tail;
-      return 'Selected due to ' + rest + '.';
-    }
+  if (!tags || !tags.length) return null;
+  var ordered = [];
+  for (var i = 0; i < REASON_TAG_PRIORITY.length && ordered.length < 3; i++) {
+    var t = REASON_TAG_PRIORITY[i];
+    if (t === 'manual_lock') continue;
+    if (tags.indexOf(t) !== -1) ordered.push(t);
   }
-  if (lockedCells[key]) return 'Manually assigned or locked.';
-  return null;
+  if (ordered.length === 0) return 'Selected per current scheduling policy.';
+  var combined = [];
+  var usedAvailability = false;
+  var usedNoConflicts = false;
+  for (var j = 0; j < ordered.length; j++) {
+    var tag = ordered[j];
+    if (tag === 'availability' && ordered.indexOf('no_conflicts') !== -1) {
+      if (!usedAvailability) { combined.push('Available with no scheduling conflicts this week.'); usedAvailability = true; usedNoConflicts = true; }
+      continue;
+    }
+    if (tag === 'no_conflicts') { if (!usedNoConflicts) combined.push(REASON_TAG_EXPLANATIONS.no_conflicts); usedNoConflicts = true; continue; }
+    if (tag === 'availability') { if (!usedAvailability) combined.push(REASON_TAG_EXPLANATIONS.availability); usedAvailability = true; continue; }
+    combined.push(REASON_TAG_EXPLANATIONS[tag] || tag);
+  }
+  if (combined.length === 0) return 'Selected per current scheduling policy.';
+  if (combined.length === 1) return combined[0];
+  return combined.slice(0, 2).join(' ') + (combined.length > 2 ? ' ' + combined[2] : '');
 }
 
 function showAssignmentReason(empId, dateStr) {
@@ -976,7 +992,7 @@ function showAssignmentReason(empId, dateStr) {
   if (explanation) {
     alert(title + '\n\n' + explanation);
   } else {
-    alert(title + '\n\nManually assigned or from an earlier schedule. No policy explanation is stored for this shift.');
+    alert(title + '\n\nThis shift was manually assigned or comes from an earlier schedule. No policy-based explanation is stored.');
   }
 }
 
