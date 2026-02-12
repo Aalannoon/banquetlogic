@@ -11,13 +11,15 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <style>
-/* Brand: primary blue, charcoal bg, light text, muted accent */
+/* Brand: blue + charcoal workforce palette */
 :root {
   --brand-primary: #4e9af1;
+  --brand-primary-dark: #3d7bc9;
   --brand-bg: #252a32;
   --brand-bg-elevated: #2d343e;
   --brand-text: #e8eaed;
   --brand-text-muted: #9ca3af;
+  --brand-text-quiet: #6b7280;
   --brand-accent-muted: #6b7c8d;
   --brand-border: #3d4550;
 }
@@ -57,48 +59,74 @@ h3 {
 }
 body.light-mode h3 { color: #4b5563; }
 
-/* Logo wordmark + tagline */
+/* Header: logo + tagline (workforce / fairness feel) */
 .app-header {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
   flex-wrap: wrap;
-  margin-bottom: 16px;
-  padding-bottom: 12px;
+  margin-bottom: 18px;
+  padding: 14px 0 16px 0;
   border-bottom: 1px solid var(--brand-border);
+  background: var(--brand-bg);
 }
-body.light-mode .app-header { border-bottom-color: #e5e7eb; }
+body.light-mode .app-header {
+  border-bottom-color: #e5e7eb;
+  background: #fff;
+}
 .logo-block {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+}
+.logo-icon-wrap {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--brand-bg-elevated);
+  border-radius: 8px;
+  border: 1px solid var(--brand-border);
+}
+body.light-mode .logo-icon-wrap {
+  background: #f3f4f6;
+  border-color: #e5e7eb;
 }
 .logo-icon {
-  width: 28px;
-  height: 28px;
-  flex-shrink: 0;
-  opacity: 0.95;
+  width: 20px;
+  height: 20px;
   color: var(--brand-primary);
 }
+body.light-mode .logo-icon { color: var(--brand-primary); }
+.logo-text-col {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
 .logo-wordmark {
-  font-size: 1.5rem;
+  font-size: 1.375rem;
   font-weight: 600;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.02em;
   color: var(--brand-primary);
+  line-height: 1.2;
 }
 body.light-mode .logo-wordmark { color: var(--brand-primary); }
 .tagline {
-  font-size: 0.8125rem;
-  color: var(--brand-text-muted);
+  font-size: 0.75rem;
+  color: var(--brand-text-quiet);
   font-weight: 400;
   margin: 0;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.02em;
+  line-height: 1.3;
 }
-body.light-mode .tagline { color: #6b7280; }
+body.light-mode .tagline { color: #9ca3af; }
 .week-header {
-  font-size: 1rem;
+  font-size: 0.9375rem;
   color: var(--brand-text-muted);
   margin-left: auto;
+  font-weight: 500;
 }
 body.light-mode .week-header { color: #6b7280; }
 
@@ -283,7 +311,8 @@ td[onclick]:hover, td.clickable:hover { outline:2px dashed #4e9af1; }
   }
   h1, .logo-wordmark, .tagline, .week-header { color: #000 !important; }
   .logo-icon { color: #000 !important; }
-  .app-header { border-bottom-color: #ccc !important; }
+  .logo-icon-wrap { background: transparent !important; border-color: #ccc !important; }
+  .app-header { border-bottom-color: #ccc !important; background: transparent !important; }
   /* Hide lock column and all lock controls in schedule */
   #scheduleTable th:first-child,
   #scheduleTable td:first-child { display: none !important; }
@@ -525,13 +554,12 @@ body.light-mode #employeeEditModal label { color: #7f8c8d; }
 
 <header class="app-header">
   <div class="logo-block">
-    <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
-      <rect x="3" y="3" width="8" height="8" rx="1"/>
-      <rect x="13" y="3" width="8" height="8" rx="1"/>
-      <rect x="3" y="13" width="8" height="8" rx="1"/>
-      <rect x="13" y="13" width="8" height="8" rx="1"/>
-    </svg>
-    <div>
+    <div class="logo-icon-wrap" aria-hidden="true">
+      <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M5 7h14M5 12h10M5 17h6"/>
+      </svg>
+    </div>
+    <div class="logo-text-col">
       <h1 class="logo-wordmark">BanquetLogic</h1>
       <p class="tagline">Every shift has a reason.</p>
     </div>
