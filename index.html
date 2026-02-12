@@ -278,17 +278,17 @@ td[onclick]:hover, td.clickable:hover { outline:2px dashed #4e9af1; }
   <span style="font-size: 18px; color: #95a5a6;" id="weekHeader"></span>
 </h1>
 
-<button onclick="toggleDarkMode()">Toggle Dark Mode</button>
-<button class="print" onclick="printSchedule()">Print / Save PDF</button>
+<button type="button" onclick="toggleDarkMode()">Toggle Dark Mode</button>
+<button type="button" class="print" onclick="printSchedule()">Print / Save PDF</button>
 
 <div class="tabs">
-  <button id="tabEmpBtn" onclick="showTab('employeesTab')">Employees</button>
-  <button id="tabEvBtn" onclick="showTab('eventsTab')">Events</button>
-  <button id="tabSchBtn" onclick="showTab('scheduleTab')">Schedule</button>
-  <button id="tabAuditBtn" onclick="showTab('auditTab')">Audit Log</button>
-  <button id="tabSettingsBtn" onclick="showTab('settingsTab')">Settings</button>
-  <button id="tabSupportBtn" onclick="showTab('supportTab')">Support / Contact</button>
-  <button id="tabDemoBtn" onclick="showTab('demoTab')" style="background:#e67e22;">🎬 Demo Mode</button>
+  <button type="button" id="tabEmpBtn" onclick="showTab('employeesTab')">Employees</button>
+  <button type="button" id="tabEvBtn" onclick="showTab('eventsTab')">Events</button>
+  <button type="button" id="tabSchBtn" onclick="showTab('scheduleTab')">Schedule</button>
+  <button type="button" id="tabAuditBtn" onclick="showTab('auditTab')">Audit Log</button>
+  <button type="button" id="tabSettingsBtn" onclick="showTab('settingsTab')">Settings</button>
+  <button type="button" id="tabSupportBtn" onclick="showTab('supportTab')">Support / Contact</button>
+  <button type="button" id="tabDemoBtn" onclick="showTab('demoTab')" style="background:#e67e22;">🎬 Demo Mode</button>
 </div>
 
 <!-- EMPLOYEES -->
@@ -298,8 +298,8 @@ td[onclick]:hover, td.clickable:hover { outline:2px dashed #4e9af1; }
 <div style="margin-bottom: 15px; padding: 10px; background: #2e2e3d; border-radius: 8px;">
   <h3 style="margin-top: 0;">Add Employee Manually</h3>
   <div style="margin-bottom: 10px;">
-    <input id="empName" placeholder="Name" />
-    <select id="empType"><option>FT</option><option>PT</option></select>
+    <input type="text" id="empName" placeholder="Name" />
+    <select id="empType"><option value="FT">FT</option><option value="PT">PT</option></select>
     <input id="empSeniority" type="number" placeholder="Seniority" />
     <select id="empPref">
       <option value="">No Pref</option>
@@ -312,7 +312,7 @@ td[onclick]:hover, td.clickable:hover { outline:2px dashed #4e9af1; }
     <strong>Optional Fields:</strong>
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; margin-top: 8px;">
       <input id="empEmail" type="email" placeholder="Email (for schedule send)" style="border: 2px solid #3498db;" />
-      <input id="empEmployeeId" placeholder="Employee ID (optional)" />
+      <input type="text" id="empEmployeeId" placeholder="Employee ID (optional)" />
       <input id="empHireDate" type="date" placeholder="Hire Date (optional)" title="Hire Date (optional)" />
       <input id="empBirthdate" type="date" placeholder="Birthdate (optional)" title="Birthdate (optional)" />
     </div>
@@ -321,7 +321,7 @@ td[onclick]:hover, td.clickable:hover { outline:2px dashed #4e9af1; }
     </small>
   </div>
   
-  <button onclick="addEmployee()" style="margin-top: 10px;">Add Employee</button>
+  <button type="button" onclick="addEmployee()" style="margin-top: 10px;">Add Employee</button>
 </div>
 
 <div style="margin-bottom: 15px; padding: 10px; background: #2e2e3d; border-radius: 8px;">
@@ -331,20 +331,20 @@ td[onclick]:hover, td.clickable:hover { outline:2px dashed #4e9af1; }
   </p>
   
   <div style="margin: 10px 0;">
-    <button onclick="document.getElementById('importFile').click()" style="background: #27ae60;">
+    <button type="button" onclick="document.getElementById('importFile').click()" style="background: #27ae60;">
       📁 Upload CSV File
     </button>
     <input type="file" id="importFile" accept=".csv,.txt" style="display: none;" onchange="handleFileImport(event)" />
     
-    <button onclick="openPasteImport()" style="background: #9b59b6;">
+    <button type="button" onclick="openPasteImport()" style="background: #9b59b6;">
       📋 Paste Text
     </button>
     
-    <button onclick="exportEmployeeList()" style="background: #3498db;">
+    <button type="button" onclick="exportEmployeeList()" style="background: #3498db;">
       💾 Export List
     </button>
     
-    <button onclick="showImportHelp()" style="background: #95a5a6;">
+    <button type="button" onclick="showImportHelp()" style="background: #95a5a6;">
       ❓ Format Help
     </button>
   </div>
@@ -365,21 +365,21 @@ td[onclick]:hover, td.clickable:hover { outline:2px dashed #4e9af1; }
 <div id="eventsTab" class="tab">
 <h2>Events</h2>
 
-<input id="eventName" placeholder="Event Name" />
+<input type="text" id="eventName" placeholder="Event Name" />
 <input id="eventDate" type="date" />
 <input id="eventStart" type="time" onchange="autoRecommendStaff()" />
 <input id="eventEnd" type="time" onchange="autoRecommendStaff()" />
 <input id="eventGuests" type="number" placeholder="Guests" oninput="autoRecommendStaff()" />
 
 <select id="eventService" onchange="autoRecommendStaff()">
-  <option>Plated Service</option>
-  <option>Buffet Service</option>
-  <option>Reception</option>
-  <option>Coffee Break</option>
+  <option value="Plated Service">Plated Service</option>
+  <option value="Buffet Service">Buffet Service</option>
+  <option value="Reception">Reception</option>
+  <option value="Coffee Break">Coffee Break</option>
 </select>
 
 <input id="eventStaff" type="number" placeholder="Staff Needed" />
-<button onclick="addEvent()">Add / Save</button>
+<button type="button" onclick="addEvent()">Add / Save</button>
 
 <table>
 <thead>
@@ -397,14 +397,14 @@ td[onclick]:hover, td.clickable:hover { outline:2px dashed #4e9af1; }
 <div id="scheduleTab" class="tab">
 <h2>Schedule</h2>
 
-<button onclick="changeWeek(-1)">⬅ Previous Week</button>
-<button onclick="changeWeek(1)">Next Week ➡</button>
-<button onclick="generateSchedule()">Generate</button>
-<button onclick="regenerateSchedule()">Regenerate</button>
-<button id="globalLockBtn" onclick="toggleGlobalLock()" style="background:#f39c12;">🔓 Unlock Schedule</button>
-<button onclick="emailSchedulesToAll()" style="background:#27ae60;">📧 Email Schedules</button>
-<button onclick="showGenerationRules()" style="background:#9b59b6;">📋 Generation Rules</button>
-<button onclick="showConflictReport()" id="conflictReportBtn" style="background:#e74c3c; display:none;">⚠️ Conflicts</button>
+<button type="button" onclick="changeWeek(-1)">⬅ Previous Week</button>
+<button type="button" onclick="changeWeek(1)">Next Week ➡</button>
+<button type="button" onclick="generateSchedule()">Generate</button>
+<button type="button" onclick="regenerateSchedule()">Regenerate</button>
+<button type="button" id="globalLockBtn" onclick="toggleGlobalLock()" style="background:#f39c12;">🔓 Unlock Schedule</button>
+<button type="button" onclick="emailSchedulesToAll()" style="background:#27ae60;">📧 Email Schedules</button>
+<button type="button" onclick="showGenerationRules()" style="background:#9b59b6;">📋 Generation Rules</button>
+<button type="button" onclick="showConflictReport()" id="conflictReportBtn" style="background:#e74c3c; display:none;">⚠️ Conflicts</button>
 
 <div class="schedule-container">
   <table id="scheduleTable"></table>
@@ -416,10 +416,10 @@ td[onclick]:hover, td.clickable:hover { outline:2px dashed #4e9af1; }
 <h2>Audit Log</h2>
 
 <div class="audit-filters">
-  <input id="auditEmployee" placeholder="Filter by employee" />
+  <input type="text" id="auditEmployee" placeholder="Filter by employee" />
   <input id="auditDate" type="date" placeholder="Filter by date" />
-  <button onclick="filterAuditLog()">Filter</button>
-  <button onclick="clearAuditFilter()">Clear Filter</button>
+  <button type="button" onclick="filterAuditLog()">Filter</button>
+  <button type="button" onclick="clearAuditFilter()">Clear Filter</button>
 </div>
 
 <div id="auditLogContainer"></div>
@@ -434,8 +434,8 @@ td[onclick]:hover, td.clickable:hover { outline:2px dashed #4e9af1; }
   <p>Choose how shifts are assigned when generating schedules:</p>
   
   <div style="margin: 15px 0;">
-    <label style="display: flex; align-items: flex-start; gap: 10px; padding: 10px; background: #34495e; border-radius: 6px; margin-bottom: 10px; cursor: pointer;">
-      <input type="radio" name="assignmentStyle" value="strict" checked style="margin-top: 5px;">
+    <label for="assignmentStyle_strict" style="display: flex; align-items: flex-start; gap: 10px; padding: 10px; background: #34495e; border-radius: 6px; margin-bottom: 10px; cursor: pointer;">
+      <input type="radio" id="assignmentStyle_strict" name="assignmentStyle" value="strict" checked style="margin-top: 5px;">
       <div>
         <strong style="color: #4e9af1;">Strict Seniority</strong>
         <p style="margin: 5px 0 0 0; font-size: 13px; color: #95a5a6;">
@@ -445,8 +445,8 @@ td[onclick]:hover, td.clickable:hover { outline:2px dashed #4e9af1; }
       </div>
     </label>
     
-    <label style="display: flex; align-items: flex-start; gap: 10px; padding: 10px; background: #34495e; border-radius: 6px; margin-bottom: 10px; cursor: pointer;">
-      <input type="radio" name="assignmentStyle" value="balanced" style="margin-top: 5px;">
+    <label for="assignmentStyle_balanced" style="display: flex; align-items: flex-start; gap: 10px; padding: 10px; background: #34495e; border-radius: 6px; margin-bottom: 10px; cursor: pointer;">
+      <input type="radio" id="assignmentStyle_balanced" name="assignmentStyle" value="balanced" style="margin-top: 5px;">
       <div>
         <strong style="color: #4e9af1;">Seniority + Balanced Coverage</strong>
         <p style="margin: 5px 0 0 0; font-size: 13px; color: #95a5a6;">
@@ -457,8 +457,8 @@ td[onclick]:hover, td.clickable:hover { outline:2px dashed #4e9af1; }
       </div>
     </label>
     
-    <label style="display: flex; align-items: flex-start; gap: 10px; padding: 10px; background: #34495e; border-radius: 6px; margin-bottom: 10px; cursor: pointer;">
-      <input type="radio" name="assignmentStyle" value="fair" style="margin-top: 5px;">
+    <label for="assignmentStyle_fair" style="display: flex; align-items: flex-start; gap: 10px; padding: 10px; background: #34495e; border-radius: 6px; margin-bottom: 10px; cursor: pointer;">
+      <input type="radio" id="assignmentStyle_fair" name="assignmentStyle" value="fair" style="margin-top: 5px;">
       <div>
         <strong style="color: #4e9af1;">Fair Distribution</strong>
         <p style="margin: 5px 0 0 0; font-size: 13px; color: #95a5a6;">
@@ -470,7 +470,7 @@ td[onclick]:hover, td.clickable:hover { outline:2px dashed #4e9af1; }
     </label>
   </div>
   
-  <button onclick="saveSettings()">Save Settings</button>
+  <button type="button" onclick="saveSettings()">Save Settings</button>
 </div>
 
 <div class="settings-section">
@@ -478,34 +478,34 @@ td[onclick]:hover, td.clickable:hover { outline:2px dashed #4e9af1; }
   <p>Set the recommended number of guests per server for each service type:</p>
   
   <div class="setting-row">
-    <label>Plated Service:</label>
+    <label for="ratioPlated">Plated Service:</label>
     <span>1 server per</span>
     <input type="number" id="ratioPlated" value="20" min="1" />
     <span>guests</span>
   </div>
   
   <div class="setting-row">
-    <label>Buffet Service:</label>
+    <label for="ratioBuffet">Buffet Service:</label>
     <span>1 server per</span>
     <input type="number" id="ratioBuffet" value="30" min="1" />
     <span>guests</span>
   </div>
   
   <div class="setting-row">
-    <label>Reception:</label>
+    <label for="ratioReception">Reception:</label>
     <span>1 server per</span>
     <input type="number" id="ratioReception" value="40" min="1" />
     <span>guests</span>
   </div>
   
   <div class="setting-row">
-    <label>Coffee Break:</label>
+    <label for="ratioCoffee">Coffee Break:</label>
     <span>1 server per</span>
     <input type="number" id="ratioCoffee" value="50" min="1" />
     <span>guests</span>
   </div>
   
-  <button onclick="saveSettings()">Save Settings</button>
+  <button type="button" onclick="saveSettings()">Save Settings</button>
 </div>
 </div>
 
@@ -519,7 +519,7 @@ td[onclick]:hover, td.clickable:hover { outline:2px dashed #4e9af1; }
   
   <div style="margin-top: 20px;">
     <div style="margin-bottom: 15px;">
-      <label style="display: block; margin-bottom: 5px; font-weight: bold;">Category:</label>
+      <label for="supportCategory" style="display: block; margin-bottom: 5px; font-weight: bold;">Category:</label>
       <select id="supportCategory" style="width: 100%; max-width: 400px;">
         <option value="Bug">Bug Report</option>
         <option value="Suggestion">Feature Suggestion</option>
@@ -528,13 +528,13 @@ td[onclick]:hover, td.clickable:hover { outline:2px dashed #4e9af1; }
     </div>
     
     <div style="margin-bottom: 15px;">
-      <label style="display: block; margin-bottom: 5px; font-weight: bold;">Subject: <span style="color: #e74c3c;">*</span></label>
+      <label for="supportSubject" style="display: block; margin-bottom: 5px; font-weight: bold;">Subject: <span style="color: #e74c3c;">*</span></label>
       <input type="text" id="supportSubject" placeholder="Brief description of the issue or suggestion" 
              style="width: 100%; max-width: 600px; padding: 8px;" />
     </div>
     
     <div style="margin-bottom: 15px;">
-      <label style="display: block; margin-bottom: 5px; font-weight: bold;">Message: <span style="color: #e74c3c;">*</span></label>
+      <label for="supportMessage" style="display: block; margin-bottom: 5px; font-weight: bold;">Message: <span style="color: #e74c3c;">*</span></label>
       <textarea id="supportMessage" placeholder="Please provide details about the bug or your suggestion..."
                 style="width: 100%; max-width: 600px; min-height: 150px; padding: 8px; font-family: inherit;"></textarea>
     </div>
@@ -546,7 +546,7 @@ td[onclick]:hover, td.clickable:hover { outline:2px dashed #4e9af1; }
       </small>
     </div>
     
-    <button onclick="submitSupport()" style="background: #27ae60; font-size: 16px; padding: 10px 20px;">
+    <button type="button" onclick="submitSupport()" style="background: #27ae60; font-size: 16px; padding: 10px 20px;">
       📧 Send Message
     </button>
     
@@ -588,10 +588,10 @@ td[onclick]:hover, td.clickable:hover { outline:2px dashed #4e9af1; }
     </div>
     
     <div style="text-align: center; margin-top: 25px;">
-      <button onclick="startDemo()" style="background: #27ae60; font-size: 18px; padding: 15px 30px;">
+      <button type="button" onclick="startDemo()" style="background: #27ae60; font-size: 18px; padding: 15px 30px;">
         ▶️ Start Demo
       </button>
-      <button id="stopDemoBtn" onclick="stopDemo()" style="background: #e74c3c; font-size: 18px; padding: 15px 30px; display: none;">
+      <button type="button" id="stopDemoBtn" onclick="stopDemo()" style="background: #e74c3c; font-size: 18px; padding: 15px 30px; display: none;">
         ⏹️ Stop Demo
       </button>
     </div>
@@ -999,131 +999,6 @@ function generateEmployeeScheduleEmail(emp, days) {
   email += `Thank you,\nBanquetLogic Scheduling`;
   
   return email;
-}} employee(s) with valid emails?`;
-      
-      if(!confirm(warning)) {
-        return;
-      }
-    } else {
-      alert(warning + '\nNo employees have email addresses set. Cannot send any schedules.');
-      return;
-    }
-  }
-  
-  if(employeesWithSchedule.length === 0) {
-    alert('No employees with shifts and valid email addresses for this week.');
-    return;
-  }
-  
-  // Generate PDF of full schedule first
-  alert('📄 Generating full schedule PDF...\n\nThis will download automatically and should be attached to each email for transparency.');
-  
-  generateSchedulePDF(weekRange, () => {
-    // After PDF is generated, proceed with emails
-    let successCount = 0;
-    
-    employeesWithSchedule.forEach((emp, index) => {
-      setTimeout(() => {
-        const emailContent = generateEmployeeScheduleEmail(emp, days);
-        
-        const subject = encodeURIComponent(`Your BanquetLogic Schedule - Week of ${days[0].toLocaleDateString()}`);
-        let body = emailContent + '\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n';
-        body += '📎 ATTACHMENT: Please attach the "BanquetLogic_Full_Schedule.pdf" file that was just downloaded.\n';
-        body += 'This shows the complete schedule for all staff for transparency.';
-        body = encodeURIComponent(body);
-        
-        const mailtoLink = `mailto:${emp.email}?subject=${subject}&body=${body}`;
-        
-        // Open email client
-        window.open(mailtoLink, '_blank');
-        
-        successCount++;
-        
-        // Log in audit
-        addAuditEntry('Schedule Emailed', emp.id, null, null, `Week: ${weekRange}`);
-        
-      }, index * 500); // Delay each email by 500ms to avoid browser blocking
-    });
-    
-    save();
-    
-    // Show confirmation
-    setTimeout(() => {
-      let message = `✅ PDF Generated & ${successCount} email window(s) opened!\n\n`;
-      message += `IMPORTANT: Attach "BanquetLogic_Full_Schedule.pdf" to each email before sending.\n\n`;
-      message += `Employees receiving schedules:\n`;
-      employeesWithSchedule.forEach(emp => {
-        message += `• ${emp.name} (${emp.email})\n`;
-      });
-      
-      if(employeesWithoutEmail.length > 0) {
-        message += `\n⚠️ Skipped (no email):\n`;
-        employeesWithoutEmail.forEach(name => {
-          message += `• ${name}\n`;
-        });
-      }
-      
-      alert(message);
-    }, employeesWithSchedule.length * 500 + 200);
-  });
-}
-
-
-function generateEmployeeScheduleEmail(emp, days) {
-  let email = `Hello ${emp.name},\n\n`;
-  email += `Here is your work schedule for the week of ${days[0].toLocaleDateString()}:\n\n`;
-  email += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
-  
-  let totalHours = 0;
-  let daysWorked = 0;
-  
-  days.forEach(d => {
-    const dateStr = iso(d);
-    const key = emp.id + "_" + dateStr;
-    const dayName = d.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
-    
-    if(manualEdits[key]) {
-      const edit = manualEdits[key];
-      
-      if(edit.status === 'sick') {
-        email += `${dayName}\n`;
-        email += `  Status: SICK DAY\n\n`;
-      } else if(edit.status === 'vacation') {
-        email += `${dayName}\n`;
-        email += `  Status: VACATION\n\n`;
-      } else {
-        const hours = edit.hours || edit;
-        totalHours += hours;
-        daysWorked++;
-        
-        email += `${dayName}\n`;
-        email += `  Hours: ${hours}h\n`;
-        if(edit.start && edit.end) {
-          email += `  Time: ${edit.start} – ${edit.end}\n`;
-        }
-        
-        // Find event for this day
-        const event = events.find(ev => ev.date === dateStr);
-        if(event) {
-          email += `  Event: ${event.name}\n`;
-        }
-        email += '\n';
-      }
-    } else {
-      email += `${dayName}\n`;
-      email += `  OFF\n\n`;
-    }
-  });
-  
-  email += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
-  email += `SUMMARY:\n`;
-  email += `Total Hours: ${totalHours}h\n`;
-  email += `Days Worked: ${daysWorked}\n\n`;
-  
-  email += `If you have any questions or concerns about your schedule, please contact your manager.\n\n`;
-  email += `Thank you,\nBanquetLogic Scheduling`;
-  
-  return email;
 }
 
 /* EMPLOYEES */
@@ -1397,12 +1272,12 @@ function renderEmployees(){
       <td style="${emailStyle}" title="${e.email || 'Email not set - required for schedule sending'}">${emailDisplay}</td>
       <td>${e.pref || "-"}</td>
       <td><input type="number" class="max-days-input" value="${maxDays}" min="1" max="5" placeholder="5" style="width:50px;" ${e.retired ? 'disabled' : ''}></td>
-      <td><button class="vacation-btn" style="background:#3498db; padding:4px 8px;">Vacation</button></td>
-      <td><button class="dayprefs-btn" style="background:#9b59b6; padding:4px 8px;">Day Prefs</button></td>
+      <td><button type="button" class="vacation-btn" style="background:#3498db; padding:4px 8px;">Vacation</button></td>
+      <td><button type="button" class="dayprefs-btn" style="background:#9b59b6; padding:4px 8px;">Day Prefs</button></td>
       <td><input type="checkbox" class="sick-check" ${e.sick ? "checked" : ""}></td>
       <td>
-        <button class="info-btn" style="background:#27ae60; padding:4px 8px;" title="View/Edit Info">ℹ️</button>
-        ${e.retired ? "—" : '<button class="retire">Retire</button>'}
+        <button type="button" class="info-btn" style="background:#27ae60; padding:4px 8px;" title="View/Edit Info">ℹ️</button>
+        ${e.retired ? "—" : '<button type="button" class="retire">Retire</button>'}
       </td>
     `;
     
@@ -1779,8 +1654,8 @@ function renderEvents(){
       <td>${ev.guests}</td>
       <td>${ev.service}</td>
       <td>${ev.staff}</td>
-      <td><button class="edit-btn">Edit</button></td>
-      <td><button class="delete">Delete</button></td>
+      <td><button type="button" class="edit-btn">Edit</button></td>
+      <td><button type="button" class="delete">Delete</button></td>
     `;
     
     row.querySelector('.edit-btn').onclick = () => editEvent(ev.id);
@@ -2317,7 +2192,7 @@ function displaySchedule(){
     th.innerHTML = `
       ${d.toLocaleDateString(undefined,{weekday:"short",day:"numeric"})}
       <br>
-      <button class="delete clear-day-btn" style="margin-top:4px; font-size:10px;">🗑</button>
+      <button type="button" class="delete clear-day-btn" style="margin-top:4px; font-size:10px;">🗑</button>
     `;
     th.querySelector('.clear-day-btn').onclick = () => clearDay(ds);
     headerRow.appendChild(th);
