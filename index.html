@@ -388,7 +388,7 @@ body.light-mode .demo-tip {
   <button type="button" id="tabAuditBtn" onclick="showTab('auditTab')">Audit Log</button>
   <button type="button" id="tabSettingsBtn" onclick="showTab('settingsTab')">Settings</button>
   <button type="button" id="tabSupportBtn" onclick="showTab('supportTab')">Support / Contact</button>
-  <button type="button" id="tabDemoBtn" onclick="showTab('demoTab')" style="background:#e67e22;">🎬 Demo Mode</button>
+  <button type="button" id="tabDemoBtn" onclick="showTab('demoTab')" style="background:#e67e22;" title="Try the app with sample data. Your data is restored when you stop.">🎬 Demo Mode</button>
 </div>
 
 <div id="demoModeBanner" class="demo-mode-banner">
@@ -1514,6 +1514,11 @@ function renderEmployees(){
     
     employeesTable.appendChild(row);
   });
+  if(employees.filter(e=>!e.retired).length === 0){
+    const emptyRow = document.createElement('tr');
+    emptyRow.innerHTML = '<td colspan="10" style="text-align:center;padding:1.5rem;color:#7f8c8d;">No employees yet. Add an employee above to get started.</td>';
+    employeesTable.appendChild(emptyRow);
+  }
 }
 
 function openVacationPicker(empId) {
@@ -1857,6 +1862,11 @@ function renderEvents(){
     
     eventsTable.appendChild(row);
   });
+  if(events.length === 0){
+    const emptyRow = document.createElement('tr');
+    emptyRow.innerHTML = '<td colspan="8" style="text-align:center;padding:1.5rem;color:#7f8c8d;">No events yet. Add an event above to build your schedule.</td>';
+    eventsTable.appendChild(emptyRow);
+  }
 }
 
 function editEvent(id){
@@ -2398,7 +2408,7 @@ function displaySchedule(){
     lockCell.onclick = (function(empId) {
       return function() { toggleRowLock(empId); };
     })(currentEmpId);
-    lockCell.title = isRowLocked ? 'Click to unlock this row' : 'Click to lock this row';
+    lockCell.title = isRowLocked ? 'Unlock this row so it can be updated when you run Generate' : 'Lock this row so it won\'t change when you run Generate';
     row.appendChild(lockCell);
     
     // Add employee name
@@ -2425,6 +2435,7 @@ function displaySchedule(){
         if(edit.status === 'sick') {
           cell.style.background = '#95a5a6';
           cell.innerHTML = 'SICK';
+          cell.title = 'Click to edit or change status';
           cell.onclick = () => editScheduleCell(emp.id, dateStr);
           row.appendChild(cell);
           return;
@@ -2433,6 +2444,7 @@ function displaySchedule(){
         if(edit.status === 'vacation') {
           cell.style.background = '#3498db';
           cell.innerHTML = 'VAC';
+          cell.title = 'Click to edit or change status';
           cell.onclick = () => editScheduleCell(emp.id, dateStr);
           row.appendChild(cell);
           return;
@@ -2443,14 +2455,19 @@ function displaySchedule(){
         daysWorked++; // Count this as a worked day
         cell.className += ' ' + getShiftClassByHours(h);
         
-        // NEW: Make cell position relative for audit tooltip
         cell.style.position = 'relative';
+        
+        if(isLocked || lockedRows[emp.id]) {
+          cell.title = 'Locked shift. Click to edit or unlock.';
+        } else {
+          cell.title = 'Click to edit or remove this shift';
+        }
         
         if(edit.start && edit.end) {
           const conflicts = detectConflicts(emp.id, dateStr, edit.start, edit.end);
           if(conflicts.length > 0) {
             cell.classList.add('conflict-cell');
-            cell.title = 'Conflict: ' + conflicts.join(', ');
+            cell.title = (cell.title || '') + ' Less than 8 hours rest from another shift.';
           }
           cell.innerHTML = `${h}h<br><small>${edit.start}–${edit.end}</small><br><a href="#" class="schedule-why-link" title="Why this employee?">Why?</a>`;
         } else {
@@ -2467,6 +2484,7 @@ function displaySchedule(){
       }
 
       // Empty cell if no manual edit
+      cell.title = 'Click to add a shift';
       cell.onclick = () => editScheduleCell(emp.id, dateStr);
       row.appendChild(cell);
     });
@@ -2494,6 +2512,17 @@ function displaySchedule(){
     scheduleTable.appendChild(row);
   });
   
+  if(employees.filter(e=>!e.retired).length === 0){
+    const emptyRow = document.createElement('tr');
+    const emptyCell = document.createElement('td');
+    emptyCell.setAttribute('colspan', '11');
+    emptyCell.style.textAlign = 'center';
+    emptyCell.style.padding = '1.5rem';
+    emptyCell.style.color = '#7f8c8d';
+    emptyCell.textContent = 'Add employees in the Employees tab, then add events and click Generate to build your schedule.';
+    emptyRow.appendChild(emptyCell);
+    scheduleTable.appendChild(emptyRow);
+  }
   
   // Update global lock button state
   const btn = document.getElementById('globalLockBtn');
