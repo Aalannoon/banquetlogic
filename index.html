@@ -4,58 +4,167 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>BanquetLogic - Employee Scheduler</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <style>
-body {
-  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-  margin: 20px;
-  background: #1e1e2f;
-  color: #f0f0f0;
+/* Brand: primary blue, charcoal bg, light text, muted accent */
+:root {
+  --brand-primary: #4e9af1;
+  --brand-bg: #252a32;
+  --brand-bg-elevated: #2d343e;
+  --brand-text: #e8eaed;
+  --brand-text-muted: #9ca3af;
+  --brand-accent-muted: #6b7c8d;
+  --brand-border: #3d4550;
 }
-body.light-mode { background:#f8f9fa; color:#333; }
 
-h1 { font-size:26px; margin: 10px 0; }
+body {
+  font-family: "Inter", "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  margin: 0;
+  padding: 24px;
+  background: var(--brand-bg);
+  color: var(--brand-text);
+  font-size: 14px;
+  line-height: 1.5;
+}
+body.light-mode {
+  background: #f8f9fa;
+  color: #1f2937;
+}
+
+h1 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0 0 4px 0;
+  letter-spacing: -0.02em;
+}
+h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0 0 12px 0;
+  color: var(--brand-text);
+}
+body.light-mode h2 { color: #1f2937; }
+h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+  color: var(--brand-text-muted);
+}
+body.light-mode h3 { color: #4b5563; }
+
+/* Logo wordmark + tagline */
+.app-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--brand-border);
+}
+body.light-mode .app-header { border-bottom-color: #e5e7eb; }
+.logo-block {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.logo-icon {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  opacity: 0.95;
+  color: var(--brand-primary);
+}
+.logo-wordmark {
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  color: var(--brand-primary);
+}
+body.light-mode .logo-wordmark { color: var(--brand-primary); }
+.tagline {
+  font-size: 0.8125rem;
+  color: var(--brand-text-muted);
+  font-weight: 400;
+  margin: 0;
+  letter-spacing: 0.01em;
+}
+body.light-mode .tagline { color: #6b7280; }
+.week-header {
+  font-size: 1rem;
+  color: var(--brand-text-muted);
+  margin-left: auto;
+}
+body.light-mode .week-header { color: #6b7280; }
 
 /* TABS */
-.tabs { 
-  display:flex; 
-  gap:6px; 
-  margin-bottom:12px; 
-  flex-wrap:wrap; 
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
 }
 .tabs button {
-  padding:8px 14px;
-  border:none;
-  border-radius:8px;
-  font-weight:bold;
-  cursor:pointer;
-  background:#2e2e3d;
-  color:#ccc;
+  padding: 10px 16px;
+  border: 1px solid var(--brand-border);
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 14px;
+  cursor: pointer;
+  background: var(--brand-bg-elevated);
+  color: var(--brand-text-muted);
   white-space: nowrap;
-  min-height: 44px; /* Touch-friendly */
+  min-height: 44px;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
-.tabs button.active { background:#4e9af1; color:#fff; }
+.tabs button:hover {
+  background: #353d48;
+  color: var(--brand-text);
+}
+body.light-mode .tabs button {
+  background: #fff;
+  color: #4b5563;
+  border-color: #e5e7eb;
+}
+body.light-mode .tabs button:hover {
+  background: #f3f4f6;
+  color: #1f2937;
+}
+.tabs button.active {
+  background: var(--brand-primary);
+  color: #fff;
+  border-color: var(--brand-primary);
+}
 
 /* INPUTS */
 input, select, button {
-  margin:4px;
-  padding:6px 10px;
-  border-radius:6px;
-  border:none;
+  margin: 4px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--brand-border);
   font-size: 14px;
-  min-height: 40px; /* Touch-friendly */
+  min-height: 40px;
+  font-family: inherit;
 }
-button { 
-  background:#4e9af1; 
-  color:#fff; 
-  font-weight:bold; 
-  cursor:pointer;
-  touch-action: manipulation; /* Prevent double-tap zoom */
+body.light-mode input,
+body.light-mode select { border-color: #d1d5db; }
+button {
+  background: var(--brand-primary);
+  color: #fff;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  touch-action: manipulation;
+  transition: opacity 0.15s ease, background 0.15s ease;
 }
+button:hover { opacity: 0.92; }
 button.delete { background:#c0392b; }
 button.retire { background:#8e44ad; }
 button.print { background:#27ae60; }
@@ -74,7 +183,7 @@ th, td {
   position:relative;
   min-width: 80px;
 }
-th { background:#4e9af1; color:#fff; font-weight: bold; }
+th { background: var(--brand-primary); color: #fff; font-weight: 600; }
 
 /* STATUS */
 .status-retired { background:#555; opacity:0.6; }
@@ -116,8 +225,8 @@ th { background:#4e9af1; color:#fff; font-weight: bold; }
 /* CLICKABLE CELLS */
 td[onclick], td.clickable { cursor:pointer; }
 td[onclick]:hover, td.clickable:hover { outline:2px dashed #4e9af1; }
-.schedule-why-link { font-size: 11px; color: #95a5a6; text-decoration: none; }
-.schedule-why-link:hover { color: #4e9af1; text-decoration: underline; }
+.schedule-why-link { font-size: 11px; color: var(--brand-text-muted); text-decoration: none; }
+.schedule-why-link:hover { color: var(--brand-primary); text-decoration: underline; }
 
 /* TOOLTIP */
 .tooltip {
@@ -148,11 +257,12 @@ td[onclick]:hover, td.clickable:hover { outline:2px dashed #4e9af1; }
 
 /* AUDIT LOG */
 .audit-entry {
-  padding: 8px;
+  padding: 10px 12px;
   margin: 4px 0;
-  background: #2e2e3d;
-  border-radius: 4px;
+  background: var(--brand-bg-elevated);
+  border-radius: 6px;
   font-size: 13px;
+  border: 1px solid var(--brand-border);
 }
 .audit-filters {
   margin-bottom: 15px;
@@ -171,7 +281,9 @@ td[onclick]:hover, td.clickable:hover { outline:2px dashed #4e9af1; }
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
-  h1 { color: #000 !important; }
+  h1, .logo-wordmark, .tagline, .week-header { color: #000 !important; }
+  .logo-icon { color: #000 !important; }
+  .app-header { border-bottom-color: #ccc !important; }
   /* Hide lock column and all lock controls in schedule */
   #scheduleTable th:first-child,
   #scheduleTable td:first-child { display: none !important; }
@@ -189,13 +301,16 @@ td[onclick]:hover, td.clickable:hover { outline:2px dashed #4e9af1; }
 /* SETTINGS */
 .settings-section {
   margin: 20px 0;
-  padding: 15px;
-  background: #2e2e3d;
+  padding: 20px;
+  background: var(--brand-bg-elevated);
   border-radius: 8px;
   max-width: 100%;
+  border: 1px solid var(--brand-border);
 }
+body.light-mode .settings-section { background: #fff; border-color: #e5e7eb; }
 .settings-section h3 {
   margin-top: 0;
+  margin-bottom: 12px;
 }
 .setting-row {
   margin: 10px 0;
@@ -408,10 +523,21 @@ body.light-mode #employeeEditModal label { color: #7f8c8d; }
 
 <body>
 
-<h1 style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-  <span style="color: #4e9af1;">BanquetLogic</span>
-  <span style="font-size: 18px; color: #95a5a6;" id="weekHeader"></span>
-</h1>
+<header class="app-header">
+  <div class="logo-block">
+    <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+      <rect x="3" y="3" width="8" height="8" rx="1"/>
+      <rect x="13" y="3" width="8" height="8" rx="1"/>
+      <rect x="3" y="13" width="8" height="8" rx="1"/>
+      <rect x="13" y="13" width="8" height="8" rx="1"/>
+    </svg>
+    <div>
+      <h1 class="logo-wordmark">BanquetLogic</h1>
+      <p class="tagline">Every shift has a reason.</p>
+    </div>
+  </div>
+  <span class="week-header" id="weekHeader"></span>
+</header>
 
 <button type="button" onclick="toggleDarkMode()">Toggle Dark Mode</button>
 <button type="button" class="print" onclick="printSchedule()">Print / Save PDF</button>
