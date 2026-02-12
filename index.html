@@ -455,6 +455,47 @@ body.light-mode .audit-empty { color: #6b7280; background: #f9fafb; border-color
 body.print-pending * { transition: none !important; }
 body.print-pending { max-width: 100% !important; }
 
+/* PDF capture: off-screen container with print-like styling for html2canvas */
+.pdf-capture-view {
+  position: fixed;
+  left: -99999px;
+  top: 0;
+  width: 800px;
+  background: #fff;
+  color: #000;
+  padding: 6px 12px 12px 12px;
+  box-sizing: border-box;
+  z-index: -1;
+  pointer-events: none;
+}
+.pdf-capture-view .pdf-header {
+  padding: 6px 0 8px 0;
+  margin-bottom: 6px;
+  border-bottom: 1px solid #ccc;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.pdf-capture-view .pdf-header .logo-wordmark { font-size: 1.1rem; color: #000; margin: 0; }
+.pdf-capture-view .pdf-header .week-header { font-size: 12px; color: #000; }
+.pdf-capture-view table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.pdf-capture-view th,
+.pdf-capture-view td { border: 1px solid #000; padding: 6px 8px; }
+.pdf-capture-view th { background: #ddd; color: #000; }
+.pdf-capture-view th:first-child,
+.pdf-capture-view td:first-child { display: none; }
+.pdf-capture-view .shift-4, .pdf-capture-view .shift-5, .pdf-capture-view .shift-6,
+.pdf-capture-view .shift-7, .pdf-capture-view .shift-8, .pdf-capture-view .shift-ot {
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+.pdf-capture-view .locked-cell::after,
+.pdf-capture-view .conflict-cell::before { display: none !important; }
+
 /* TABS */
 .tab { display:none; }
 .tab.active { display:block; }
@@ -920,7 +961,8 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
 </div>
 
 <button type="button" onclick="toggleDarkMode()">Toggle Dark Mode</button>
-<button type="button" class="print" onclick="printSchedule()">Print / Save PDF</button>
+<button type="button" class="print" onclick="printSchedule()">Print</button>
+<button type="button" onclick="saveSchedulePDF()" style="background:#16a085;">Save PDF</button>
 
 <div class="tabs">
   <button type="button" id="tabEmpBtn" onclick="showTab('employeesTab')">Employees</button>
@@ -4300,6 +4342,70 @@ function printSchedule(){
       window.print();
     });
   }, 100);
+}
+
+function saveSchedulePDF(){
+  showTab("scheduleTab");
+  var start = getWeekStart();
+  var filename = "BanquetLogic_Weekly_Schedule_" + iso(start) + ".pdf";
+  var wrap = document.createElement("div");
+  wrap.className = "pdf-capture-view";
+  wrap.setAttribute("aria-hidden", "true");
+  var weekEl = document.getElementById("weekHeader");
+  var weekText = weekEl ? weekEl.textContent : (start.toLocaleDateString() + " – week");
+  var header = document.createElement("div");
+  header.className = "pdf-header";
+  header.innerHTML = "<span class=\"logo-wordmark\">BanquetLogic</span><span class=\"week-header\">" + (weekText.replace(/</g, "&lt;").replace(/>/g, "&gt;")) + "</span>";
+  wrap.appendChild(header);
+  var table = document.getElementById("scheduleTable");
+  if (!table || !table.rows.length) {
+    wrap.remove();
+    alert("No schedule to export. Add employees and events, then Generate.");
+    return;
+  }
+  var tableClone = table.cloneNode(true);
+  wrap.appendChild(tableClone);
+  document.body.appendChild(wrap);
+  setTimeout(function() {
+    if (typeof html2canvas === "undefined") {
+      wrap.remove();
+      alert("PDF export is not available. Please refresh the page.");
+      return;
+    }
+    html2canvas(wrap, { scale: 2, backgroundColor: "#ffffff", useCORS: true, logging: false, allowTaint: true }).then(function(canvas) {
+      wrap.remove();
+      var JsPDF = (typeof jspdf !== "undefined" && jspdf.jsPDF) ? jspdf.jsPDF : (window.jspdf && window.jspdf.jsPDF);
+      if (!JsPDF) {
+        alert("PDF library not loaded. Please refresh the page.");
+        return;
+      }
+      var doc = new JsPDF("landscape", "mm", "a4");
+      var pageW = doc.internal.pageSize.getWidth();
+      var pageH = doc.internal.pageSize.getHeight();
+      var r = canvas.height / canvas.width;
+      var wMm = pageW * 0.95;
+      var hMm = r * wMm;
+      if (hMm > pageH * 0.95) { hMm = pageH * 0.95; wMm = hMm / r; }
+      var x = (pageW - wMm) / 2;
+      var y = (pageH - hMm) / 2;
+      doc.addImage(canvas.toDataURL("image/jpeg", 0.92), "JPEG", x, y, wMm, hMm);
+      try {
+        doc.save(filename);
+      } catch (e) {
+        var blob = doc.output("blob");
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        a.click();
+        setTimeout(function() { URL.revokeObjectURL(url); }, 100);
+      }
+    }).catch(function(err) {
+      wrap.remove();
+      console.error("PDF capture failed", err);
+      alert("Could not generate PDF. Try Print instead.");
+    });
+  }, 50);
 }
 
 /* SCHEDULE EXPORT (isolated; does not affect scheduling logic) */
