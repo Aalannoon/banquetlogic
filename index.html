@@ -1108,6 +1108,7 @@ let assignmentReasons = JSON.parse(localStorage.getItem("assignmentReasons") || 
 let assignmentReasonTags = JSON.parse(localStorage.getItem("assignmentReasonTags") || "{}"); // Abstract tags for human-readable explanations
 let generationConflicts = [];
 var APP_VERSION = '1.0';
+var SCHEMA_VERSION = 1;
 
 var REASON_TAG_EXPLANATIONS = {
   manual_lock: 'This shift was manually assigned or locked.',
@@ -1238,6 +1239,7 @@ function getDataForExport() {
     settings: settings,
     eventTypes: eventTypes,
     metadata: {
+      schemaVersion: SCHEMA_VERSION,
       appVersion: APP_VERSION,
       exportTimestamp: new Date().toISOString()
     }
@@ -1258,29 +1260,65 @@ function exportData() {
   URL.revokeObjectURL(a.href);
 }
 
-var REQUIRED_IMPORT_KEYS = ['employees', 'events', 'manualEdits', 'lockedCells', 'lockedRows', 'scheduleGlobalLock', 'auditLog', 'assignmentReasons', 'assignmentReasonTags', 'settings', 'eventTypes'];
+function getImportedSchemaVersion(data) {
+  if (!data || !data.metadata || typeof data.metadata !== 'object') return 0;
+  var v = data.metadata.schemaVersion;
+  return typeof v === 'number' && v >= 0 ? v : 0;
+}
 
 function validateImportData(data) {
   if (!data || typeof data !== 'object') return 'The file does not contain valid backup data.';
-  for (var i = 0; i < REQUIRED_IMPORT_KEYS.length; i++) {
-    var key = REQUIRED_IMPORT_KEYS[i];
-    if (!(key in data)) return 'The backup is missing required data: ' + key + '.';
-  }
-  if (!Array.isArray(data.employees)) return 'Employee data in the file is invalid.';
-  if (!Array.isArray(data.events)) return 'Event data in the file is invalid.';
-  if (!Array.isArray(data.auditLog)) return 'Audit log data in the file is invalid.';
-  if (!Array.isArray(data.eventTypes)) return 'Event types in the file are invalid.';
-  if (typeof data.manualEdits !== 'object' || data.manualEdits === null) return 'Schedule data in the file is invalid.';
-  if (typeof data.lockedCells !== 'object' || data.lockedCells === null) return 'Lock data in the file is invalid.';
-  if (typeof data.lockedRows !== 'object' || data.lockedRows === null) return 'Lock data in the file is invalid.';
-  if (typeof data.assignmentReasons !== 'object' || data.assignmentReasons === null) return 'Assignment data in the file is invalid.';
-  if (typeof data.assignmentReasonTags !== 'object' || data.assignmentReasonTags === null) return 'Assignment data in the file is invalid.';
-  if (typeof data.settings !== 'object' || data.settings === null) return 'Settings in the file are invalid.';
+  if (data.employees !== undefined && !Array.isArray(data.employees)) return 'Employee data in the file is invalid.';
+  if (data.events !== undefined && !Array.isArray(data.events)) return 'Event data in the file is invalid.';
+  if (data.auditLog !== undefined && !Array.isArray(data.auditLog)) return 'Audit log data in the file is invalid.';
+  if (data.eventTypes !== undefined && !Array.isArray(data.eventTypes)) return 'Event types in the file are invalid.';
+  if (data.manualEdits !== undefined && (typeof data.manualEdits !== 'object' || data.manualEdits === null)) return 'Schedule data in the file is invalid.';
+  if (data.lockedCells !== undefined && (typeof data.lockedCells !== 'object' || data.lockedCells === null)) return 'Lock data in the file is invalid.';
+  if (data.lockedRows !== undefined && (typeof data.lockedRows !== 'object' || data.lockedRows === null)) return 'Lock data in the file is invalid.';
+  if (data.assignmentReasons !== undefined && (typeof data.assignmentReasons !== 'object' || data.assignmentReasons === null)) return 'Assignment data in the file is invalid.';
+  if (data.assignmentReasonTags !== undefined && (typeof data.assignmentReasonTags !== 'object' || data.assignmentReasonTags === null)) return 'Assignment data in the file is invalid.';
+  if (data.settings !== undefined && (typeof data.settings !== 'object' || data.settings === null)) return 'Settings in the file are invalid.';
   return null;
+}
+
+function migrateImportData(data) {
+  var result = {};
+  var k;
+  for (k in data) if (Object.prototype.hasOwnProperty.call(data, k)) result[k] = data[k];
+  if (!Array.isArray(result.employees)) result.employees = [];
+  if (!Array.isArray(result.events)) result.events = [];
+  if (!result.manualEdits || typeof result.manualEdits !== 'object') result.manualEdits = {};
+  if (!result.lockedCells || typeof result.lockedCells !== 'object') result.lockedCells = {};
+  if (!result.lockedRows || typeof result.lockedRows !== 'object') result.lockedRows = {};
+  result.scheduleGlobalLock = result.scheduleGlobalLock === true || result.scheduleGlobalLock === 'true';
+  if (!Array.isArray(result.auditLog)) result.auditLog = [];
+  if (!result.assignmentReasons || typeof result.assignmentReasons !== 'object') result.assignmentReasons = {};
+  if (!result.assignmentReasonTags || typeof result.assignmentReasonTags !== 'object') result.assignmentReasonTags = {};
+  if (!result.settings || typeof result.settings !== 'object') result.settings = { assignmentStyle: 'strict', ratios: {} };
+  if (!Array.isArray(result.eventTypes)) {
+    var r = (result.settings && result.settings.ratios) ? result.settings.ratios : { 'Plated Service': 20, 'Buffet Service': 30, 'Reception': 40, 'Coffee Break': 50 };
+    result.eventTypes = Object.keys(r).map(function(name) {
+      return { id: crypto.randomUUID(), name: name, guestsPerServer: r[name], active: true };
+    });
+  }
+  if (!result.metadata || typeof result.metadata !== 'object') result.metadata = {};
+  result.metadata.schemaVersion = SCHEMA_VERSION;
+  return result;
+}
+
+function ensureEmployeeDefaults(list) {
+  if (!Array.isArray(list)) return;
+  list.forEach(function(emp) {
+    if (!emp.dayPreferences) {
+      emp.dayPreferences = { 0: null, 1: null, 2: null, 3: null, 4: null, 5: null, 6: null };
+    }
+    if (emp.maxDaysPerWeek === undefined) emp.maxDaysPerWeek = 5;
+  });
 }
 
 function applyImportedData(data) {
   employees = Array.isArray(data.employees) ? data.employees : [];
+  ensureEmployeeDefaults(employees);
   events = Array.isArray(data.events) ? data.events : [];
   manualEdits = data.manualEdits && typeof data.manualEdits === 'object' ? data.manualEdits : {};
   lockedCells = data.lockedCells && typeof data.lockedCells === 'object' ? data.lockedCells : {};
@@ -1322,10 +1360,20 @@ function handleImportFile(ev) {
       alert(errMsg);
       return;
     }
-    if (!confirm('Importing will replace all existing data. Continue?')) return;
+    var importedVersion = getImportedSchemaVersion(data);
+    if (importedVersion > SCHEMA_VERSION) {
+      if (!confirm('This backup was created by a newer version of the app. Some information may not work as expected in this version.\n\nDo you want to try importing anyway?')) return;
+    } else if (!confirm('Importing will replace all existing data. Continue?')) return;
+    data = migrateImportData(data);
     applyImportedData(data);
     reRenderAfterImport();
-    alert('Import complete. Your backup has been restored.');
+    if (importedVersion > SCHEMA_VERSION) {
+      alert('Import complete. If anything looks wrong, try updating the app and then import again.');
+    } else if (importedVersion < SCHEMA_VERSION) {
+      alert('Import complete. Your backup has been restored and updated for this version.');
+    } else {
+      alert('Import complete. Your backup has been restored.');
+    }
   };
   reader.onerror = function() {
     alert('The file could not be read. Please try again.');
