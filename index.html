@@ -456,8 +456,16 @@ body.light-mode #employeeEditModal label { color: #7f8c8d; }
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; margin-top: 8px;">
       <input id="empEmail" type="email" placeholder="Email (for schedule send)" style="border: 2px solid #3498db;" />
       <input type="text" id="empEmployeeId" placeholder="Employee ID (optional)" />
-      <input id="empHireDate" type="date" placeholder="Hire Date (optional)" title="Hire Date (optional)" />
-      <input id="empBirthdate" type="date" placeholder="Birthdate (optional)" title="Birthdate (optional)" />
+      <div>
+        <label for="empHireDate" style="display: block; margin-bottom: 4px; font-size: 13px;">Hire Date (optional)</label>
+        <input id="empHireDate" type="date" placeholder="yyyy-mm-dd" title="Hire Date (optional)" />
+        <small style="display: block; margin-top: 2px; color: #95a5a6; font-size: 12px;">When they started. Does not affect seniority.</small>
+      </div>
+      <div>
+        <label for="empBirthdate" style="display: block; margin-bottom: 4px; font-size: 13px;">Birthday (optional)</label>
+        <input id="empBirthdate" type="date" placeholder="yyyy-mm-dd" title="Birthday (optional)" />
+        <small style="display: block; margin-top: 2px; color: #95a5a6; font-size: 12px;">For reference only; not used in scheduling.</small>
+      </div>
     </div>
     <small style="color: #95a5a6; display: block; margin-top: 5px;">
       📧 Email required for one-click schedule sending. Other fields are optional.
