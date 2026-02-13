@@ -1590,9 +1590,9 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
   </div>
 </div>
 
-<p id="scheduleManagerNotice" class="schedule-manager-notice" style="margin: 8px 0; padding: 10px 12px; background: rgba(52, 152, 219, 0.2); border-left: 4px solid #3498db; border-radius: 4px;">This schedule is system-generated. Please review and adjust as needed before publishing.</p>
+<p id="scheduleManagerNotice" class="schedule-manager-notice" style="margin: 8px 0; padding: 10px 12px; background: rgba(52, 152, 219, 0.2); border-left: 4px solid #3498db; border-radius: 4px;">Schedule auto-generated. Please review for overtime and preferences. Adjustments may be required. Fine-tune rules in Settings.</p>
 <div id="scheduleOvertimeBanner" style="display: none; margin: 8px 0; padding: 10px 12px; background: rgba(230, 126, 34, 0.25); border-left: 4px solid #e67e22; border-radius: 4px;">
-  <strong>Coverage Requires Overtime Approval</strong>
+  <strong>Overtime suggested — review required.</strong>
   <p id="scheduleOvertimeBannerText" style="margin: 6px 0 0 0; font-size: 14px;"></p>
 </div>
 <div id="scheduleSettingsWarning" style="display: none; margin: 8px 0; padding: 10px 12px; background: rgba(241, 196, 15, 0.25); border-left: 4px solid #f1c40f; border-radius: 4px;">
@@ -1894,13 +1894,22 @@ let auditLog = JSON.parse(localStorage.getItem("auditLog") || "[]");
   }
 })();
 let assignmentReasons = JSON.parse(localStorage.getItem("assignmentReasons") || "{}"); // Store why each shift was assigned (plain-language only)
-let assignmentReasonTags = JSON.parse(localStorage.getItem("assignmentReasonTags") || "{}"); // Abstract tags for human-readable explanations
+let assignmentReasonTags = JSON.parse(localStorage.getItem("assignmentReasonTags") || "{}");
+let assignmentReasonCodes = JSON.parse(localStorage.getItem("assignmentReasonCodes") || "{}");
 let generationConflicts = [];
 var lastOvertimeSuggestions = [];
 var lastScheduleNeedsReview = false;
 var lastApplyRecommendationsSnapshot = null;
 var APP_VERSION = '1.0';
 var SCHEMA_VERSION = 1;
+
+var REASON_CODE_EXPLANATIONS = {
+  PREFERENCE_MATCH: 'Assigned to match preferred shift (AM/PM or day). Higher seniority with matching preference selected.',
+  PREFERENCE_MISMATCH: 'Assigned despite preference mismatch to ensure coverage. Only eligible candidate or seniority override.',
+  SENIORITY_PRIORITY: 'Assigned by seniority (lower number = higher priority). Used when preferences are equal or no preference set.',
+  OT_SUGGESTED: 'This assignment would exceed 8 hours for the day. Overtime suggested — review required. Manager must approve OT.',
+  LIMITED_AVAILABILITY: 'Assigned because few or no other eligible staff were available for this slot.'
+};
 
 var REASON_TAG_EXPLANATIONS = {
   manual_lock: 'This shift was manually assigned or locked.',
@@ -2166,6 +2175,7 @@ function save(){
   localStorage.setItem("auditLog", JSON.stringify(auditLog));
   localStorage.setItem("assignmentReasons", JSON.stringify(assignmentReasons));
   localStorage.setItem("assignmentReasonTags", JSON.stringify(assignmentReasonTags));
+  localStorage.setItem("assignmentReasonCodes", JSON.stringify(assignmentReasonCodes));
   localStorage.setItem("settings", JSON.stringify(settings));
   localStorage.setItem("eventTypes", JSON.stringify(eventTypes));
   localStorage.setItem("laborPools", JSON.stringify(laborPools));
@@ -2184,6 +2194,7 @@ function getDataForExport() {
     auditLog: auditLog,
     assignmentReasons: assignmentReasons,
     assignmentReasonTags: assignmentReasonTags,
+    assignmentReasonCodes: assignmentReasonCodes,
     settings: settings,
     eventTypes: eventTypes,
     laborPools: laborPools,
@@ -2444,6 +2455,7 @@ function validateImportData(data) {
   if (data.lockedRows !== undefined && (typeof data.lockedRows !== 'object' || data.lockedRows === null)) return 'Lock data in the file is not in the expected format.';
   if (data.assignmentReasons !== undefined && (typeof data.assignmentReasons !== 'object' || data.assignmentReasons === null)) return 'Assignment data in the file is not in the expected format.';
   if (data.assignmentReasonTags !== undefined && (typeof data.assignmentReasonTags !== 'object' || data.assignmentReasonTags === null)) return 'Assignment data in the file is not in the expected format.';
+  if (data.assignmentReasonCodes !== undefined && (typeof data.assignmentReasonCodes !== 'object' || data.assignmentReasonCodes === null)) return 'Assignment reason codes in the file are not in the expected format.';
   if (data.settings !== undefined && (typeof data.settings !== 'object' || data.settings === null)) return 'Settings in the file are not in the expected format.';
   return null;
 }
@@ -2461,6 +2473,7 @@ function migrateImportData(data) {
   if (!Array.isArray(result.auditLog)) result.auditLog = [];
   if (!result.assignmentReasons || typeof result.assignmentReasons !== 'object') result.assignmentReasons = {};
   if (!result.assignmentReasonTags || typeof result.assignmentReasonTags !== 'object') result.assignmentReasonTags = {};
+  if (!result.assignmentReasonCodes || typeof result.assignmentReasonCodes !== 'object') result.assignmentReasonCodes = {};
   if (!result.settings || typeof result.settings !== 'object') result.settings = { assignmentStyle: 'strict', ratios: {} };
   if (!Array.isArray(result.eventTypes)) {
     var r = (result.settings && result.settings.ratios) ? result.settings.ratios : { 'Plated Service': 20, 'Buffet Service': 30, 'Reception': 40, 'Coffee Break': 50 };
@@ -2501,6 +2514,7 @@ function applyImportedData(data) {
   auditLog = Array.isArray(data.auditLog) ? data.auditLog : [];
   assignmentReasons = data.assignmentReasons && typeof data.assignmentReasons === 'object' ? data.assignmentReasons : {};
   assignmentReasonTags = data.assignmentReasonTags && typeof data.assignmentReasonTags === 'object' ? data.assignmentReasonTags : {};
+  assignmentReasonCodes = data.assignmentReasonCodes && typeof data.assignmentReasonCodes === 'object' ? data.assignmentReasonCodes : {};
   settings = data.settings && typeof data.settings === 'object' ? data.settings : { assignmentStyle: 'strict', ratios: {} };
   eventTypes = Array.isArray(data.eventTypes) ? data.eventTypes : getDefaultEventTypes();
   laborPools = Array.isArray(data.laborPools) ? data.laborPools : getDefaultLaborPools();
@@ -2676,6 +2690,8 @@ function getAssignmentExplanation(empId, dateStr) {
   if (edit && edit.absenceReason) return edit.absenceReason;
   if (edit && edit.manualOverride) return 'Manually assigned by scheduler.';
   if (lockedCells[key]) return REASON_TAG_EXPLANATIONS.manual_lock;
+  var code = assignmentReasonCodes[key];
+  if (code && REASON_CODE_EXPLANATIONS[code]) return REASON_CODE_EXPLANATIONS[code];
   var stored = assignmentReasons[key];
   if (stored && Array.isArray(stored) && stored.length > 0 && typeof stored[0] === 'string') return stored[0];
   const tags = assignmentReasonTags[key];
@@ -3400,6 +3416,7 @@ function openVacationPicker(empId) {
       manualEdits[key] = { status: 'vacation', manualOverride: true };
       delete assignmentReasonTags[key];
       delete assignmentReasons[key];
+      delete assignmentReasonCodes[key];
     });
     
     addAuditEntry('Vacation Set', empId, null, null, 'Entire week');
@@ -3435,6 +3452,7 @@ function openVacationPicker(empId) {
       manualEdits[key] = { status: 'vacation', manualOverride: true };
       delete assignmentReasonTags[key];
       delete assignmentReasons[key];
+      delete assignmentReasonCodes[key];
       vacationDates.push(d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' }));
     }
   });
@@ -3625,6 +3643,7 @@ function applyAbsence() {
       manualEdits[key] = { status: typeId, manualOverride: true, absenceReason: typeInfo.reason };
       delete assignmentReasonTags[key];
       delete assignmentReasons[key];
+      delete assignmentReasonCodes[key];
     }
   });
   var actionLabel = typeInfo.label;
@@ -4339,6 +4358,7 @@ function editScheduleCell(empId, date){
     manualEdits[key] = { status: 'sick', manualOverride: true, absenceReason: 'Marked Sick manually' };
     delete assignmentReasonTags[key];
     delete assignmentReasons[key];
+    delete assignmentReasonCodes[key];
     addAuditEntry('Absence Added', empId, date, oldValue, 'Sick');
     save();
     displaySchedule();
@@ -4351,6 +4371,7 @@ function editScheduleCell(empId, date){
     manualEdits[key] = { status: 'vacation', manualOverride: true, absenceReason: 'Vacation added by manager' };
     delete assignmentReasonTags[key];
     delete assignmentReasons[key];
+    delete assignmentReasonCodes[key];
     addAuditEntry('Absence Added', empId, date, oldValue, 'Vacation');
     save();
     displaySchedule();
@@ -4412,8 +4433,8 @@ function editScheduleCell(empId, date){
         applyOverrideToEdit(manualEdits[key], overrideReason);
         applyOverrideToEdit(manualEdits[keyB], overrideReason);
       }
-      delete assignmentReasonTags[key]; delete assignmentReasons[key];
-      delete assignmentReasonTags[keyB]; delete assignmentReasons[keyB];
+      delete assignmentReasonTags[key]; delete assignmentReasons[key]; delete assignmentReasonCodes[key];
+      delete assignmentReasonTags[keyB]; delete assignmentReasons[keyB]; delete assignmentReasonCodes[keyB];
       var logNew = 'Swap: ' + emp.name + ' \u2194 ' + other.name + '. Seniority violated: ' + (violated ? 'Yes' : 'No') + '. Override: ' + (overrideReason ? 'Yes (' + overrideReason + ')' : 'No') + '. ' + new Date().toISOString();
       addAuditEntry('Shift Swapped', empId, date, emp.name + ' / ' + other.name, logNew);
       save();
@@ -4467,8 +4488,8 @@ function editScheduleCell(empId, date){
       }
       delete manualEdits[key];
       manualEdits[keyTo] = shiftCopy;
-      delete assignmentReasonTags[key]; delete assignmentReasons[key];
-      delete assignmentReasonTags[keyTo]; delete assignmentReasons[keyTo];
+      delete assignmentReasonTags[key]; delete assignmentReasons[key]; delete assignmentReasonCodes[key];
+      delete assignmentReasonTags[keyTo]; delete assignmentReasons[keyTo]; delete assignmentReasonCodes[keyTo];
       var logNew = 'Reassign: from ' + emp.name + ' to ' + toEmp.name + '. Seniority violated: ' + (viol.violated ? 'Yes' : 'No') + '. Override: ' + (overrideReason ? 'Yes (' + overrideReason + ')' : 'No') + '. ' + new Date().toISOString();
       addAuditEntry('Shift Reassigned', empId, date, emp.name, logNew);
       save();
@@ -4523,6 +4544,7 @@ function editScheduleCell(empId, date){
   manualEdits[key] = newEdit;
   delete assignmentReasonTags[key];
   delete assignmentReasons[key];
+  delete assignmentReasonCodes[key];
   addAuditEntry('Shift Manually Edited', empId, date, oldValue, JSON.stringify(newEdit));
   
   alert('Shift saved. Total: ' + newEdit.hours + ' hours (' + newEdit.start + '–' + newEdit.end + ').');
@@ -4563,7 +4585,7 @@ function generateSchedule(){
   const result = assignEmployeesToWeek(days);
   const assignments = result.assignments;
   const assignmentDetails = result.assignmentDetails || {};
-  lastOvertimeSuggestions = result.overtimeSuggestions || [];
+  lastOvertimeSuggestions = result.otFlaggedAssignments || [];
   lastScheduleNeedsReview = lastOvertimeSuggestions.length > 0 || understaffedEvents.length > 0;
   
   // Convert assignments to manual edits (but don't overwrite locked/existing manual edits)
@@ -4648,7 +4670,6 @@ function generateSchedule(){
   console.log(`Shifts skipped due to 5-day limit: ${skippedDueToLimit}`);
   console.log(`Understaffed events: ${understaffedEvents.length}`);
   
-  // Store conflicts and overtime-needed slots (system never auto-assigns OT)
   generationConflicts = understaffedEvents.map(evt => ({
     event: evt.name,
     date: new Date(evt.date).toLocaleDateString(undefined, {weekday: 'short', month: 'short', day: 'numeric'}),
@@ -4657,17 +4678,6 @@ function generateSchedule(){
     shortage: evt.shortage,
     reason: 'Insufficient eligible employees after applying all constraints'
   }));
-  lastOvertimeSuggestions.forEach(function(s) {
-    generationConflicts.push({
-      event: s.eventName,
-      date: new Date(s.dateStr).toLocaleDateString(undefined, {weekday: 'short', month: 'short', day: 'numeric'}),
-      required: null,
-      assigned: null,
-      shortage: null,
-      reason: 'Coverage Requires Overtime Approval',
-      suggestedNames: s.suggestedNames
-    });
-  });
   
   // NEW: Show/hide conflict report button
   const conflictBtn = document.getElementById('conflictReportBtn');
@@ -4699,7 +4709,7 @@ function generateSchedule(){
       message += `\n\nClick "⚠️ Conflicts" button for detailed conflict report.\n\nYou may need to:\n- Manually assign more employees\n- Hire additional staff\n- Reduce event requirements`;
     }
     if (lastOvertimeSuggestions && lastOvertimeSuggestions.length > 0) {
-      message += `\n\n⏱ COVERAGE REQUIRES OVERTIME APPROVAL: ${lastOvertimeSuggestions.length} slot(s) could not be filled without overtime. No one was auto-assigned to OT. See the schedule banner and Conflicts for suggestions.`;
+      message += `\n\n⏱ Overtime suggested — review required: ${lastOvertimeSuggestions.length} assignment(s) exceed 8h for the day. Please review and approve OT as needed.`;
     }
     message += `\n\n💡 TIP: Click any generated shift to see WHY that employee was assigned.\nHover (desktop) or tap (mobile) on shifts with ℹ️ icon.`;
   }
@@ -4934,8 +4944,7 @@ function displaySchedule(){
       if (lastOvertimeSuggestions && lastOvertimeSuggestions.length > 0) {
         otBanner.style.display = 'block';
         var lines = lastOvertimeSuggestions.map(function(s) {
-          var sug = (s.suggestedNames && s.suggestedNames.length) ? ' (suggestion: ' + s.suggestedNames.join(', ') + ')' : '';
-          return s.eventName + ' on ' + new Date(s.dateStr).toLocaleDateString(undefined, {weekday: 'short'}) + sug;
+          return (s.eventName || 'Event') + ' on ' + new Date(s.dateStr).toLocaleDateString(undefined, {weekday: 'short'}) + (s.empName ? ': ' + s.empName : '');
         });
         otBannerText.textContent = lines.join('; ');
       } else {
@@ -5279,8 +5288,8 @@ function displaySchedule(){
 
 function assignEmployeesToWeek(days) {
   const assignments = {};
-  const assignmentDetails = {}; // dateStr -> { empId -> { hours, start, end } } for split/partial shifts
-  const overtimeSuggestions = []; // Slots that require OT; system never auto-assigns OT
+  const assignmentDetails = {};
+  const otFlaggedAssignments = []; // Assignments that exceed 8h — flagged OT_SUGGESTED, manager must review
   const employeeShiftHistory = {};
   const employeeTotalHours = {};
   const employeeWorkDays = {};
@@ -5393,52 +5402,24 @@ function assignEmployeesToWeek(days) {
           return gapCheck.allowed;
         });
         
-        // No overtime auto-assignment: only assign when at least one candidate can take the shift without OT
+        // Overtime does NOT block assignment. Rank by preference first, then seniority (lower number = higher priority). Never leave shift unassigned.
         var hoursToday = function(empId) { return (employeeHoursToday[dateStr][empId] || 0); };
-        var wouldAvoidOT = eligible.filter(function(emp) { return hoursToday(emp.id) + slotHours <= REGULAR_HOURS_MAX; });
-        if (wouldAvoidOT.length === 0) {
-          // Coverage would require OT — do NOT assign; record non-binding suggestion only
-          var scoredForSuggestion = eligible.map(function(emp) {
-            var prefScore = 0;
-            if ((emp.pref === 'AM' && isEarliestShift) || (emp.pref === 'PM' && isLatestShift)) prefScore = 2;
-            else if ((emp.pref === 'AM' && isLatestShift) || (emp.pref === 'PM' && isEarliestShift)) prefScore = -2;
-            var dayOfWeek = d.getDay();
-            if (emp.dayPreferences && emp.dayPreferences[dayOfWeek] === true) prefScore += 2;
-            else if (emp.dayPreferences && emp.dayPreferences[dayOfWeek] === false) prefScore -= 2;
-            var sr = emp.seniority != null ? emp.seniority : 99;
-            return { ...emp, score: (prefScore + 2) * 100000 + (100 - sr) };
-          });
-          scoredForSuggestion.sort(function(a, b) { return b.score - a.score; });
-          var suggested = scoredForSuggestion.slice(0, 3).map(function(c) { return employees.find(function(e) { return e.id === c.id; }); }).filter(Boolean).map(function(e) { return e.name; });
-          overtimeSuggestions.push({ dateStr: dateStr, eventName: ev.name, slotHours: slotHours, suggestedNames: suggested });
-          return;
-        }
-        var candidates = wouldAvoidOT;
-        
-        // Preference before seniority: Preferred +2, Neutral 0, Dislikes -2; then seniority tie-breaker
         var dayOfWeek = d.getDay();
-        var scored = candidates.map(function(emp) {
+        // 1) Preference evaluated BEFORE overtime: score preferred +2, neutral 0, dislikes -2
+        var scored = eligible.map(function(emp) {
           var prefScore = 0;
           if ((emp.pref === 'AM' && isEarliestShift) || (emp.pref === 'PM' && isLatestShift)) prefScore = 2;
           else if ((emp.pref === 'AM' && isLatestShift) || (emp.pref === 'PM' && isEarliestShift)) prefScore = -2;
           if (emp.dayPreferences && emp.dayPreferences[dayOfWeek] === true) prefScore += 2;
           else if (emp.dayPreferences && emp.dayPreferences[dayOfWeek] === false) prefScore -= 2;
           var sr = emp.seniority != null ? emp.seniority : 99;
-          var score = (prefScore + 2) * 100000 + (100 - sr);
-          if (assignmentStyle === 'balanced') {
-            var ftHours = Object.keys(employeeTotalHours).filter(function(id) { return employees.find(function(e) { return e.id === id && e.type === 'FT'; }); }).reduce(function(sum, id) { return sum + (employeeTotalHours[id] || 0); }, 0);
-            var ptHours = Object.keys(employeeTotalHours).filter(function(id) { return employees.find(function(e) { return e.id === id && e.type === 'PT'; }); }).reduce(function(sum, id) { return sum + (employeeTotalHours[id] || 0); }, 0);
-            if (emp.type === 'FT' && ftHours > ptHours + 20) score -= 2000;
-            else if (emp.type === 'PT' && ptHours > ftHours + 20) score -= 2000;
-            if ((employeeTotalHours[emp.id] || 0) < (100 - sr) * 0.5) score += 500;
-          } else if (assignmentStyle === 'fair') {
-            var currentHours = employeeTotalHours[emp.id] || 0;
-            score += (100 - currentHours) * 100;
-          }
-          return { ...emp, score: score };
+          return { ...emp, prefScore: prefScore, seniority: sr };
         });
-        
-        scored.sort(function(a, b) { return b.score - a.score; });
+        // 2) Sort: preference descending (higher first), then seniority ascending (1 before 2 before 3)
+        scored.sort(function(a, b) {
+          if (a.prefScore !== b.prefScore) return b.prefScore - a.prefScore;
+          return a.seniority - b.seniority;
+        });
         var chosen = scored[0];
         if (!chosen) return;
         
@@ -5459,31 +5440,38 @@ function assignEmployeesToWeek(days) {
         if(assignments[dateStr].indexOf(chosen.id) === -1) assignments[dateStr].push(chosen.id);
         
         var key = chosen.id + "_" + dateStr;
-        // Dominant reason only (spec: never generic)
         var preferredShift = (chosen.pref === 'AM' && isEarliestShift) || (chosen.pref === 'PM' && isLatestShift);
-        var preferredDay = chosen.dayPreferences && chosen.dayPreferences[d.getDay()] === true;
+        var preferredDay = chosen.dayPreferences && chosen.dayPreferences[dayOfWeek] === true;
         var dislikesShift = (chosen.pref === 'AM' && isLatestShift) || (chosen.pref === 'PM' && isEarliestShift);
-        var dislikesDay = chosen.dayPreferences && chosen.dayPreferences[d.getDay()] === false;
-        var dominantReason;
-        if (preferredShift || preferredDay) {
-          dominantReason = 'Assigned to match preferred ' + (isEarliestShift ? 'AM' : 'PM') + ' availability while maintaining full coverage.';
-        } else if (dislikesShift || dislikesDay) {
-          dominantReason = 'Preference overridden to prevent uncovered hours.';
-        } else {
-          dominantReason = 'Assigned by seniority and hour balancing within eligible staff.';
+        var dislikesDay = chosen.dayPreferences && chosen.dayPreferences[dayOfWeek] === false;
+        var totalHoursAfter = (employeeHoursToday[dateStr][chosen.id] || 0);
+        var wouldBeOT = totalHoursAfter > REGULAR_HOURS_MAX;
+        
+        if (wouldBeOT) {
+          otFlaggedAssignments.push({ key: key, dateStr: dateStr, eventName: ev.name, empName: chosen.name });
         }
-        assignmentReasons[key] = [dominantReason];
-        var tags = ['availability', 'no_conflicts', 'within_max_days', 'seniority'];
+        
+        var reasonCode;
+        if (wouldBeOT) reasonCode = 'OT_SUGGESTED';
+        else if (preferredShift || preferredDay) reasonCode = 'PREFERENCE_MATCH';
+        else if (dislikesShift || dislikesDay) reasonCode = 'PREFERENCE_MISMATCH';
+        else if (eligible.length <= 1) reasonCode = 'LIMITED_AVAILABILITY';
+        else reasonCode = 'SENIORITY_PRIORITY';
+        
+        assignmentReasonCodes[key] = reasonCode;
+        assignmentReasons[key] = [REASON_CODE_EXPLANATIONS[reasonCode] || reasonCode];
+        var tags = ['availability', 'within_max_days', 'seniority'];
         if (chosen.type === 'FT') tags.push('full_time');
         if (preferredShift || preferredDay) tags.push('prefers_shift');
         if (dislikesShift || dislikesDay) tags.push('preference_overridden');
+        if (wouldBeOT) tags.push('OT_SUGGESTED');
         if (assignmentStyle === 'balanced' || assignmentStyle === 'fair') tags.push('rotation_balance');
         assignmentReasonTags[key] = tags;
       });
     });
   });
   
-  return { assignments: assignments, assignmentDetails: assignmentDetails, overtimeSuggestions: overtimeSuggestions };
+  return { assignments: assignments, assignmentDetails: assignmentDetails, otFlaggedAssignments: otFlaggedAssignments };
 }
 
 function canWorkShift(empId, currentDate, shiftStart, shiftHistory) {
@@ -6100,6 +6088,7 @@ function clearAllData() {
   auditLog = [];
   assignmentReasons = {};
   assignmentReasonTags = {};
+  assignmentReasonCodes = {};
   generationConflicts = [];
   lastOvertimeSuggestions = [];
   lastScheduleNeedsReview = false;
