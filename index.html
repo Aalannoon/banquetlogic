@@ -514,9 +514,6 @@ body.light-mode .audit-empty { color: #6b7280; background: #f9fafb; border-color
   .schedule-grid-helper,
   .schedule-lock-helper,
   .schedule-th-helper,
-  .demo-mode-banner,
-  .demo-tip,
-  .demo-tip-visible,
   .schedule-why-link { display: none !important; }
   table {
     width: 100% !important;
@@ -1062,96 +1059,6 @@ body.light-mode #scheduleTable td.clickable:hover {
   }
 }
 
-/* Demo mode active state */
-.demo-mode-banner {
-  display: none;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  background: linear-gradient(90deg, #e67e22 0%, #d35400 100%);
-  color: #fff;
-  padding: 14px 20px;
-  text-align: center;
-  font-weight: bold;
-  font-size: 15px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.4);
-  border-bottom: 3px solid #fff;
-}
-.demo-mode-banner.demo-mode-banner-visible {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-}
-.demo-mode-banner .demo-banner-stop {
-  margin-left: 0;
-  padding: 12px 24px;
-  font-size: 16px;
-  background: #fff;
-  color: #c0392b;
-  border: 2px solid #fff;
-  border-radius: 8px;
-  font-weight: bold;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-.demo-mode-banner .demo-banner-stop:hover {
-  background: #f5f5f5;
-  transform: scale(1.02);
-}
-.tabs button.demo-active {
-  background: #d35400 !important;
-  color: #fff !important;
-  box-shadow: 0 0 0 2px #fff;
-}
-body.light-mode .demo-mode-banner {
-  border-bottom-color: #333;
-}
-body.light-mode .demo-mode-banner .demo-banner-stop {
-  background: #fff;
-  color: #c0392b;
-  border-color: #333;
-}
-
-/* Demo-only instructional tip (only visible during demo) */
-.demo-tip {
-  display: none;
-  position: sticky;
-  top: 0;
-  z-index: 99;
-  background: #2c3e50;
-  color: #ecf0f1;
-  padding: 12px 20px;
-  font-size: 14px;
-  line-height: 1.5;
-  border-bottom: 2px solid #4e9af1;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-}
-.demo-tip.demo-tip-visible {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.demo-tip-icon {
-  font-size: 20px;
-  flex-shrink: 0;
-}
-.demo-tip strong { color: #4e9af1; }
-body.light-mode .demo-tip {
-  background: #ecf0f1;
-  color: #2c3e50;
-  border-bottom-color: #4e9af1;
-}
-/* Temporary highlight for demo (demo only, no core change) */
-.demo-highlight {
-  animation: demo-highlight-pulse 1.2s ease-in-out 2;
-}
-@keyframes demo-highlight-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(78, 154, 241, 0.5); }
-  50% { box-shadow: 0 0 0 8px rgba(78, 154, 241, 0); }
-}
-
 /* Edit employee modal */
 #employeeEditModalOverlay {
   display: none;
@@ -1282,17 +1189,7 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
   <button type="button" id="tabAuditBtn" onclick="showTab('auditTab')">Audit Log</button>
   <button type="button" id="tabSettingsBtn" onclick="showTab('settingsTab')">Settings</button>
   <button type="button" id="tabSupportBtn" onclick="showTab('supportTab')">Support / Contact</button>
-  <button type="button" id="tabDemoBtn" onclick="showTab('demoTab')" style="background:#e67e22;" title="Try the app with sample data. Your data is restored when you stop.">🎬 Demo Mode</button>
-</div>
-
-<div id="demoModeBanner" class="demo-mode-banner">
-  <span>🎬 <strong>Demo Mode Active</strong> — All data you see is temporary and will be removed when you stop. Your real data is safely stored and will be restored.</span>
-  <button type="button" class="demo-banner-stop" onclick="stopDemo()">⏹️ Stop Demo &amp; Restore My Data</button>
-</div>
-
-<div id="demoTip" class="demo-tip">
-  <span class="demo-tip-icon">💡</span>
-  <span id="demoTipText"></span>
+  <button type="button" id="tabGuidedTourBtn" disabled title="Coming soon">Guided Tour</button>
 </div>
 
 <!-- EMPLOYEES -->
@@ -1685,7 +1582,7 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
 
 <div class="settings-section" id="dataManagementSection">
   <h3>Data Management</h3>
-  <p>Back up your data to a file or restore from a previous backup. The app also saves automatic backups when you make changes (not during demo mode).</p>
+  <p>Back up your data to a file or restore from a previous backup. The app also saves automatic backups when you make changes.</p>
   <div class="data-mgmt-actions">
     <div class="data-mgmt-group">
       <span class="data-mgmt-group-label">Export / Import</span>
@@ -1719,7 +1616,7 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
 
 <div class="settings-section settings-section-danger">
   <h3 class="danger-heading">Admin: Clear All Data</h3>
-  <p>Reset the app to a completely fresh state. Use this to remove all employees, events, schedules (all weeks), audit log, and demo data.</p>
+  <p>Reset the app to a completely fresh state. Use this to remove all employees, events, schedules (all weeks), and audit log.</p>
   <p class="danger-warning">This action cannot be undone. All data will be permanently deleted.</p>
   <button type="button" onclick="clearAllData()" class="btn-danger">Clear All Employee Data</button>
 </div>
@@ -1777,96 +1674,6 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
       </p>
     </div>
   </div>
-</div>
-
-<!-- DEMO MODE -->
-<div id="demoTab" class="tab">
-<h2>🎬 Demo Mode</h2>
-
-<div style="max-width: 800px; margin: 0 auto;">
-  <div style="padding: 20px; background: #2e2e3d; border-radius: 8px; margin-bottom: 20px;">
-    <h3 style="margin-top: 0; color: #e67e22;">Welcome to BanquetLogic Demo!</h3>
-    <p style="font-size: 16px; line-height: 1.6;">
-      This guided demonstration will walk you through all the features of BanquetLogic, 
-      showing you how to manage employees, create events, generate schedules, and more.
-    </p>
-    
-    <div style="padding: 15px; background: #34495e; border-radius: 6px; margin: 15px 0;">
-      <strong style="color: #f39c12;">⚠️ Important — Demo data is temporary</strong>
-      <ul style="margin: 10px 0; padding-left: 20px;">
-        <li>Demo uses sample data only. Your real data is <strong>not</strong> modified.</li>
-        <li>When you click <strong>Stop Demo</strong>, all demo data is removed and your real employees, events, and schedules are restored.</li>
-        <li>Takes approximately 3–5 minutes. You can stop the demo at any time.</li>
-      </ul>
-    </div>
-    
-    <div style="text-align: center; margin-top: 25px;">
-      <button type="button" onclick="startDemo()" style="background: #27ae60; font-size: 18px; padding: 15px 30px;">
-        ▶️ Start Demo
-      </button>
-      <div id="demoStopArea" style="display: none; margin-top: 20px; padding: 20px; background: #1e1e2f; border-radius: 8px; border: 2px solid #e74c3c;">
-        <p style="margin: 0 0 15px 0; font-size: 16px; color: #f0f0f0;">To exit demo and restore your real data, click below:</p>
-        <button type="button" id="stopDemoBtn" onclick="stopDemo()" style="background: #e74c3c; color: #fff; font-size: 20px; padding: 16px 32px; border: 2px solid #fff; border-radius: 8px; font-weight: bold; cursor: pointer;">
-          ⏹️ Stop Demo &amp; Restore My Data
-        </button>
-      </div>
-    </div>
-  </div>
-  
-  <div id="demoStatus" style="padding: 15px; background: #1e1e2f; border-radius: 8px; margin-bottom: 20px; display: none; border-left: 4px solid #e67e22;">
-    <h4 style="margin-top: 0; color: #4e9af1;">Demo Progress</h4>
-    <p style="margin: 0 0 10px 0; font-size: 13px; color: #95a5a6;">All data shown is temporary. Your real data will be restored when you click <strong>Stop Demo</strong> (in the orange banner above or below).</p>
-    <div id="demoStepInfo" style="font-size: 15px; line-height: 1.8;"></div>
-    <div style="margin-top: 10px; background: #2e2e3d; border-radius: 4px; height: 30px; overflow: hidden;">
-      <div id="demoProgress" style="background: #27ae60; height: 100%; width: 0%; transition: width 0.5s;"></div>
-    </div>
-  </div>
-  
-  <div id="demoInstructions" style="padding: 20px; background: #2e2e3d; border-radius: 8px;">
-    <h3 style="margin-top: 0;">What You'll Learn:</h3>
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
-      <div style="padding: 15px; background: #34495e; border-radius: 6px;">
-        <h4 style="margin: 0 0 10px 0; color: #4e9af1;">👥 Employee Management</h4>
-        <ul style="margin: 5px 0; padding-left: 20px; font-size: 14px;">
-          <li>Add employees with details</li>
-          <li>Set seniority and preferences</li>
-          <li>Configure day preferences</li>
-          <li>Manage vacation days</li>
-        </ul>
-      </div>
-      
-      <div style="padding: 15px; background: #34495e; border-radius: 6px;">
-        <h4 style="margin: 0 0 10px 0; color: #4e9af1;">📅 Event Creation</h4>
-        <ul style="margin: 5px 0; padding-left: 20px; font-size: 14px;">
-          <li>Create banquet events</li>
-          <li>Set dates and times</li>
-          <li>Configure guest counts</li>
-          <li>Auto-calculate staff needs</li>
-        </ul>
-      </div>
-      
-      <div style="padding: 15px; background: #34495e; border-radius: 6px;">
-        <h4 style="margin: 0 0 10px 0; color: #4e9af1;">📊 Smart Scheduling</h4>
-        <ul style="margin: 5px 0; padding-left: 20px; font-size: 14px;">
-          <li>Auto-generate schedules</li>
-          <li>Respect preferences</li>
-          <li>Balance hours fairly</li>
-          <li>Handle conflicts</li>
-        </ul>
-      </div>
-      
-      <div style="padding: 15px; background: #34495e; border-radius: 6px;">
-        <h4 style="margin: 0 0 10px 0; color: #4e9af1;">🔧 Advanced Features</h4>
-        <ul style="margin: 5px 0; padding-left: 20px; font-size: 14px;">
-          <li>Manual shift editing</li>
-          <li>Lock schedules</li>
-          <li>Email to employees</li>
-          <li>Audit logging</li>
-        </ul>
-      </div>
-    </div>
-  </div>
-</div>
 </div>
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
@@ -2131,40 +1938,6 @@ function isEventTypeUsedByEvents(type) {
 let editingEventId = null;
 let currentWeekOffset = 0;
 
-(function clearDemoDataIfRefresh() {
-  try {
-    if (!sessionStorage.getItem('banquetlogic_demo_active')) return;
-    employees = [];
-    events = [];
-    manualEdits = {};
-    lockedCells = {};
-    lockedRows = {};
-    scheduleGlobalLock = false;
-    auditLog = [];
-    assignmentReasons = {};
-    assignmentReasonTags = {};
-    generationConflicts = [];
-    editingEventId = null;
-    currentWeekOffset = 0;
-    settings = { assignmentStyle: 'strict', ratios: { 'Plated Service': 20, 'Buffet Service': 30, 'Reception': 40, 'Coffee Break': 50 }, cashierRecommendationRatio: 150, housemenRecommendationMode: 'per_guests', housemenPerGuests: 100, housemenFlatCount: 2 };
-    eventTypes = getDefaultEventTypes();
-    laborPools = getDefaultLaborPools();
-    localStorage.setItem('eventTypes', JSON.stringify(eventTypes));
-    localStorage.setItem('laborPools', JSON.stringify(laborPools));
-    localStorage.setItem('employees', '[]');
-    localStorage.setItem('events', '[]');
-    localStorage.setItem('manualEdits', '{}');
-    localStorage.setItem('lockedCells', '{}');
-    localStorage.setItem('lockedRows', '{}');
-    localStorage.setItem('scheduleGlobalLock', 'false');
-    localStorage.setItem('auditLog', '[]');
-    localStorage.setItem('assignmentReasons', '{}');
-    localStorage.setItem('assignmentReasonTags', '{}');
-    localStorage.setItem('settings', JSON.stringify(settings));
-    sessionStorage.removeItem('banquetlogic_demo_active');
-  } catch (e) {}
-})();
-
 // Initialize day preferences for existing employees (backward compatibility)
 employees.forEach(emp => {
   if(!emp.dayPreferences) {
@@ -2322,7 +2095,6 @@ function backupPruneAuto() {
 }
 
 function scheduleAutoBackup() {
-  if (typeof demoInProgress !== 'undefined' && demoInProgress) return;
   var now = Date.now();
   if (lastAutoBackupTime && (now - lastAutoBackupTime) < AUTO_BACKUP_THROTTLE_MS) return;
   lastAutoBackupTime = now;
@@ -2623,7 +2395,6 @@ function showTab(id){
   if(id==="auditTab") { tabAuditBtn.classList.add("active"); renderAuditLog(); }
   if(id==="settingsTab") { tabSettingsBtn.classList.add("active"); loadSettings(); }
   if(id==="supportTab") { tabSupportBtn.classList.add("active"); }
-  if(id==="demoTab") { tabDemoBtn.classList.add("active"); }
 }
 
 
@@ -6045,13 +5816,9 @@ function saveSettings(){
 function clearAllData() {
   var msg = 'This will permanently delete ALL data:\n\n' +
     '• All employees\n• All events\n• All schedules (every week)\n• Audit log\n• Assignment explanations\n\n' +
-    'Demo mode will be reset. Settings will be restored to defaults.\n\n' +
+    'Settings will be restored to defaults.\n\n' +
     'This cannot be undone. Are you sure you want to clear everything?';
   if (!confirm(msg)) return;
-  clearTimeout(demoTimer);
-  demoTimer = null;
-  demoInProgress = false;
-  demoBackupData = null;
   employees = [];
   events = [];
   manualEdits = {};
@@ -6076,17 +5843,6 @@ function clearAllData() {
   eventTypes = getDefaultEventTypes();
   laborPools = getDefaultLaborPools();
   save();
-  var banner = document.getElementById('demoModeBanner');
-  if (banner) banner.classList.remove('demo-mode-banner-visible');
-  var tip = document.getElementById('demoTip');
-  if (tip) tip.classList.remove('demo-tip-visible');
-  var stopArea = document.getElementById('demoStopArea');
-  if (stopArea) stopArea.style.display = 'none';
-  var status = document.getElementById('demoStatus');
-  if (status) status.style.display = 'none';
-  var instructions = document.getElementById('demoInstructions');
-  if (instructions) instructions.style.display = 'block';
-  if (typeof tabDemoBtn !== 'undefined') tabDemoBtn.classList.remove('demo-active');
   var conflictBtn = document.getElementById('conflictReportBtn');
   if (conflictBtn) { conflictBtn.style.display = 'none'; conflictBtn.textContent = '⚠️ Conflicts'; }
   renderEmployees();
@@ -6135,321 +5891,6 @@ function submitSupport(){
   
   addAuditEntry('Support Request', null, null, null, category + ': ' + subject);
   save();
-}
-
-/* DEMO MODE */
-let demoInProgress = false;
-let demoTimer = null;
-let demoBackupData = null;
-
-function startDemo() {
-  if(!confirm('Start the BanquetLogic demo?\n\nThis will temporarily replace your data with sample data. Your real data will be restored when the demo ends.')) {
-    return;
-  }
-  
-  // Backup all state that can be modified during demo or persisted to storage
-  demoBackupData = {
-    employees: JSON.parse(JSON.stringify(employees)),
-    events: JSON.parse(JSON.stringify(events)),
-    manualEdits: JSON.parse(JSON.stringify(manualEdits)),
-    lockedCells: JSON.parse(JSON.stringify(lockedCells)),
-    lockedRows: JSON.parse(JSON.stringify(lockedRows)),
-    scheduleGlobalLock: scheduleGlobalLock,
-    currentWeekOffset: currentWeekOffset,
-    auditLog: JSON.parse(JSON.stringify(auditLog)),
-    assignmentReasons: JSON.parse(JSON.stringify(assignmentReasons)),
-    assignmentReasonTags: JSON.parse(JSON.stringify(assignmentReasonTags))
-  };
-  
-  demoInProgress = true;
-  try { sessionStorage.setItem('banquetlogic_demo_active', '1'); } catch (e) {}
-  document.getElementById('demoModeBanner').classList.add('demo-mode-banner-visible');
-  document.getElementById('demoStopArea').style.display = 'block';
-  document.getElementById('demoStatus').style.display = 'block';
-  document.getElementById('demoInstructions').style.display = 'none';
-  if(typeof tabDemoBtn !== 'undefined') tabDemoBtn.classList.add('demo-active');
-  
-  runDemoSequence();
-}
-
-function performDemoCleanup(skipConfirm) {
-  clearTimeout(demoTimer);
-  demoTimer = null;
-  
-  const hasValidBackup = demoBackupData && Array.isArray(demoBackupData.employees);
-  if (hasValidBackup) {
-    employees = demoBackupData.employees;
-    events = demoBackupData.events;
-    manualEdits = demoBackupData.manualEdits;
-    lockedCells = demoBackupData.lockedCells;
-    lockedRows = demoBackupData.lockedRows;
-    scheduleGlobalLock = demoBackupData.scheduleGlobalLock;
-    currentWeekOffset = demoBackupData.currentWeekOffset;
-    auditLog = demoBackupData.auditLog != null ? demoBackupData.auditLog : auditLog;
-    assignmentReasons = demoBackupData.assignmentReasons != null ? demoBackupData.assignmentReasons : assignmentReasons;
-    assignmentReasonTags = demoBackupData.assignmentReasonTags != null ? demoBackupData.assignmentReasonTags : assignmentReasonTags;
-    generationConflicts = [];
-    const conflictBtn = document.getElementById('conflictReportBtn');
-    if (conflictBtn) { conflictBtn.style.display = 'none'; conflictBtn.textContent = '⚠️ Conflicts'; }
-    save();
-    renderEmployees();
-    renderEvents();
-    displaySchedule();
-  } else {
-    generationConflicts = [];
-  }
-  
-  demoInProgress = false;
-  demoBackupData = null;
-  try { sessionStorage.removeItem('banquetlogic_demo_active'); } catch (e) {}
-  const banner = document.getElementById('demoModeBanner');
-  if (banner) banner.classList.remove('demo-mode-banner-visible');
-  const tip = document.getElementById('demoTip');
-  if (tip) tip.classList.remove('demo-tip-visible');
-  const stopArea = document.getElementById('demoStopArea');
-  if (stopArea) stopArea.style.display = 'none';
-  const status = document.getElementById('demoStatus');
-  if (status) status.style.display = 'none';
-  const instructions = document.getElementById('demoInstructions');
-  if (instructions) instructions.style.display = 'block';
-  if (typeof tabDemoBtn !== 'undefined') tabDemoBtn.classList.remove('demo-active');
-  
-  if (!skipConfirm && hasValidBackup) {
-    alert('Demo stopped. Your original data has been restored.');
-  }
-}
-
-function stopDemo() {
-  if (!demoInProgress) return;
-  if (!confirm('Stop the demo and restore your real data?')) {
-    return;
-  }
-  performDemoCleanup(false);
-}
-
-function updateDemoStatus(step, total, message) {
-  const progress = (step / total) * 100;
-  document.getElementById('demoProgress').style.width = progress + '%';
-  document.getElementById('demoStepInfo').innerHTML = `<strong>Step ${step}/${total}:</strong> ${message}`;
-}
-
-function showDemoTip(html) {
-  if(!demoInProgress) return;
-  const el = document.getElementById('demoTip');
-  if(el) {
-    document.getElementById('demoTipText').innerHTML = html;
-    el.classList.add('demo-tip-visible');
-  }
-}
-function hideDemoTip() {
-  const el = document.getElementById('demoTip');
-  if(el) el.classList.remove('demo-tip-visible');
-}
-function demoHighlightElement(id, durationMs) {
-  if(!demoInProgress) return;
-  const el = document.getElementById(id);
-  if(el) {
-    el.classList.add('demo-highlight');
-    setTimeout(function() { if(el) el.classList.remove('demo-highlight'); }, durationMs || 3000);
-  }
-}
-
-function runDemoSequence() {
-  const steps = [
-    { delay: 0, action: () => demoStep1_ClearData() },
-    { delay: 2000, action: () => demoStep2_AddEmployees() },
-    { delay: 3000, action: () => demoStep3_ShowEmployees() },
-    { delay: 3000, action: () => demoStep4_SetPreferences() },
-    { delay: 3000, action: () => demoStep5_AddEvents() },
-    { delay: 3000, action: () => demoStep6_ShowEvents() },
-    { delay: 3000, action: () => demoStep7_GenerateSchedule() },
-    { delay: 3000, action: () => demoStep8_ShowSchedule() },
-    { delay: 3000, action: () => demoStep9_ManualEdit() },
-    { delay: 3000, action: () => demoStep10_ShowFeatures() },
-    { delay: 4000, action: () => demoStep11_Complete() }
-  ];
-  
-  let currentStep = 0;
-  
-  function runNextStep() {
-    if(!demoInProgress || currentStep >= steps.length) return;
-    try {
-      const step = steps[currentStep];
-      step.action();
-      currentStep++;
-      if(currentStep < steps.length) {
-        demoTimer = setTimeout(runNextStep, steps[currentStep].delay);
-      }
-    } catch (err) {
-      console.error('Demo step error:', err);
-      performDemoCleanup(true);
-    }
-  }
-  
-  runNextStep();
-}
-
-function demoStep1_ClearData() {
-  hideDemoTip();
-  updateDemoStatus(1, 11, 'Setting the scene: preparing a fresh demo workspace for a realistic banquet week...');
-  employees = [];
-  events = [];
-  manualEdits = {};
-  lockedCells = {};
-  lockedRows = {};
-  currentWeekOffset = 0;
-}
-
-function demoStep2_AddEmployees() {
-  updateDemoStatus(2, 11, 'Building your team: adding 5 banquet staff with different seniority, types (FT/PT), and shift preferences...');
-  
-  const sampleEmployees = [
-    { name: 'Alice Johnson', type: 'FT', seniority: 1, pref: 'AM', email: 'alice@example.com', maxDaysPerWeek: 5 },
-    { name: 'Bob Smith', type: 'FT', seniority: 2, pref: 'PM', email: 'bob@example.com', maxDaysPerWeek: 5 },
-    { name: 'Carol Davis', type: 'FT', seniority: 3, pref: '', email: 'carol@example.com', maxDaysPerWeek: 4 },
-    { name: 'David Lee', type: 'PT', seniority: 4, pref: 'AM', email: 'david@example.com', maxDaysPerWeek: 3 },
-    { name: 'Emma Wilson', type: 'PT', seniority: 5, pref: 'PM', email: 'emma@example.com', maxDaysPerWeek: 5 }
-  ];
-  
-  var defaultPoolId = (laborPools.length && getLaborPoolById(DEFAULT_SERVERS_POOL_ID)) ? DEFAULT_SERVERS_POOL_ID : (laborPools[0] ? laborPools[0].id : null);
-  sampleEmployees.forEach(emp => {
-    var seniorityByPool = {};
-    if (defaultPoolId) seniorityByPool[defaultPoolId] = emp.seniority;
-    employees.push({
-      id: crypto.randomUUID(),
-      ...emp,
-      laborPoolId: defaultPoolId,
-      seniorityByPool: seniorityByPool,
-      sick: false,
-      retired: false,
-      dayPreferences: { 0: null, 1: null, 2: null, 3: null, 4: null, 5: null, 6: null }
-    });
-  });
-}
-
-function demoStep3_ShowEmployees() {
-  showDemoTip('This roster drives <strong>who gets first pick</strong> of shifts. Seniority and FT/PT status are used when you Generate.');
-  updateDemoStatus(3, 11, 'Your team roster — seniority and type (FT/PT) determine who gets first choice of shifts when you generate.');
-  showTab('employeesTab');
-  renderEmployees();
-}
-
-function demoStep4_SetPreferences() {
-  showDemoTip('Day preferences help the system avoid scheduling someone on days they prefer off when possible.');
-  updateDemoStatus(4, 11, 'Setting preferences: e.g. Alice prefers weekdays — the system will favor that when assigning shifts.');
-  // Set Alice to prefer weekdays
-  if(employees[0]) {
-    employees[0].dayPreferences = { 0: false, 1: true, 2: true, 3: true, 4: true, 5: true, 6: false };
-  }
-}
-
-function demoStep5_AddEvents() {
-  hideDemoTip();
-  updateDemoStatus(5, 11, 'Adding this week\'s events: a corporate lunch, a wedding reception, and a birthday party — each with guest-based staff needs.');
-  
-  const today = new Date();
-  const weekStart = new Date(today);
-  weekStart.setDate(today.getDate() - today.getDay());
-  
-  const sampleEvents = [
-    { day: 2, name: 'Corporate Lunch', start: '11:00', end: '14:30', guests: 80, serviceType: 'Plated Service' },
-    { day: 4, name: 'Wedding Reception', start: '17:00', end: '23:00', guests: 150, serviceType: 'Plated Service' },
-    { day: 6, name: 'Birthday Party', start: '18:00', end: '22:00', guests: 60, serviceType: 'Buffet Service' }
-  ];
-  
-  sampleEvents.forEach(evt => {
-    const eventDate = new Date(weekStart);
-    eventDate.setDate(weekStart.getDate() + evt.day);
-    
-    var type = getEventTypeByName(evt.serviceType);
-    var ratio = type ? type.guestsPerServer : (settings.ratios[evt.serviceType] || 30);
-    const staffNeeded = Math.ceil(evt.guests / ratio);
-    events.push({
-      id: crypto.randomUUID(),
-      name: evt.name,
-      date: iso(eventDate),
-      start: evt.start,
-      end: evt.end,
-      guests: evt.guests,
-      service: evt.serviceType,
-      eventTypeId: type ? type.id : undefined,
-      eventTypeName: evt.serviceType,
-      staff: staffNeeded
-    });
-  });
-}
-
-function demoStep6_ShowEvents() {
-  showDemoTip('Events drive <strong>how many staff</strong> you need each day. Plated service needs more servers per guest than buffet.');
-  updateDemoStatus(6, 11, 'Events drive staffing: guest count and service type determine how many servers are needed each day.');
-  showTab('eventsTab');
-  renderEvents();
-}
-
-function demoStep7_GenerateSchedule() {
-  hideDemoTip();
-  updateDemoStatus(7, 11, 'Generating the schedule: assigning shifts by seniority, preferences, rest rules, and max days — so it\'s fair and explainable.');
-  const start = getWeekStart();
-  const days = [...Array(7)].map((_, i) => {
-    const d = new Date(start);
-    d.setDate(start.getDate() + i);
-    return d;
-  });
-  
-  const assignments = assignEmployeesToWeek(days);
-  
-  days.forEach(d => {
-    const dateStr = iso(d);
-    const ev = events.find(e => e.date === dateStr);
-    if(!ev || !assignments[dateStr]) return;
-    
-    assignments[dateStr].forEach(empId => {
-      const key = empId + "_" + dateStr;
-      const s = normalizeHours(ev.start, ev.end);
-      const t = calculateSmartShift(ev, s.h);
-      
-      manualEdits[key] = {
-        hours: s.h,
-        start: timeStr(t.start),
-        end: timeStr(t.end),
-        generated: true
-      };
-    });
-  });
-}
-
-function demoStep8_ShowSchedule() {
-  showDemoTip('Click any <strong>colored shift</strong> to see why that employee was assigned. Try the 📋 Generation Rules button to see what we prioritize when building your schedule.');
-  updateDemoStatus(8, 11, 'Your schedule — colors show shift length. Every assignment has a reason; click a shift to see why that person was chosen.');
-  showTab('scheduleTab');
-  displaySchedule();
-  demoHighlightElement('scheduleTable', 4500);
-  var rulesBtn = document.querySelector('button[onclick="showGenerationRules()"]');
-  if(rulesBtn) { rulesBtn.classList.add('demo-highlight'); setTimeout(function() { rulesBtn.classList.remove('demo-highlight'); }, 4500); }
-}
-
-function demoStep9_ManualEdit() {
-  showDemoTip('The 🔒 lock means this row won\'t be changed if you run Generate again. Use it when someone\'s schedule is final.');
-  updateDemoStatus(9, 11, 'Locking Alice\'s row — her shifts are now protected from being overwritten when you run Generate. Useful when a schedule is final.');
-  // Lock one employee's row
-  if(employees[0]) {
-    lockedRows[employees[0].id] = true;
-  }
-  displaySchedule();
-}
-
-function demoStep10_ShowFeatures() {
-  showDemoTip('Every change is logged here. In Settings you can switch how shifts are assigned (strict seniority vs. fair distribution).');
-  updateDemoStatus(10, 11, 'Audit Log — every change is recorded for accountability. In Settings you can change how the system assigns shifts (e.g. strict seniority vs. fair distribution).');
-  showTab('auditTab');
-  renderAuditLog();
-}
-
-function demoStep11_Complete() {
-  hideDemoTip();
-  updateDemoStatus(11, 11, '✅ Demo complete! You\'ve seen how BanquetLogic keeps scheduling fair, explainable, and auditable. Click Stop Demo to restore your data.');
-  
-  alert('🎉 Demo Complete!\n\nYou\'ve seen how BanquetLogic:\n• Builds a roster where seniority and preferences drive who gets shifts\n• Turns events into staff needs automatically\n• Generates schedules that are fair and explainable (click any shift to see why)\n• Protects finalized rows with locking\n• Logs every change for accountability\n\nClick "Stop Demo" to restore your original data.');
 }
 
 /* INIT */
