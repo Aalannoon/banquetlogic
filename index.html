@@ -1901,10 +1901,7 @@ var REASON_TAG_EXPLANATIONS = {
   within_max_days: 'Within allowed working days for the week.',
   full_time: 'Full-time status under current policy.',
   prefers_shift: 'Shift preference matched for this time.',
-  day_preference: 'Day preference matched.',
-  split_shift: 'Part of a split shift to avoid overtime (event longer than 8h shared across staff).',
-  overtime_avoidance: 'Chosen so this employee stays within regular hours; others would have gone into overtime.',
-  overtime_assignment: 'Assigned despite overtime because no other eligible employee could take it without also going into overtime.'
+  day_preference: 'Day preference matched.'
 };
 
 var ABSENCE_TYPES = [
@@ -1917,7 +1914,7 @@ var ABSENCE_TYPES = [
 function isFullAbsenceStatus(status) {
   return status === 'sick' || status === 'vacation' || status === 'floating_holiday' || status === 'unpaid_vacation';
 }
-var REASON_TAG_PRIORITY = ['manual_lock', 'split_shift', 'overtime_assignment', 'overtime_avoidance', 'availability', 'seniority', 'no_conflicts', 'rotation_balance', 'within_max_days', 'full_time', 'prefers_shift', 'day_preference'];
+var REASON_TAG_PRIORITY = ['manual_lock', 'availability', 'seniority', 'no_conflicts', 'rotation_balance', 'within_max_days', 'full_time', 'prefers_shift', 'day_preference'];
 let settings = JSON.parse(localStorage.getItem("settings") || JSON.stringify({
   assignmentStyle: "strict", // Default: Strict Seniority
   ratios: {
@@ -2665,39 +2662,29 @@ function getAssignmentExplanation(empId, dateStr) {
   if (lockedCells[key]) return REASON_TAG_EXPLANATIONS.manual_lock;
   const tags = assignmentReasonTags[key];
   if (!tags || !tags.length) return null;
-  var parts = [];
-  if (tags.indexOf('split_shift') !== -1) parts.push(REASON_TAG_EXPLANATIONS.split_shift);
-  if (tags.indexOf('overtime_assignment') !== -1) parts.push(REASON_TAG_EXPLANATIONS.overtime_assignment);
-  if (tags.indexOf('overtime_avoidance') !== -1) parts.push(REASON_TAG_EXPLANATIONS.overtime_avoidance);
   var ordered = [];
-  for (var i = 0; i < REASON_TAG_PRIORITY.length; i++) {
+  for (var i = 0; i < REASON_TAG_PRIORITY.length && ordered.length < 3; i++) {
     var t = REASON_TAG_PRIORITY[i];
-    if (['manual_lock', 'split_shift', 'overtime_assignment', 'overtime_avoidance'].indexOf(t) !== -1) continue;
+    if (t === 'manual_lock') continue;
     if (tags.indexOf(t) !== -1) ordered.push(t);
   }
-  var usedAvailability = false, usedNoConflicts = false;
+  if (ordered.length === 0) return 'Selected per current scheduling policy.';
+  var combined = [];
+  var usedAvailability = false;
+  var usedNoConflicts = false;
   for (var j = 0; j < ordered.length; j++) {
     var tag = ordered[j];
     if (tag === 'availability' && ordered.indexOf('no_conflicts') !== -1) {
-      if (!usedAvailability) { parts.push('Available with no scheduling conflicts this week.'); usedAvailability = true; usedNoConflicts = true; }
+      if (!usedAvailability) { combined.push('Available with no scheduling conflicts this week.'); usedAvailability = true; usedNoConflicts = true; }
       continue;
     }
-    if (tag === 'no_conflicts') { if (!usedNoConflicts) parts.push(REASON_TAG_EXPLANATIONS.no_conflicts); usedNoConflicts = true; continue; }
-    if (tag === 'availability') { if (!usedAvailability) parts.push(REASON_TAG_EXPLANATIONS.availability); usedAvailability = true; continue; }
-    parts.push(REASON_TAG_EXPLANATIONS[tag] || tag);
+    if (tag === 'no_conflicts') { if (!usedNoConflicts) combined.push(REASON_TAG_EXPLANATIONS.no_conflicts); usedNoConflicts = true; continue; }
+    if (tag === 'availability') { if (!usedAvailability) combined.push(REASON_TAG_EXPLANATIONS.availability); usedAvailability = true; continue; }
+    combined.push(REASON_TAG_EXPLANATIONS[tag] || tag);
   }
-  if (parts.length === 0) return 'Selected per current scheduling policy.';
-  return parts.join(' ');
-}
-
-function getAssignmentReasonLabel(empId, dateStr) {
-  const key = empId + "_" + dateStr;
-  const tags = assignmentReasonTags[key];
-  if (!tags || !tags.length) return 'Why?';
-  if (tags.indexOf('split_shift') !== -1) return 'Split shift';
-  if (tags.indexOf('overtime_assignment') !== -1) return 'Overtime';
-  if (tags.indexOf('overtime_avoidance') !== -1) return 'Why?';
-  return 'Why?';
+  if (combined.length === 0) return 'Selected per current scheduling policy.';
+  if (combined.length === 1) return combined[0];
+  return combined.slice(0, 2).join(' ') + (combined.length > 2 ? ' ' + combined[2] : '');
 }
 
 function showAssignmentReason(empId, dateStr) {
@@ -5118,12 +5105,10 @@ function displaySchedule(){
             cell.title = (cell.title || '') + ' Less than 8 hours rest from another shift.';
           }
           var overrideInd = edit.seniorityOverride ? ' <span class="override-indicator" title="Seniority override' + (edit.overrideReason ? ': ' + edit.overrideReason : '') + '">&#9888;</span>' : '';
-          var reasonLabel = typeof getAssignmentReasonLabel === 'function' ? getAssignmentReasonLabel(emp.id, dateStr) : 'Why?';
-          cell.innerHTML = `${h}h<br><small>${edit.start}–${edit.end}</small>${overrideInd}<br><a href="#" class="schedule-why-link" title="Explain assignment">${reasonLabel}</a>`;
+          cell.innerHTML = `${h}h<br><small>${edit.start}–${edit.end}</small>${overrideInd}<br><a href="#" class="schedule-why-link" title="Why this employee?">Why?</a>`;
         } else {
           var overrideInd = edit.seniorityOverride ? ' <span class="override-indicator" title="Seniority override' + (edit.overrideReason ? ': ' + edit.overrideReason : '') + '">&#9888;</span>' : '';
-          var reasonLabel = typeof getAssignmentReasonLabel === 'function' ? getAssignmentReasonLabel(emp.id, dateStr) : 'Why?';
-          cell.innerHTML = `${h}h<br>${overrideInd}<a href="#" class="schedule-why-link" title="Explain assignment">${reasonLabel}</a>`;
+          cell.innerHTML = `${h}h<br>${overrideInd}<a href="#" class="schedule-why-link" title="Why this employee?">Why?</a>`;
         }
         var whyLink = cell.querySelector('.schedule-why-link');
         if (whyLink) {
@@ -5275,6 +5260,7 @@ function assignEmployeesToWeek(days) {
       return true;
     }).map(e => ({...e, assignedToday: false}));
     
+    // Only one shift per day per employee: assignedToday is set when we assign and excludes them from later slots/events this day.
     dayEvents.forEach((ev, eventIndex) => {
       const isEarliestShift = eventIndex === 0;
       const isLatestShift = eventIndex === dayEvents.length - 1;
@@ -5446,9 +5432,6 @@ function assignEmployeesToWeek(days) {
         reasons.push('Rest period between shifts respected.');
         assignmentReasons[key] = reasons;
         var tags = ['availability', 'no_conflicts', 'within_max_days', 'seniority'];
-        if (assignmentDetails[dateStr] && assignmentDetails[dateStr][chosen.id]) tags.push('split_shift');
-        if (wouldAvoidOT.length > 0 && (hoursToday(chosen.id) || 0) + slotHours <= REGULAR_HOURS_MAX) tags.push('overtime_avoidance');
-        if ((hoursToday(chosen.id) || 0) + slotHours > REGULAR_HOURS_MAX) tags.push('overtime_assignment');
         if (chosen.type === 'FT') tags.push('full_time');
         if ((chosen.pref === 'AM' && isEarliestShift) || (chosen.pref === 'PM' && isLatestShift)) tags.push('prefers_shift');
         if (chosen.dayPreferences && chosen.dayPreferences[d.getDay()] === true) tags.push('day_preference');
