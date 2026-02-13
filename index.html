@@ -535,8 +535,22 @@ body.light-mode .audit-empty { color: #6b7280; background: #f9fafb; border-color
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
     padding: 5px 4px !important;
-    white-space: nowrap !important;
+    overflow: hidden !important;
+    word-break: break-word !important;
+    overflow-wrap: break-word !important;
+    white-space: normal !important;
+    box-sizing: border-box !important;
   }
+  #scheduleTable th:nth-child(2), #scheduleTable td:nth-child(2) { width: 14% !important; max-width: 14% !important; }
+  #scheduleTable th:nth-child(3), #scheduleTable td:nth-child(3) { width: 9% !important; max-width: 9% !important; }
+  #scheduleTable th:nth-child(4), #scheduleTable td:nth-child(4) { width: 9% !important; max-width: 9% !important; }
+  #scheduleTable th:nth-child(5), #scheduleTable td:nth-child(5) { width: 9% !important; max-width: 9% !important; }
+  #scheduleTable th:nth-child(6), #scheduleTable td:nth-child(6) { width: 9% !important; max-width: 9% !important; }
+  #scheduleTable th:nth-child(7), #scheduleTable td:nth-child(7) { width: 9% !important; max-width: 9% !important; }
+  #scheduleTable th:nth-child(8), #scheduleTable td:nth-child(8) { width: 9% !important; max-width: 9% !important; }
+  #scheduleTable th:nth-child(9), #scheduleTable td:nth-child(9) { width: 9% !important; max-width: 9% !important; }
+  #scheduleTable th:nth-child(10), #scheduleTable td:nth-child(10) { width: 8% !important; max-width: 8% !important; text-align: center !important; }
+  #scheduleTable th:nth-child(11), #scheduleTable td:nth-child(11) { width: 6% !important; max-width: 6% !important; text-align: center !important; white-space: nowrap !important; }
   th { background: #ddd !important; color: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .locked-cell::after, .conflict-cell::before { display: none !important; }
   .shift-4, .shift-5, .shift-6, .shift-7, .shift-8, .shift-ot {
@@ -544,15 +558,37 @@ body.light-mode .audit-empty { color: #6b7280; background: #f9fafb; border-color
     print-color-adjust: exact;
   }
   #scheduleTable th:last-child,
-  #scheduleTable td:last-child { min-width: 4em !important; white-space: nowrap !important; text-align: center !important; }
+  #scheduleTable td:last-child { min-width: 0 !important; white-space: nowrap !important; text-align: center !important; }
   #scheduleTable th:nth-last-child(2),
-  #scheduleTable td:nth-last-child(2) { text-align: center !important; }
+  #scheduleTable td:nth-last-child(2) { text-align: center !important; white-space: nowrap !important; }
   h1, .logo-wordmark, .tagline, .week-header { color: #000 !important; }
   .logo-icon { color: #000 !important; }
   .logo-icon-wrap { background: transparent !important; border-color: #ccc !important; }
   .app-header { border-bottom-color: #ccc !important; background: transparent !important; }
   #scheduleTable th:first-child,
   #scheduleTable td:first-child { display: none !important; }
+}
+
+/* Print: pool section headers (unified PDF) */
+.print-pool-header td {
+  font-weight: 600;
+  font-size: 13px;
+  padding: 8px 5px 4px 5px;
+  border-bottom: 1px solid #ccc;
+  background: #e8e8e8;
+  color: #333;
+}
+@media print {
+  .print-pool-header { page-break-after: avoid !important; }
+  .print-pool-header td {
+    background: #e8e8e8 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    overflow: hidden !important;
+    word-break: break-word !important;
+    overflow-wrap: break-word !important;
+    white-space: normal !important;
+  }
 }
 
 /* Print flow: lock layout and disable transitions (applied via class before print) */
@@ -1024,6 +1060,10 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
 </div>
 
 <button type="button" onclick="toggleDarkMode()">Toggle Dark Mode</button>
+<label for="printPoolFilter" style="margin-left: 8px;">Print:</label>
+<select id="printPoolFilter" style="margin-left: 4px; padding: 4px 8px;" title="Affects PDF/print only">
+  <option value="">All Pools</option>
+</select>
 <button type="button" class="print" onclick="printSchedule()">Print / Save PDF</button>
 
 <div class="tabs">
@@ -2333,7 +2373,7 @@ function showTab(id){
     renderEmployees();
   }
   if(id==="eventsTab") { tabEvBtn.classList.add("active"); populateEventServiceDropdown(); }
-  if(id==="scheduleTab") { tabSchBtn.classList.add("active"); displaySchedule(); }
+  if(id==="scheduleTab") { tabSchBtn.classList.add("active"); populatePrintPoolFilter(); displaySchedule(); }
   if(id==="auditTab") { tabAuditBtn.classList.add("active"); renderAuditLog(); }
   if(id==="settingsTab") { tabSettingsBtn.classList.add("active"); loadSettings(); }
   if(id==="supportTab") { tabSupportBtn.classList.add("active"); }
@@ -5045,8 +5085,125 @@ function toggleDarkMode(){
   document.body.classList.toggle("light-mode"); 
 }
 
+function getPoolsInPrintOrder() {
+  var serversId = getLaborPoolById(DEFAULT_SERVERS_POOL_ID) ? DEFAULT_SERVERS_POOL_ID : null;
+  var cashiersId = getCashierPoolId();
+  var housemenId = getHousemenPoolId();
+  var ordered = [];
+  if (serversId && getLaborPoolById(serversId)) ordered.push(getLaborPoolById(serversId));
+  if (cashiersId && getLaborPoolById(cashiersId)) ordered.push(getLaborPoolById(cashiersId));
+  if (housemenId && getLaborPoolById(housemenId)) ordered.push(getLaborPoolById(housemenId));
+  laborPools.forEach(function(p) {
+    if (p.id !== serversId && p.id !== cashiersId && p.id !== housemenId) ordered.push(p);
+  });
+  return ordered;
+}
+
+function populatePrintPoolFilter() {
+  var sel = document.getElementById('printPoolFilter');
+  if (!sel) return;
+  var cur = sel.value;
+  sel.innerHTML = '<option value="">All Pools</option>';
+  getPoolsInPrintOrder().forEach(function(p) {
+    var opt = document.createElement('option');
+    opt.value = p.id;
+    opt.textContent = p.name || p.id;
+    sel.appendChild(opt);
+  });
+  if (cur && getLaborPoolById(cur)) sel.value = cur;
+  else sel.value = '';
+}
+
+function buildScheduleTableForPrint(filterPoolId) {
+  var table = document.getElementById('scheduleTable');
+  if (!table) return;
+  var start = getWeekStart();
+  var days = [];
+  for (var i = 0; i < 7; i++) {
+    var d = new Date(start);
+    d.setDate(start.getDate() + i);
+    days.push(d);
+  }
+  var poolsToRender = filterPoolId ? [getLaborPoolById(filterPoolId)].filter(Boolean) : getPoolsInPrintOrder();
+  table.innerHTML = '';
+  var headerRow = document.createElement('tr');
+  headerRow.innerHTML = '<th>🔒</th><th>Employee</th>';
+  days.forEach(function(d) {
+    var th = document.createElement('th');
+    th.textContent = d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' });
+    headerRow.appendChild(th);
+  });
+  headerRow.innerHTML += '<th>Total<br><small class="schedule-th-helper">Total scheduled hours</small></th><th>Days<br><small class="schedule-th-helper">Days worked this week</small></th>';
+  var thead = document.createElement('thead');
+  thead.appendChild(headerRow);
+  table.appendChild(thead);
+  var tbody = document.createElement('tbody');
+  poolsToRender.forEach(function(pool) {
+    var poolEmps = employees.filter(function(e) { return !e.retired && e.laborPoolId === pool.id; });
+    poolEmps.sort(function(a, b) { return (getSeniorityForEmployee(a) || 999) - (getSeniorityForEmployee(b) || 999); });
+    var headerTr = document.createElement('tr');
+    headerTr.className = 'print-pool-header';
+    var headerTd = document.createElement('td');
+    headerTd.setAttribute('colspan', '11');
+    headerTd.textContent = pool.name || pool.id;
+    headerTr.appendChild(headerTd);
+    tbody.appendChild(headerTr);
+    poolEmps.forEach(function(emp) {
+      var total = 0, daysWorked = 0;
+      var row = document.createElement('tr');
+      row.appendChild(document.createElement('td'));
+      var nameTd = document.createElement('td');
+      nameTd.textContent = emp.name;
+      row.appendChild(nameTd);
+      days.forEach(function(d) {
+        var dateStr = iso(d);
+        var key = emp.id + '_' + dateStr;
+        var cell = document.createElement('td');
+        var edit = manualEdits[key];
+        if (edit) {
+          var absenceInfo = edit.status ? ABSENCE_TYPES.find(function(a) { return a.id === edit.status; }) : null;
+          if (absenceInfo && absenceInfo.id !== 'requested_off') {
+            cell.style.background = absenceInfo.id === 'sick' ? '#95a5a6' : absenceInfo.id === 'vacation' || absenceInfo.id === 'floating_holiday' ? '#3498db' : '#6b7c8d';
+            cell.textContent = absenceInfo.cellLabel || '';
+          } else if (absenceInfo && absenceInfo.id === 'requested_off' && (edit.hours || edit.start)) {
+            var h = edit.hours || edit;
+            total += h;
+            daysWorked++;
+            cell.className = getShiftClassByHours(h);
+            cell.innerHTML = h + 'h' + (edit.start && edit.end ? '<br><small>' + edit.start + '–' + edit.end + '</small>' : '');
+          } else if (absenceInfo && absenceInfo.id === 'requested_off') {
+            cell.style.background = '#3d4550';
+            cell.textContent = absenceInfo.cellLabel || '';
+          } else if (edit.hours || edit.start) {
+            var h = edit.hours || edit;
+            total += h;
+            daysWorked++;
+            cell.className = getShiftClassByHours(h);
+            cell.innerHTML = h + 'h' + (edit.start && edit.end ? '<br><small>' + edit.start + '–' + edit.end + '</small>' : '');
+          }
+        }
+        row.appendChild(cell);
+      });
+      var totalTd = document.createElement('td');
+      totalTd.innerHTML = '<strong>' + total + 'h</strong>';
+      row.appendChild(totalTd);
+      var empMaxDays = emp.maxDaysPerWeek !== undefined ? emp.maxDaysPerWeek : 5;
+      var daysTd = document.createElement('td');
+      daysTd.innerHTML = '<strong>' + daysWorked + '/' + empMaxDays + '</strong>';
+      if (daysWorked >= empMaxDays) { daysTd.style.background = '#e74c3c'; daysTd.style.color = '#fff'; }
+      else if (daysWorked >= empMaxDays - 1) { daysTd.style.background = '#f39c12'; daysTd.style.color = '#000'; }
+      row.appendChild(daysTd);
+      tbody.appendChild(row);
+    });
+  });
+  table.appendChild(tbody);
+}
+
 function printSchedule(){
   showTab("scheduleTab");
+  var filterEl = document.getElementById('printPoolFilter');
+  var filterPoolId = (filterEl && filterEl.value) || '';
+  buildScheduleTableForPrint(filterPoolId || null);
   var originalTitle = document.title;
   var start = getWeekStart();
   var end = new Date(start);
@@ -5057,6 +5214,7 @@ function printSchedule(){
     document.title = originalTitle;
     document.body.classList.remove("print-pending");
     window.removeEventListener("afterprint", restoreAfterPrint);
+    displaySchedule();
   }
   window.addEventListener("afterprint", restoreAfterPrint);
   setTimeout(function() {
