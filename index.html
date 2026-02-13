@@ -4037,6 +4037,16 @@ function normalizeHours(start, end){
   return {h:Math.ceil(diff)};
 }
 
+/** Add hours to a Date (same day / no timezone shift). Used for segmenting long shifts. */
+function addHoursToDate(d, h) {
+  const out = new Date(d.getTime());
+  out.setTime(out.getTime() + h * 3600000);
+  return out;
+}
+
+/** Max regular hours per day before overtime. */
+var REGULAR_HOURS_MAX = 8;
+
 /* CONFLICT DETECTION */
 function detectConflicts(empId, date, shiftStart, shiftEnd){
   const conflicts = [];
@@ -4529,7 +4539,9 @@ function generateSchedule(){
     });
   });
   
-  const assignments = assignEmployeesToWeek(days);
+  const result = assignEmployeesToWeek(days);
+  const assignments = result.assignments;
+  const assignmentDetails = result.assignmentDetails || {};
   
   // Convert assignments to manual edits (but don't overwrite locked/existing manual edits)
   days.forEach(d => {
@@ -4563,6 +4575,10 @@ function generateSchedule(){
     
     console.log(`Event: ${ev.name} on ${dateStr}, assigned: ${assignedCount}/${requiredStaff} employees`);
     
+    const s = normalizeHours(ev.start, ev.end);
+    const t = calculateSmartShift(ev, s.h);
+    const detailsForDay = assignmentDetails[dateStr] || {};
+    
     assignments[dateStr].forEach(empId => {
       const key = empId + "_" + dateStr;
       
@@ -4586,23 +4602,22 @@ function generateSchedule(){
         return;
       }
       
-      // Calculate shift times
-      const s = normalizeHours(ev.start, ev.end);
-      const t = calculateSmartShift(ev, s.h);
+      // Use split/partial shift details when present (OT-avoidance), else full event shift
+      const detail = detailsForDay[empId];
+      const hours = detail && detail.hours != null ? detail.hours : s.h;
+      const startDate = detail && detail.start ? detail.start : t.start;
+      const endDate = detail && detail.end ? detail.end : t.end;
       
-      // Create the shift as a manual edit
       manualEdits[key] = {
-        hours: s.h,
-        start: timeStr(t.start),
-        end: timeStr(t.end),
-        generated: true // Mark as auto-generated
+        hours: hours,
+        start: timeStr(startDate),
+        end: timeStr(endDate),
+        generated: true
       };
       
-      // Increment work day counter
       employeeWorkDays[empId]++;
-      
       shiftsCreated++;
-      console.log(`Created shift for ${key}: ${s.h}h (work days: ${employeeWorkDays[empId]})`);
+      console.log(`Created shift for ${key}: ${hours}h (work days: ${employeeWorkDays[empId]})`);
     });
   });
   
@@ -5175,18 +5190,21 @@ function displaySchedule(){
 
 function assignEmployeesToWeek(days) {
   const assignments = {};
+  const assignmentDetails = {}; // dateStr -> { empId -> { hours, start, end } } for split/partial shifts
   const employeeShiftHistory = {};
   const employeeTotalHours = {};
-  const employeeWorkDays = {}; // NEW: Track days worked per week
+  const employeeWorkDays = {};
+  const employeeHoursToday = {}; // dateStr -> { empId -> hours } for OT-avoidance
   
   employees.filter(e => !e.retired).forEach(e => {
     employeeShiftHistory[e.id] = null;
     employeeTotalHours[e.id] = 0;
-    employeeWorkDays[e.id] = 0; // Initialize work day counter
+    employeeWorkDays[e.id] = 0;
   });
   
   days.forEach(d => {
     const dateStr = iso(d);
+    employeeHoursToday[dateStr] = {};
     const dayEvents = events.filter(e => e.date === dateStr);
     
     if(dayEvents.length === 0) return;
@@ -5195,7 +5213,6 @@ function assignEmployeesToWeek(days) {
     
     var cashierPoolId = getCashierPoolId();
     var housemenPoolId = getHousemenPoolId();
-    // Filter available employees (not retired, not sick, not on vacation; exclude Cashier and Housemen from auto-assign)
     const available = employees.filter(e => {
       if(e.retired || e.sick) return false;
       if (cashierPoolId && e.laborPoolId === cashierPoolId) return false;
@@ -5217,194 +5234,165 @@ function assignEmployeesToWeek(days) {
       var serverSlots = ev.staff - (cashierReq ? (cashierReq.quantity || 0) : 0) - (housemenReq ? (housemenReq.quantity || 0) : 0);
       if (serverSlots <= 0) return;
       
-      const scored = available
-        .filter(emp => {
+      // Build list of slots to fill: either full shifts or split segments (to avoid OT when event > 8h)
+      var slotList = [];
+      if (s.h <= REGULAR_HOURS_MAX) {
+        for (var i = 0; i < serverSlots; i++) {
+          slotList.push({ hours: s.h, start: t.start, end: t.end });
+        }
+      } else {
+        var totalPersonHours = serverSlots * s.h;
+        var segmentHoursList = [];
+        var rem = totalPersonHours;
+        while (rem > 0) {
+          var seg = Math.min(REGULAR_HOURS_MAX, rem);
+          segmentHoursList.push(seg);
+          rem -= seg;
+        }
+        for (var j = 0; j < segmentHoursList.length; j++) {
+          var h = segmentHoursList[j];
+          var isTail = (j === segmentHoursList.length - 1) && h < REGULAR_HOURS_MAX;
+          if (isTail) {
+            slotList.push({
+              hours: h,
+              start: addHoursToDate(t.end, -h),
+              end: t.end
+            });
+          } else {
+            slotList.push({
+              hours: REGULAR_HOURS_MAX,
+              start: t.start,
+              end: addHoursToDate(t.start, REGULAR_HOURS_MAX)
+            });
+          }
+        }
+      }
+      
+      var assignmentStyle = settings.assignmentStyle || 'strict';
+      
+      slotList.forEach(function(slot) {
+        var slotHours = slot.hours;
+        var slotStart = slot.start;
+        var slotEnd = slot.end;
+        
+        var eligible = available.filter(function(emp) {
           const key = emp.id + "_" + dateStr;
           if(lockedCells[key]) return false;
           var ed = manualEdits[key];
           if (ed) {
             if (isFullAbsenceStatus(ed.status)) return false;
-            if (ed.status === 'requested_off' && !ed.hours && !ed.start) { /* still available for assignment */ }
+            if (ed.status === 'requested_off' && !ed.hours && !ed.start) { }
             else return false;
           }
-          // Skip if already assigned today
           if(emp.assignedToday) return false;
-          
-          // Check individual employee's max days per week limit
           const empMaxDays = emp.maxDaysPerWeek !== undefined ? emp.maxDaysPerWeek : 5;
-          if(employeeWorkDays[emp.id] >= empMaxDays) {
-            console.log(`${emp.name} already worked ${empMaxDays} days this week (personal limit), skipping`);
-            return false;
-          }
-          
-          return true;
-        })
-        .map(emp => {
-          let score = 0;
-          let canWork = true;
-          
-          const gapCheck = canWorkShift(emp.id, dateStr, t.start, employeeShiftHistory);
-          if(!gapCheck.allowed) {
-            canWork = false;
-          }
-          
-          // Apply scoring based on selected assignment style
-          const assignmentStyle = settings.assignmentStyle || 'strict';
-          
+          if(employeeWorkDays[emp.id] >= empMaxDays) return false;
+          var gapCheck = canWorkShift(emp.id, dateStr, slotStart, employeeShiftHistory);
+          return gapCheck.allowed;
+        });
+        
+        // Overtime-avoidance pass: prefer employees who would NOT go into OT (hours today + slot <= 8)
+        var hoursToday = function(empId) { return (employeeHoursToday[dateStr][empId] || 0); };
+        var wouldAvoidOT = eligible.filter(function(emp) { return hoursToday(emp.id) + slotHours <= REGULAR_HOURS_MAX; });
+        var candidates = wouldAvoidOT.length > 0 ? wouldAvoidOT : eligible;
+        
+        var scored = candidates.map(function(emp) {
+          var score = 0;
           if(assignmentStyle === 'strict') {
-            // STRICT SENIORITY: Seniority is dominant factor
-            score += (100 - emp.seniority) * 10000; // Seniority is the main driver
-            if(emp.type === 'FT') score += 1000; // FT bonus, but less than seniority difference
-            
-            // Preferences are secondary
+            score += (100 - (emp.seniority != null ? emp.seniority : 99)) * 10000;
+            if(emp.type === 'FT') score += 1000;
             if(emp.pref === 'AM' && isEarliestShift) score += 50;
             else if(emp.pref === 'PM' && isLatestShift) score += 50;
-            
-            const dayOfWeek = d.getDay();
-            if(emp.dayPreferences && emp.dayPreferences[dayOfWeek] === true) {
-              score += 50;
-            } else if(emp.dayPreferences && emp.dayPreferences[dayOfWeek] === false) {
-              score -= 50;
-            }
-            
+            var dayOfWeek = d.getDay();
+            if(emp.dayPreferences && emp.dayPreferences[dayOfWeek] === true) score += 50;
+            else if(emp.dayPreferences && emp.dayPreferences[dayOfWeek] === false) score -= 50;
           } else if(assignmentStyle === 'balanced') {
-            // SENIORITY + BALANCED COVERAGE: Balance FT/PT while respecting seniority
-            if(emp.type === 'FT') score += 10000; // FT priority
-            score += (100 - emp.seniority) * 100; // Seniority within groups
-            
-            // Balance by checking group hours
-            const ftHours = Object.keys(employeeTotalHours)
-              .filter(id => employees.find(e => e.id === id && e.type === 'FT'))
-              .reduce((sum, id) => sum + (employeeTotalHours[id] || 0), 0);
-            
-            const ptHours = Object.keys(employeeTotalHours)
-              .filter(id => employees.find(e => e.id === id && e.type === 'PT'))
-              .reduce((sum, id) => sum + (employeeTotalHours[id] || 0), 0);
-            
-            // If one group has significantly more hours, boost the other group
-            if(emp.type === 'FT' && ftHours > ptHours + 20) {
-              score -= 2000; // Reduce FT priority if they're ahead
-            } else if(emp.type === 'PT' && ptHours > ftHours + 20) {
-              score -= 2000; // Reduce PT priority if they're ahead
-            }
-            
-            // Hour balance within employee
-            const expectedHours = (100 - emp.seniority) * 0.5;
-            if(employeeTotalHours[emp.id] < expectedHours) {
-              score += 500;
-            }
-            
-            // Preferences
+            if(emp.type === 'FT') score += 10000;
+            score += (100 - (emp.seniority != null ? emp.seniority : 99)) * 100;
+            var ftHours = Object.keys(employeeTotalHours).filter(function(id) { return employees.find(function(e) { return e.id === id && e.type === 'FT'; }); }).reduce(function(sum, id) { return sum + (employeeTotalHours[id] || 0); }, 0);
+            var ptHours = Object.keys(employeeTotalHours).filter(function(id) { return employees.find(function(e) { return e.id === id && e.type === 'PT'; }); }).reduce(function(sum, id) { return sum + (employeeTotalHours[id] || 0); }, 0);
+            if(emp.type === 'FT' && ftHours > ptHours + 20) score -= 2000;
+            else if(emp.type === 'PT' && ptHours > ftHours + 20) score -= 2000;
+            var expectedHours = (100 - (emp.seniority != null ? emp.seniority : 99)) * 0.5;
+            if((employeeTotalHours[emp.id] || 0) < expectedHours) score += 500;
             if(emp.pref === 'AM' && isEarliestShift) score += 200;
             else if(emp.pref === 'PM' && isLatestShift) score += 200;
-            
-            const dayOfWeek = d.getDay();
-            if(emp.dayPreferences && emp.dayPreferences[dayOfWeek] === true) {
-              score += 150;
-            } else if(emp.dayPreferences && emp.dayPreferences[dayOfWeek] === false) {
-              score -= 150;
-            }
-            
+            var dayOfWeek = d.getDay();
+            if(emp.dayPreferences && emp.dayPreferences[dayOfWeek] === true) score += 150;
+            else if(emp.dayPreferences && emp.dayPreferences[dayOfWeek] === false) score -= 150;
           } else if(assignmentStyle === 'fair') {
-            // FAIR DISTRIBUTION: Hours are primary, seniority is tie-breaker
-            const currentHours = employeeTotalHours[emp.id] || 0;
-            
-            // Heavily prioritize employees with fewer hours
+            var currentHours = employeeTotalHours[emp.id] || 0;
             score += (100 - currentHours) * 1000;
-            
-            // Seniority is only a minor tie-breaker
-            score += (100 - emp.seniority) * 10;
-            
-            // FT/PT doesn't matter much, just slight preference for FT
+            score += (100 - (emp.seniority != null ? emp.seniority : 99)) * 10;
             if(emp.type === 'FT') score += 100;
-            
-            // Preferences still matter
             if(emp.pref === 'AM' && isEarliestShift) score += 200;
             else if(emp.pref === 'PM' && isLatestShift) score += 200;
-            
-            const dayOfWeek = d.getDay();
-            if(emp.dayPreferences && emp.dayPreferences[dayOfWeek] === true) {
-              score += 150;
-            } else if(emp.dayPreferences && emp.dayPreferences[dayOfWeek] === false) {
-              score -= 150;
-            }
+            var dayOfWeek = d.getDay();
+            if(emp.dayPreferences && emp.dayPreferences[dayOfWeek] === true) score += 150;
+            else if(emp.dayPreferences && emp.dayPreferences[dayOfWeek] === false) score -= 150;
           }
-          
-          return { ...emp, score, canWork };
-        })
-        .filter(emp => emp.canWork);
-      
-      scored.sort((a, b) => b.score - a.score);
-      
-      const assigned = scored.slice(0, serverSlots);
-      
-      // NEW: Track assignment reasons for audit
-      const assignmentStyle = settings.assignmentStyle || 'strict';
-      
-      assigned.forEach((emp, assignIndex) => {
-        const empRef = available.find(e => e.id === emp.id);
+          return { ...emp, score: score };
+        });
+        
+        scored.sort(function(a, b) { return b.score - a.score; });
+        var chosen = scored[0];
+        if (!chosen) return;
+        
+        var empRef = available.find(function(e) { return e.id === chosen.id; });
         if(empRef) empRef.assignedToday = true;
         
-        employeeShiftHistory[emp.id] = {
-          date: dateStr,
-          endTime: t.end
-        };
+        employeeHoursToday[dateStr][chosen.id] = (employeeHoursToday[dateStr][chosen.id] || 0) + slotHours;
+        employeeShiftHistory[chosen.id] = { date: dateStr, endTime: slotEnd };
+        employeeTotalHours[chosen.id] = (employeeTotalHours[chosen.id] || 0) + slotHours;
+        employeeWorkDays[chosen.id] = (employeeWorkDays[chosen.id] || 0) + 1;
         
-        employeeTotalHours[emp.id] += s.h;
+        if (!assignmentDetails[dateStr]) assignmentDetails[dateStr] = {};
+        if (slotHours !== s.h || slotStart.getTime() !== t.start.getTime() || slotEnd.getTime() !== t.end.getTime()) {
+          assignmentDetails[dateStr][chosen.id] = { hours: slotHours, start: slotStart, end: slotEnd };
+        }
         
-        // NEW: Increment work day counter for this employee
-        employeeWorkDays[emp.id] += 1;
+        if(!assignments[dateStr]) assignments[dateStr] = [];
+        if(assignments[dateStr].indexOf(chosen.id) === -1) assignments[dateStr].push(chosen.id);
         
-        // NEW: Record WHY this employee was assigned (plain-language only; no numbers, weights, or scoring)
-        const key = emp.id + "_" + dateStr;
-        const reasons = [];
-        
+        var key = chosen.id + "_" + dateStr;
+        var reasons = [];
         reasons.push('Event: ' + ev.name);
         reasons.push('Chosen among eligible staff for this shift.');
-        
+        if (wouldAvoidOT.length > 0 && hoursToday(chosen.id) <= REGULAR_HOURS_MAX) {
+          reasons.push('Assigned to avoid overtime where possible.');
+        }
         if(assignmentStyle === 'strict') {
           reasons.push('Seniority was the main factor.');
-          if(emp.type === 'FT') reasons.push('Full-time status considered.');
-          if((emp.pref === 'AM' && isEarliestShift) || (emp.pref === 'PM' && isLatestShift)) reasons.push('Shift preference matched.');
-          if(emp.dayPreferences && emp.dayPreferences[d.getDay()] === true) reasons.push('Day preference matched.');
+          if(chosen.type === 'FT') reasons.push('Full-time status considered.');
+          if((chosen.pref === 'AM' && isEarliestShift) || (chosen.pref === 'PM' && isLatestShift)) reasons.push('Shift preference matched.');
+          if(chosen.dayPreferences && chosen.dayPreferences[d.getDay()] === true) reasons.push('Day preference matched.');
         } else if(assignmentStyle === 'balanced') {
           reasons.push('Balance of full-time and part-time coverage.');
           reasons.push('Seniority considered within that balance.');
-          if(emp.type === 'FT') reasons.push('Full-time status considered.');
-          if((emp.pref === 'AM' && isEarliestShift) || (emp.pref === 'PM' && isLatestShift)) reasons.push('Shift preference matched.');
-          if(emp.dayPreferences && emp.dayPreferences[d.getDay()] === true) reasons.push('Day preference matched.');
+          if(chosen.type === 'FT') reasons.push('Full-time status considered.');
+          if((chosen.pref === 'AM' && isEarliestShift) || (chosen.pref === 'PM' && isLatestShift)) reasons.push('Shift preference matched.');
+          if(chosen.dayPreferences && chosen.dayPreferences[d.getDay()] === true) reasons.push('Day preference matched.');
         } else if(assignmentStyle === 'fair') {
           reasons.push('Hours so far were among the lowest.');
-          if((emp.pref === 'AM' && isEarliestShift) || (emp.pref === 'PM' && isLatestShift)) reasons.push('Shift preference matched.');
-          if(emp.dayPreferences && emp.dayPreferences[d.getDay()] === true) reasons.push('Day preference matched.');
+          if((chosen.pref === 'AM' && isEarliestShift) || (chosen.pref === 'PM' && isLatestShift)) reasons.push('Shift preference matched.');
+          if(chosen.dayPreferences && chosen.dayPreferences[d.getDay()] === true) reasons.push('Day preference matched.');
           reasons.push('Seniority used only to break ties.');
         }
-        
         reasons.push('Available (not sick or on vacation).');
         reasons.push('Within allowed working days for the week.');
         reasons.push('Rest period between shifts respected.');
-        
         assignmentReasons[key] = reasons;
         var tags = ['availability', 'no_conflicts', 'within_max_days', 'seniority'];
-        if (emp.type === 'FT') tags.push('full_time');
-        if ((emp.pref === 'AM' && isEarliestShift) || (emp.pref === 'PM' && isLatestShift)) tags.push('prefers_shift');
-        if (emp.dayPreferences && emp.dayPreferences[d.getDay()] === true) tags.push('day_preference');
+        if (chosen.type === 'FT') tags.push('full_time');
+        if ((chosen.pref === 'AM' && isEarliestShift) || (chosen.pref === 'PM' && isLatestShift)) tags.push('prefers_shift');
+        if (chosen.dayPreferences && chosen.dayPreferences[d.getDay()] === true) tags.push('day_preference');
         if (assignmentStyle === 'balanced' || assignmentStyle === 'fair') tags.push('rotation_balance');
         assignmentReasonTags[key] = tags;
-      });
-      
-      if(!assignments[dateStr]) {
-        assignments[dateStr] = [];
-      }
-      assigned.forEach(emp => {
-        if(!assignments[dateStr].includes(emp.id)) {
-          assignments[dateStr].push(emp.id);
-        }
       });
     });
   });
   
-  return assignments;
+  return { assignments: assignments, assignmentDetails: assignmentDetails };
 }
 
 function canWorkShift(empId, currentDate, shiftStart, shiftHistory) {
