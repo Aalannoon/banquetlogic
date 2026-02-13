@@ -765,6 +765,40 @@ body.light-mode .support-alternatives { background: #f9fafb; border-color: #e5e7
 }
 body.light-mode .support-response-time { color: #6b7280 !important; }
 
+.edit-helper { display: block; margin-top: 4px; font-size: 12px; color: var(--brand-text-muted); }
+body.light-mode .edit-helper { color: #6b7280; }
+
+/* Primary/secondary buttons: one primary per screen */
+.btn-primary {
+  font-weight: 600;
+  background: var(--brand-primary, #4e9af1) !important;
+  color: #fff !important;
+}
+.btn-primary:hover { filter: brightness(1.1); }
+.btn-secondary {
+  background: transparent !important;
+  color: var(--brand-text-muted) !important;
+  border: 1px solid var(--brand-border) !important;
+}
+.btn-secondary:hover { background: rgba(255,255,255,0.05) !important; }
+body.light-mode .btn-secondary { color: #6b7280; border-color: #d1d5db !important; }
+body.light-mode .btn-secondary:hover { background: #f3f4f6 !important; }
+
+/* Section headers: consistent hierarchy */
+.tab > h2,
+.tab-section-title {
+  font-size: 1.35rem;
+  font-weight: 600;
+  margin: 0 0 1rem 0;
+}
+.tab .settings-section h3,
+.tab h3.tab-section-subtitle,
+.tab-section-subtitle {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 0 0 0.75rem 0;
+}
+
 /* Shift Assignment Style: spacing, selected state, readability */
 .assignment-style-intro { margin-bottom: 4px; }
 .assignment-style-options { margin: 16px 0; }
@@ -1298,7 +1332,7 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
     </small>
   </div>
   
-  <button type="button" onclick="addEmployee()" style="margin-top: 10px;">Add Employee</button>
+  <button type="button" class="btn-primary" onclick="addEmployee()" style="margin-top: 10px;">Add Employee</button>
 </div>
 
 <div style="margin-bottom: 15px; padding: 10px; background: #2e2e3d; border-radius: 8px;">
@@ -1364,13 +1398,14 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
     <div class="edit-row">
       <label for="employeeEditSeniority">Seniority (within pool, 1 = highest)</label>
       <input type="number" id="employeeEditSeniority" min="1" style="width: 80px;" />
+      <small class="edit-helper">Override will be logged in the audit log.</small>
     </div>
     <div class="edit-row">
       <label><input type="checkbox" id="employeeEditSick" /> Mark as sick (unavailable this week)</label>
     </div>
     <p style="font-size: 12px; color: #95a5a6; margin: 12px 0 0 0;">Changes apply to future schedule generation only. Existing shifts are not changed.</p>
     <div class="edit-actions">
-      <button type="button" class="save-btn" id="employeeEditSaveBtn">Save</button>
+      <button type="button" class="save-btn btn-primary" id="employeeEditSaveBtn">Save Changes</button>
       <button type="button" class="cancel-btn" id="employeeEditCancelBtn">Cancel</button>
     </div>
   </div>
@@ -1401,7 +1436,7 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
 <p style="margin-top: 12px;"><label style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer;"><input type="checkbox" id="eventCashBar" /> Cash Bar</label><br><small class="event-type-helper">When enabled, the schedule will show a non-binding cashier recommendation for this event.</small></p>
 
 <input id="eventStaff" type="number" placeholder="Staff Needed (legacy)" style="margin-top: 8px;" />
-<button type="button" id="eventSubmitBtn" onclick="addEvent()">Add Event</button>
+<button type="button" id="eventSubmitBtn" class="btn-primary" onclick="addEvent()">Add Event</button>
 
 <table class="events-table">
 <thead>
@@ -1433,8 +1468,8 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
   </span>
   <span class="schedule-action-sep" aria-hidden="true">|</span>
   <span class="schedule-action-group">
-    <button type="button" onclick="generateSchedule()">Generate</button>
-    <button type="button" onclick="regenerateSchedule()">Regenerate</button>
+    <button type="button" class="btn-primary" onclick="generateSchedule()">Generate</button>
+    <button type="button" class="btn-secondary" onclick="regenerateSchedule()">Regenerate</button>
   </span>
   <span class="schedule-action-sep" aria-hidden="true">|</span>
   <span class="schedule-action-group">
@@ -1481,7 +1516,7 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
   <div id="laborCostContent">
     <div id="laborCostByPool"></div>
     <p id="laborCostTotal" style="margin: 8px 0 4px 0; font-weight: 600;"></p>
-    <p class="labor-cost-disclaimer" style="margin: 0; font-size: 11px; color: var(--brand-text-muted); font-style: italic;">For planning purposes only. Gratuities and payroll adjustments are not included.</p>
+    <p class="labor-cost-disclaimer" style="margin: 0; font-size: 12px; color: var(--brand-text-muted);">Planning estimate only. Not payroll. Gratuities and other adjustments are not included.</p>
   </div>
 </div>
 <div id="laborCostShowWrap" style="display: none; margin-top: 10px;">
@@ -1499,8 +1534,8 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
     <input id="auditDate" type="date" placeholder="Filter by date" />
   </div>
   <div class="audit-filters-actions">
-    <button type="button" onclick="filterAuditLog()">Filter</button>
-    <button type="button" onclick="clearAuditFilter()">Clear Filter</button>
+    <button type="button" class="btn-primary" onclick="filterAuditLog()">Filter</button>
+    <button type="button" class="btn-secondary" onclick="clearAuditFilter()">Clear filter</button>
   </div>
 </div>
 
@@ -1547,7 +1582,7 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
     <label style="display: inline-flex; align-items: center; gap: 6px; margin-left: 8px;"><input type="radio" name="housemenRatioMode" value="per_guests" /> 1 houseman per <input type="number" id="settingsHousemenPerGuests" min="1" value="100" style="width: 60px; padding: 6px;" /> guests</label>
     <label style="display: inline-flex; align-items: center; gap: 6px; margin-left: 12px;"><input type="radio" name="housemenRatioMode" value="flat" /> Flat: <input type="number" id="settingsHousemenFlat" min="0" value="2" style="width: 50px; padding: 6px;" /> per event</label>
   </p>
-  <button type="button" onclick="saveSettings()">Save Settings</button>
+  <button type="button" class="btn-primary" onclick="saveSettings()">Save Settings</button>
 </div>
 
 <div class="settings-section" id="laborPoolsSection">
@@ -1595,7 +1630,7 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
     </div>
     <div style="display: flex; gap: 8px; justify-content: flex-end;">
       <button type="button" onclick="closeLaborPoolModal()">Cancel</button>
-      <button type="button" onclick="saveLaborPoolFromModal()">Save</button>
+      <button type="button" class="btn-primary" onclick="saveLaborPoolFromModal()">Save Changes</button>
     </div>
   </div>
 </div>
@@ -1632,7 +1667,7 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
     </div>
     <div style="display: flex; gap: 8px; justify-content: flex-end;">
       <button type="button" onclick="closeEventTypeModal()">Cancel</button>
-      <button type="button" onclick="saveEventTypeFromModal()">Save</button>
+      <button type="button" class="btn-primary" onclick="saveEventTypeFromModal()">Save Changes</button>
     </div>
   </div>
 </div>
@@ -2301,7 +2336,16 @@ function formatBackupLabel(record) {
 }
 
 function openRestoreBackupModal() {
-  document.getElementById('restoreBackupModalOverlay').style.display = 'flex';
+  var overlay = document.getElementById('restoreBackupModalOverlay');
+  overlay.style.display = 'flex';
+  function onRestoreKey(e) {
+    if (e.key === 'Escape') { closeRestoreBackupModal(); remove(); }
+  }
+  function remove() {
+    document.removeEventListener('keydown', onRestoreKey);
+  }
+  document.addEventListener('keydown', onRestoreKey);
+  overlay._modalCleanup = remove;
   var listEl = document.getElementById('restoreBackupList');
   listEl.innerHTML = '<p style="color: var(--brand-text-muted);">Loading backups…</p>';
   backupList().then(function(list) {
@@ -2322,7 +2366,9 @@ function openRestoreBackupModal() {
 }
 
 function closeRestoreBackupModal() {
-  document.getElementById('restoreBackupModalOverlay').style.display = 'none';
+  var overlay = document.getElementById('restoreBackupModalOverlay');
+  if (overlay._modalCleanup) overlay._modalCleanup();
+  overlay.style.display = 'none';
 }
 
 function restoreFromBackup(id) {
@@ -2401,17 +2447,17 @@ function getImportedSchemaVersion(data) {
 
 function validateImportData(data) {
   if (!data || typeof data !== 'object') return 'The file does not contain valid backup data.';
-  if (data.employees !== undefined && !Array.isArray(data.employees)) return 'Employee data in the file is invalid.';
-  if (data.events !== undefined && !Array.isArray(data.events)) return 'Event data in the file is invalid.';
-  if (data.auditLog !== undefined && !Array.isArray(data.auditLog)) return 'Audit log data in the file is invalid.';
-  if (data.eventTypes !== undefined && !Array.isArray(data.eventTypes)) return 'Event types in the file are invalid.';
-  if (data.laborPools !== undefined && !Array.isArray(data.laborPools)) return 'Labor pools in the file are invalid.';
-  if (data.manualEdits !== undefined && (typeof data.manualEdits !== 'object' || data.manualEdits === null)) return 'Schedule data in the file is invalid.';
-  if (data.lockedCells !== undefined && (typeof data.lockedCells !== 'object' || data.lockedCells === null)) return 'Lock data in the file is invalid.';
-  if (data.lockedRows !== undefined && (typeof data.lockedRows !== 'object' || data.lockedRows === null)) return 'Lock data in the file is invalid.';
-  if (data.assignmentReasons !== undefined && (typeof data.assignmentReasons !== 'object' || data.assignmentReasons === null)) return 'Assignment data in the file is invalid.';
-  if (data.assignmentReasonTags !== undefined && (typeof data.assignmentReasonTags !== 'object' || data.assignmentReasonTags === null)) return 'Assignment data in the file is invalid.';
-  if (data.settings !== undefined && (typeof data.settings !== 'object' || data.settings === null)) return 'Settings in the file are invalid.';
+  if (data.employees !== undefined && !Array.isArray(data.employees)) return 'Employee data in the file is not in the expected format.';
+  if (data.events !== undefined && !Array.isArray(data.events)) return 'Event data in the file is not in the expected format.';
+  if (data.auditLog !== undefined && !Array.isArray(data.auditLog)) return 'Audit log data in the file is not in the expected format.';
+  if (data.eventTypes !== undefined && !Array.isArray(data.eventTypes)) return 'Event types in the file are not in the expected format.';
+  if (data.laborPools !== undefined && !Array.isArray(data.laborPools)) return 'Labor pools in the file are not in the expected format.';
+  if (data.manualEdits !== undefined && (typeof data.manualEdits !== 'object' || data.manualEdits === null)) return 'Schedule data in the file is not in the expected format.';
+  if (data.lockedCells !== undefined && (typeof data.lockedCells !== 'object' || data.lockedCells === null)) return 'Lock data in the file is not in the expected format.';
+  if (data.lockedRows !== undefined && (typeof data.lockedRows !== 'object' || data.lockedRows === null)) return 'Lock data in the file is not in the expected format.';
+  if (data.assignmentReasons !== undefined && (typeof data.assignmentReasons !== 'object' || data.assignmentReasons === null)) return 'Assignment data in the file is not in the expected format.';
+  if (data.assignmentReasonTags !== undefined && (typeof data.assignmentReasonTags !== 'object' || data.assignmentReasonTags === null)) return 'Assignment data in the file is not in the expected format.';
+  if (data.settings !== undefined && (typeof data.settings !== 'object' || data.settings === null)) return 'Settings in the file are not in the expected format.';
   return null;
 }
 
@@ -2555,8 +2601,13 @@ function showTab(id){
     renderEmployeesPoolSelector();
     setAddFormToSelectedPool();
     renderEmployees();
+    setTimeout(function(){ var el = document.getElementById('empName'); if(el) el.focus(); }, 80);
   }
-  if(id==="eventsTab") { tabEvBtn.classList.add("active"); populateEventServiceDropdown(); }
+  if(id==="eventsTab") {
+    tabEvBtn.classList.add("active");
+    populateEventServiceDropdown();
+    setTimeout(function(){ var el = document.getElementById('eventName'); if(el) el.focus(); }, 80);
+  }
   if(id==="scheduleTab") { tabSchBtn.classList.add("active"); populatePrintPoolFilter(); renderSchedulePoolSelector(); displaySchedule(); }
   if(id==="auditTab") { tabAuditBtn.classList.add("active"); renderAuditLog(); }
   if(id==="settingsTab") { tabSettingsBtn.classList.add("active"); loadSettings(); }
@@ -2854,12 +2905,12 @@ function getNextSeniority(poolId) {
 
 function validateSeniority(value, excludeEmployeeId, poolId) {
   var num = parseInt(value, 10);
-  if (value === '' || value === null || value === undefined) return { ok: false, message: 'Seniority is required.' };
+  if (value === '' || value === null || value === undefined) return { ok: false, message: 'Please enter a seniority number (1 = highest).' };
   if (isNaN(num)) return { ok: false, message: 'Seniority must be a number.' };
   if (num < 1) return { ok: false, message: 'Seniority must be at least 1.' };
   var inPool = employees.filter(function(e) { return e.laborPoolId === poolId; });
   var taken = inPool.some(function(e) { return e.id !== excludeEmployeeId && (getSeniorityForEmployee(e)) === num; });
-  if (taken) return { ok: false, message: 'Another employee in this labor pool already has this seniority number. Seniority must be unique within each pool.' };
+  if (taken) return { ok: false, message: 'This number is already used in this pool. Seniority must be unique per pool.' };
   return { ok: true, value: num };
 }
 
@@ -2875,7 +2926,7 @@ function addEmployee(){
   var empLaborPoolEl = document.getElementById('empLaborPool');
   if (!empNameEl || !empNameEl.value) return;
   if (!empLaborPoolEl || !empLaborPoolEl.value) {
-    alert('Please select a Labor Pool.');
+    alert('Please select a labor pool to continue.');
     return;
   }
   var poolId = empLaborPoolEl.value;
@@ -3287,7 +3338,7 @@ function renderEmployees(){
   var poolName = getLaborPoolById(selectedPoolId) ? getLaborPoolById(selectedPoolId).name : 'this pool';
   if (filtered.length === 0) {
     const emptyRow = document.createElement('tr');
-    emptyRow.innerHTML = '<td colspan="10" style="text-align:center;padding:1.5rem;color:#7f8c8d;">No ' + poolName + ' yet. Add one above to get started.</td>';
+    emptyRow.innerHTML = '<td colspan="10" style="text-align:center;padding:1.5rem;color:#7f8c8d;">No ' + poolName + ' yet. Add an employee above to get started.</td>';
     tableEl.appendChild(emptyRow);
   }
 }
@@ -3368,7 +3419,7 @@ function openVacationPicker(empId) {
   const selectedDays = trimmed.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n) && n >= 1 && n <= 7);
   
   if (selectedDays.length === 0) {
-    alert('Invalid input. Please enter day numbers (1-7), "all", or "clear"');
+    alert('Check required. Please enter day numbers (1–7), "all", or "clear".');
     return;
   }
   
@@ -3479,7 +3530,7 @@ function openDayPreferences(empId) {
   });
   
   if(prefersWork.length === 0 && prefersOff.length === 0) {
-    alert('Invalid format. Examples:\n+1,2,3 (prefers work)\n-0,6 (prefers off)\n+1,2,3,4,5;-0,6 (both)');
+    alert('Format needs review. Use:\n+1,2,3 (prefers work)\n-0,6 (prefers off)\n+1,2,3,4,5;-0,6 (both)');
     return;
   }
   
@@ -3522,11 +3573,23 @@ function openAbsenceModal(empId) {
   document.getElementById('absenceEndDate').value = '';
   document.getElementById('absenceType').value = 'sick';
   document.getElementById('absenceModalOverlay').classList.add('absence-visible');
+  setTimeout(function(){ var el = document.getElementById('absenceStartDate'); if(el) el.focus(); }, 50);
+  function onAbsenceKey(e) {
+    if (e.key === 'Escape') { closeAbsenceModal(); remove(); }
+    if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') { e.preventDefault(); applyAbsence(); }
+  }
+  function remove() {
+    document.removeEventListener('keydown', onAbsenceKey);
+  }
+  document.addEventListener('keydown', onAbsenceKey);
+  document.getElementById('absenceModalOverlay')._modalCleanup = remove;
 }
 
 function closeAbsenceModal() {
+  var overlay = document.getElementById('absenceModalOverlay');
+  if (overlay._modalCleanup) overlay._modalCleanup();
   absenceModalEmpId = null;
-  document.getElementById('absenceModalOverlay').classList.remove('absence-visible');
+  overlay.classList.remove('absence-visible');
 }
 
 function getDatesBetween(startStr, endStr) {
@@ -3605,7 +3668,7 @@ function setMaxDaysPerWeek(empId, maxDays) {
   
   // Validate input - max 5 days per week
   if(maxDays < 1 || maxDays > 5) {
-    alert('Max days must be between 1 and 5 (or leave empty for 5 days)');
+    alert('Max days per week must be between 1 and 5. Leave empty for 5.');
     renderEmployees(); // Reset display
     return;
   }
@@ -3635,11 +3698,23 @@ function viewEmployeeInfo(empId) {
   document.getElementById('employeeEditSick').checked = !!emp.sick;
   var overlay = document.getElementById('employeeEditModalOverlay');
   overlay.classList.add('employee-edit-visible');
+  setTimeout(function(){ var el = document.getElementById('employeeEditType'); if(el) el.focus(); }, 50);
+  function onEditKey(e) {
+    if (e.key === 'Escape') { closeEmployeeEditModal(); remove(); }
+    if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') { e.preventDefault(); saveEmployeeEdit(); }
+  }
+  function remove() {
+    document.removeEventListener('keydown', onEditKey);
+  }
+  document.addEventListener('keydown', onEditKey);
+  overlay._modalCleanup = remove;
 }
 
 function closeEmployeeEditModal() {
+  var overlay = document.getElementById('employeeEditModalOverlay');
+  if (overlay._modalCleanup) overlay._modalCleanup();
   editingEmployeeId = null;
-  document.getElementById('employeeEditModalOverlay').classList.remove('employee-edit-visible');
+  overlay.classList.remove('employee-edit-visible');
 }
 
 function saveEmployeeEdit() {
@@ -3655,7 +3730,7 @@ function saveEmployeeEdit() {
   
   var poolId = poolEl && poolEl.value ? poolEl.value : emp.laborPoolId;
   if (!poolId) {
-    alert('Please select a Labor Pool.');
+    alert('Please select a labor pool to continue.');
     return;
   }
   var rawSeniority = (seniorityEl.value || '').trim();
@@ -3858,7 +3933,7 @@ function renderEvents(){
   });
   if(events.length === 0){
     const emptyRow = document.createElement('tr');
-    emptyRow.innerHTML = '<td colspan="8" style="text-align:center;padding:1.5rem;color:#7f8c8d;">No events yet. Add an event above to build your schedule.</td>';
+    emptyRow.innerHTML = '<td colspan="8" style="text-align:center;padding:1.5rem;color:#7f8c8d;">No events yet. Add an event above to get started.</td>';
     eventsTable.appendChild(emptyRow);
   }
   var eventSubmitBtn = document.getElementById('eventSubmitBtn');
@@ -4176,13 +4251,13 @@ function applyOverrideToEdit(edit, reason) {
 function editScheduleCell(empId, date){
   // Check global lock first
   if(scheduleGlobalLock) {
-    alert('Schedule is globally locked! Unlock it first using the "🔒 Locked Schedule" button.');
+    alert('Schedule is locked. Unlock it using the lock button above to make changes.');
     return;
   }
   
   // Check row lock
   if(lockedRows[empId]) {
-    alert('This employee\'s entire row is locked! Click the lock icon next to their name to unlock.');
+    alert('This employee\'s row is locked. Click the lock icon next to their name to unlock and edit.');
     return;
   }
   
@@ -4284,7 +4359,7 @@ function editScheduleCell(empId, date){
         return !lockedCells[k] && !lockedRows[e.id];
       });
       if (withShift.length === 0) {
-        alert('No other employee has an unlocked shift on this date to swap with.');
+        alert('No other employee has an unlocked shift on this date to swap with. Unlock another cell or choose a different date.');
         return;
       }
       var list = withShift.map(function(e) { return e.name; }).join(', ');
@@ -4293,18 +4368,18 @@ function editScheduleCell(empId, date){
       var other = employees.find(function(e) { return e.id !== empId && e.name.toLowerCase() === (otherName || '').trim().toLowerCase(); });
       if (!other) other = withShift.find(function(e) { return e.name.toLowerCase().indexOf((otherName || '').trim().toLowerCase()) >= 0; });
       if (!other) {
-        alert('Employee not found. Use a name from the list: ' + list);
+        alert('Name not found. Use a name from the list: ' + list);
         return;
       }
       var keyB = other.id + '_' + date;
       if (lockedCells[key] || lockedCells[keyB] || lockedRows[other.id]) {
-        alert('Cannot swap: one of the shifts or rows is locked.');
+        alert('This swap isn\'t possible because one of the shifts or rows is locked. Unlock to swap.');
         return;
       }
       var editB = manualEdits[keyB];
       var fullAbsence = editB && isFullAbsenceStatus(editB.status);
       if (!editB || fullAbsence) {
-        alert(other.name + ' does not have a shift on this date.');
+        alert(other.name + ' doesn\'t have a shift on this date. Choose someone with a shift to swap.');
         return;
       }
       var violA = checkSeniorityViolation(empId, date);
@@ -4312,14 +4387,14 @@ function editScheduleCell(empId, date){
       var violated = violA.violated || violB.violated;
       var overrideReason = null;
       if (violated) {
-        var warnMsg = 'Seniority warning: a higher-seniority employee (without a shift this day) could have had this shift.\n\n';
-        if (violA.violated) warnMsg += 'After swap, ' + emp.name + ' receives a shift; higher seniority available: ' + (violA.names || []).join(', ') + '.\n';
-        if (violB.violated) warnMsg += 'After swap, ' + other.name + ' receives a shift; higher seniority available: ' + (violB.names || []).join(', ') + '.\n';
-        warnMsg += '\nDo you want to override and proceed?';
+        var warnMsg = 'A higher-seniority employee (without a shift this day) could have had one of these shifts.\n\n';
+        if (violA.violated) warnMsg += 'After swap, ' + emp.name + ' gets a shift; higher seniority available: ' + (violA.names || []).join(', ') + '.\n';
+        if (violB.violated) warnMsg += 'After swap, ' + other.name + ' gets a shift; higher seniority available: ' + (violB.names || []).join(', ') + '.\n';
+        warnMsg += '\nYou can override and continue (your reason will be logged in the Audit log), or cancel to keep seniority order.';
         if (!confirm(warnMsg)) return;
         overrideReason = promptOverrideReason();
         if (!overrideReason) {
-          alert('Override cancelled. Reason is required to proceed.');
+          alert('No reason given. Please choose a reason to log the override, or cancel.');
           return;
         }
       }
@@ -4342,7 +4417,7 @@ function editScheduleCell(empId, date){
     if (trimmed === 'reassign') {
       var eligible = getEligibleEmployeesForDate(date).filter(function(e) { return e.id !== empId; });
       if (eligible.length === 0) {
-        alert('No other eligible employee to reassign this shift to.');
+        alert('No other eligible employee to reassign this shift to. Add staff or unlock another employee.');
         return;
       }
       var list = eligible.map(function(e) { return e.name; }).join(', ');
@@ -4351,32 +4426,32 @@ function editScheduleCell(empId, date){
       var toEmp = employees.find(function(e) { return e.id !== empId && e.name.toLowerCase() === (toName || '').trim().toLowerCase(); });
       if (!toEmp) toEmp = eligible.find(function(e) { return e.name.toLowerCase().indexOf((toName || '').trim().toLowerCase()) >= 0; });
       if (!toEmp) {
-        alert('Employee not found. Use a name from the list: ' + list);
+        alert('Name not found. Use a name from the list: ' + list);
         return;
       }
       var keyTo = toEmp.id + '_' + date;
       if (lockedCells[key] || lockedCells[keyTo] || lockedRows[toEmp.id]) {
-        alert('Cannot reassign: this shift or the target row/cell is locked.');
+        alert('This shift or the target cell is locked. Unlock to reassign.');
         return;
       }
       var toEd = manualEdits[keyTo];
       if (toEd && !isFullAbsenceStatus(toEd.status) && (toEd.hours || toEd.start)) {
-        alert(toEmp.name + ' already has a shift on this date. Use "swap" to exchange shifts.');
+        alert(toEmp.name + ' already has a shift on this date. Use Swap to exchange shifts.');
         return;
       }
       var viol = checkSeniorityViolation(toEmp.id, date);
       var overrideReason = null;
       if (viol.violated) {
-        var warnMsg = 'Seniority warning: a higher-seniority employee (without a shift this day) could have had this shift: ' + (viol.names || []).join(', ') + '.\n\nDo you want to override and reassign anyway?';
+        var warnMsg = 'A higher-seniority employee (without a shift this day) could have had this shift: ' + (viol.names || []).join(', ') + '.\n\nYou can override and reassign (your reason will be logged in the Audit log), or cancel.';
         if (!confirm(warnMsg)) return;
         overrideReason = promptOverrideReason();
         if (!overrideReason) {
-          alert('Override cancelled. Reason is required to proceed.');
+          alert('No reason given. Please choose a reason to log the override, or cancel.');
           return;
         }
       }
       var cashierOverride = checkCashierSeniorityOverride(toEmp.id, date);
-      if (cashierOverride.shouldWarn && !confirm('This assignment skips a higher-seniority cashier. Do you want to continue?')) return;
+      if (cashierOverride.shouldWarn && !confirm('This assignment gives the shift to a lower-seniority cashier. You can continue (override will be logged) or cancel.')) return;
       var shiftCopy = JSON.parse(JSON.stringify(currentEdit));
       shiftCopy.manualOverride = true;
       if (overrideReason) applyOverrideToEdit(shiftCopy, overrideReason);
@@ -4414,7 +4489,7 @@ function editScheduleCell(empId, date){
     var startM = parseInt(startStr.split(':')[0], 10) * 60 + parseInt(startStr.split(':')[1], 10);
     var endM = parseInt(endStr.split(':')[0], 10) * 60 + parseInt(endStr.split(':')[1], 10);
     if(endM <= startM) {
-      alert('End time must be after start time. Please enter a later end time.');
+      alert('End time must be after start time. Enter a later end time to continue.');
       return;
     }
     var calculatedHours = Math.round((endM - startM) / 60 * 10) / 10; // e.g. 6.5
@@ -4427,12 +4502,12 @@ function editScheduleCell(empId, date){
   }
   
   if(!newEdit) {
-    alert('Invalid format.\n\nEnter start and end time like: 09:00 15:30\n\nOr use:\n• sick\n• vacation\n• lock\n• clear');
+    alert('Format needs review. Enter start and end time like: 09:00 15:30\n\nOr use: sick, vacation, lock, or clear');
     return;
   }
   
   var cashierOverride = getCashierPoolId() && emp.laborPoolId === getCashierPoolId() ? checkCashierSeniorityOverride(empId, date) : { shouldWarn: false };
-  if (cashierOverride.shouldWarn && !confirm('This assignment skips a higher-seniority cashier. Do you want to continue?')) return;
+  if (cashierOverride.shouldWarn && !confirm('This assignment gives the shift to a lower-seniority cashier. You can continue (override will be logged) or cancel.')) return;
   
   const oldValue = currentEdit ? JSON.stringify(currentEdit) : 'Auto-assigned';
   if (cashierOverride.shouldWarn) {
@@ -4616,11 +4691,24 @@ function openApplyRecommendationsModal() {
     overlay.style.display = 'flex';
     overlay.style.alignItems = 'center';
     overlay.style.justifyContent = 'center';
+    setTimeout(function(){ var el = document.getElementById('applyRecommendationsConfirmBtn'); if(el) el.focus(); }, 50);
+    function onRecKey(e) {
+      if (e.key === 'Escape') { closeApplyRecommendationsModal(); remove(); }
+      if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') { e.preventDefault(); confirmApplyRecommendations(); }
+    }
+    function remove() {
+      document.removeEventListener('keydown', onRecKey);
+    }
+    document.addEventListener('keydown', onRecKey);
+    overlay._modalCleanup = remove;
   }
 }
 function closeApplyRecommendationsModal() {
   var overlay = document.getElementById('applyRecommendationsModalOverlay');
-  if (overlay) { overlay.style.display = 'none'; }
+  if (overlay) {
+    if (overlay._modalCleanup) overlay._modalCleanup();
+    overlay.style.display = 'none';
+  }
 }
 function confirmApplyRecommendations() {
   var roleSel = document.getElementById('applyRecommendationsRole');
@@ -4630,7 +4718,7 @@ function confirmApplyRecommendations() {
 }
 function applyRecommendations(role) {
   if (scheduleGlobalLock) {
-    alert('Schedule is locked. Unlock it first to apply recommendations.');
+    alert('Schedule is locked. Unlock it using the lock button above, then apply recommendations.');
     return;
   }
   var start = getWeekStart();
@@ -4693,7 +4781,7 @@ function applyRecommendations(role) {
     });
   });
   var override = false;
-  if (existingViolations.length > 0 && !confirm('Some staff already assigned have lower seniority than staff we\'re about to assign. Do you want to override and continue?')) return;
+  if (existingViolations.length > 0 && !confirm('Some assigned staff have lower seniority than staff we\'re about to assign. You can override and continue (reason will be logged), or cancel.')) return;
   if (existingViolations.length > 0) override = true;
   lastApplyRecommendationsSnapshot = JSON.parse(JSON.stringify(manualEdits));
   assignmentsToMake.forEach(function(a) {
@@ -4860,6 +4948,8 @@ function displaySchedule(){
       var text = rec.count + ' cashier' + (rec.count !== 1 ? 's' : '') + ' recommended';
       if (rec.names.length > 0) text += ': ' + rec.names.join(', ');
       td.textContent = text;
+    } else {
+      td.textContent = 'No cashiers needed for this day.';
     }
     recRow.appendChild(td);
   });
@@ -4896,6 +4986,8 @@ function displaySchedule(){
       var text = rec.count + ' houseman' + (rec.count !== 1 ? 's' : '') + ' recommended';
       if (rec.names.length > 0) text += ': ' + rec.names.join(', ');
       td.textContent = text;
+    } else {
+      td.textContent = 'No housemen needed for this day.';
     }
     housemenRecRow.appendChild(td);
   });
@@ -5082,7 +5174,7 @@ function displaySchedule(){
     emptyCell.style.textAlign = 'center';
     emptyCell.style.padding = '1.5rem';
     emptyCell.style.color = '#7f8c8d';
-    emptyCell.textContent = 'Add employees in the Employees tab, then add events and click Generate to build your schedule.';
+    emptyCell.textContent = 'No schedule yet. Add employees and events, then click Generate to build your week.';
     emptyRow.appendChild(emptyCell);
     scheduleTable.appendChild(emptyRow);
   }
@@ -5106,7 +5198,7 @@ function displaySchedule(){
   } catch(error) {
     console.error('Error in displaySchedule:', error);
     console.error('Error details:', error.message, error.stack);
-    scheduleTable.innerHTML = '<tr><td colspan="10" style="padding: 20px; color: #e74c3c; text-align: center;">Error displaying schedule. Please check console for details.</td></tr>';
+    scheduleTable.innerHTML = '<tr><td colspan="10" style="padding: 20px; color: #e74c3c; text-align: center;">Schedule could not be displayed. Refresh the page or check the console.</td></tr>';
   }
 }
 
@@ -5438,7 +5530,7 @@ function populatePrintPoolFilter() {
   var sel = document.getElementById('printPoolFilter');
   if (!sel) return;
   var cur = sel.value;
-  sel.innerHTML = '<option value="">All Pools</option>';
+  sel.innerHTML = '<option value="">Full schedule</option>';
   getPoolsInPrintOrder().forEach(function(p) {
     var opt = document.createElement('option');
     opt.value = p.id;
@@ -5630,7 +5722,7 @@ function renderAuditLog(filter = {}){
   
   if(filtered.length === 0) {
     const hasFilters = !!(filter.employee || filter.date);
-    const emptyMsg = hasFilters ? 'No audit entries match your filters.' : 'No audit entries found.';
+    var emptyMsg = hasFilters ? 'No audit entries match your filters. Try clearing the filter.' : 'No audit entries yet. Changes you make will appear here.';
     container.innerHTML = '<div class="audit-empty">' + emptyMsg + '</div>';
     return;
   }
@@ -5733,10 +5825,23 @@ function openLaborPoolModal(editId) {
     document.getElementById('laborPoolAppearsInEvents').checked = true;
   }
   document.getElementById('laborPoolModalOverlay').style.display = 'flex';
+  setTimeout(function(){ var el = document.getElementById('laborPoolName'); if(el) el.focus(); }, 50);
+  function onLaborPoolKey(e) {
+    if (e.key === 'Escape') { closeLaborPoolModal(); remove(); }
+    if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') { e.preventDefault(); saveLaborPoolFromModal(); }
+  }
+  function remove() {
+    document.removeEventListener('keydown', onLaborPoolKey);
+  }
+  document.addEventListener('keydown', onLaborPoolKey);
+  document.getElementById('laborPoolModalOverlay')._modalCleanup = remove;
 }
 
 function closeLaborPoolModal() {
   document.getElementById('laborPoolModalOverlay').style.display = 'none';
+  if (document.getElementById('laborPoolModalOverlay')._modalCleanup) {
+    document.getElementById('laborPoolModalOverlay')._modalCleanup();
+  }
 }
 
 function saveLaborPoolFromModal() {
@@ -5847,10 +5952,23 @@ function openEventTypeModal(editId){
     document.getElementById('eventTypeGuestsPerServer').value = 20;
   }
   document.getElementById('eventTypeModalOverlay').style.display = 'flex';
+  setTimeout(function(){ var el = document.getElementById('eventTypeName'); if(el) el.focus(); }, 50);
+  function onEventTypeKey(e) {
+    if (e.key === 'Escape') { closeEventTypeModal(); remove(); }
+    if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') { e.preventDefault(); saveEventTypeFromModal(); }
+  }
+  function remove() {
+    document.removeEventListener('keydown', onEventTypeKey);
+  }
+  document.addEventListener('keydown', onEventTypeKey);
+  document.getElementById('eventTypeModalOverlay')._modalCleanup = remove;
 }
 
 function closeEventTypeModal(){
   document.getElementById('eventTypeModalOverlay').style.display = 'none';
+  if (document.getElementById('eventTypeModalOverlay')._modalCleanup) {
+    document.getElementById('eventTypeModalOverlay')._modalCleanup();
+  }
 }
 
 function saveEventTypeFromModal(){
@@ -6337,7 +6455,7 @@ try {
   showTab("employeesTab");
 } catch(error) {
   console.error('Initialization error:', error);
-  alert('Error loading BanquetLogic. Please refresh the page.\n\nError: ' + error.message);
+  alert('BanquetLogic could not load. Please refresh the page.\n\nDetails: ' + error.message);
 }
 </script>
 </body>
