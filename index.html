@@ -508,6 +508,7 @@ body.light-mode .audit-empty { color: #6b7280; background: #f9fafb; border-color
     display: block !important;
   }
   .schedule-actions,
+  .schedule-pool-filter-wrap,
   .schedule-grid-helper,
   .schedule-lock-helper,
   .schedule-th-helper,
@@ -764,6 +765,19 @@ body.light-mode .schedule-grid-helper { color: #6b7280; }
 /* Schedule table: alternating row shading (tbody only, subtle) */
 #scheduleTable tbody tr:nth-child(odd) { background: rgba(0, 0, 0, 0.06); }
 #scheduleTable tbody tr:nth-child(even) { background: transparent; }
+.schedule-pool-section-header td {
+  font-weight: 600;
+  font-size: 13px;
+  padding: 6px 8px 4px 8px;
+  border-bottom: 1px solid var(--brand-border, #444);
+  background: rgba(0, 0, 0, 0.12);
+  color: var(--brand-text, #ecf0f1);
+}
+body.light-mode .schedule-pool-section-header td {
+  background: #e5e7eb;
+  color: #374151;
+  border-bottom-color: #d1d5db;
+}
 body.light-mode #scheduleTable tbody tr:nth-child(odd) { background: rgba(0, 0, 0, 0.03); }
 
 /* Schedule table: editable day cell hover (visual only) */
@@ -1254,6 +1268,13 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
 <!-- SCHEDULE -->
 <div id="scheduleTab" class="tab">
 <h2>Schedule</h2>
+
+<div class="schedule-pool-filter-wrap" style="margin-bottom: 10px;">
+  <label for="schedulePoolFilter">View:</label>
+  <select id="schedulePoolFilter" style="margin-left: 6px; padding: 6px 10px;" title="Filter schedule by labor pool (on-screen only)">
+    <option value="">All Pools</option>
+  </select>
+</div>
 
 <div class="schedule-actions">
   <span class="schedule-action-group">
@@ -2373,7 +2394,7 @@ function showTab(id){
     renderEmployees();
   }
   if(id==="eventsTab") { tabEvBtn.classList.add("active"); populateEventServiceDropdown(); }
-  if(id==="scheduleTab") { tabSchBtn.classList.add("active"); populatePrintPoolFilter(); displaySchedule(); }
+  if(id==="scheduleTab") { tabSchBtn.classList.add("active"); populatePrintPoolFilter(); renderSchedulePoolSelector(); displaySchedule(); }
   if(id==="auditTab") { tabAuditBtn.classList.add("active"); renderAuditLog(); }
   if(id==="settingsTab") { tabSettingsBtn.classList.add("active"); loadSettings(); }
   if(id==="supportTab") { tabSupportBtn.classList.add("active"); }
@@ -4561,6 +4582,9 @@ function displaySchedule(){
   headerRow.innerHTML += '<th>Total<br><small class="schedule-th-helper">Total scheduled hours</small></th><th>Days<br><small class="schedule-th-helper">Days worked this week</small></th>';
   scheduleTable.appendChild(headerRow);
 
+  var selectedPoolId = getScheduleTabSelectedPoolId();
+
+  if (!selectedPoolId) {
   var recRow = document.createElement('tr');
   recRow.className = 'schedule-cashier-rec-row';
   var empty1 = document.createElement('td');
@@ -4594,7 +4618,9 @@ function displaySchedule(){
   recRow.appendChild(empty3);
   recRow.appendChild(empty4);
   scheduleTable.appendChild(recRow);
+  }
 
+  if (!selectedPoolId) {
   var housemenRecRow = document.createElement('tr');
   housemenRecRow.className = 'schedule-housemen-rec-row';
   var hmEmpty1 = document.createElement('td');
@@ -4628,8 +4654,9 @@ function displaySchedule(){
   housemenRecRow.appendChild(hmEmpty3);
   housemenRecRow.appendChild(hmEmpty4);
   scheduleTable.appendChild(housemenRecRow);
+  }
 
-  employees.filter(e=>!e.retired).forEach(emp=>{
+  function appendEmployeeRow(emp) {
     let total=0;
     let daysWorked=0;
     const row = document.createElement('tr');
@@ -4767,9 +4794,34 @@ function displaySchedule(){
     row.appendChild(daysCell);
     
     scheduleTable.appendChild(row);
-  });
-  
-  if(employees.filter(e=>!e.retired).length === 0){
+  }
+
+  if (selectedPoolId) {
+    var singlePoolEmps = employees.filter(function(e) { return !e.retired && e.laborPoolId === selectedPoolId; });
+    singlePoolEmps.sort(function(a, b) { return (getSeniorityForEmployee(a) || 999) - (getSeniorityForEmployee(b) || 999); });
+    singlePoolEmps.forEach(function(emp) { appendEmployeeRow(emp); });
+  } else {
+    var poolsOrder = getPoolsInPrintOrder();
+    poolsOrder.forEach(function(pool) {
+      var poolEmps = employees.filter(function(e) { return !e.retired && e.laborPoolId === pool.id; });
+      poolEmps.sort(function(a, b) { return (getSeniorityForEmployee(a) || 999) - (getSeniorityForEmployee(b) || 999); });
+      if (poolEmps.length > 0) {
+        var sectionTr = document.createElement('tr');
+        sectionTr.className = 'schedule-pool-section-header';
+        var sectionTd = document.createElement('td');
+        sectionTd.setAttribute('colspan', '11');
+        sectionTd.textContent = pool.name || pool.id;
+        sectionTr.appendChild(sectionTd);
+        scheduleTable.appendChild(sectionTr);
+      }
+      poolEmps.forEach(function(emp) { appendEmployeeRow(emp); });
+    });
+  }
+
+  var totalShown = selectedPoolId
+    ? employees.filter(function(e) { return !e.retired && e.laborPoolId === selectedPoolId; }).length
+    : employees.filter(function(e) { return !e.retired; }).length;
+  if (totalShown === 0) {
     const emptyRow = document.createElement('tr');
     const emptyCell = document.createElement('td');
     emptyCell.setAttribute('colspan', '11');
@@ -5097,6 +5149,34 @@ function getPoolsInPrintOrder() {
     if (p.id !== serversId && p.id !== cashiersId && p.id !== housemenId) ordered.push(p);
   });
   return ordered;
+}
+
+function getScheduleTabSelectedPoolId() {
+  var stored = localStorage.getItem('scheduleTabSelectedPoolId');
+  if (stored === null || stored === '') return '';
+  if (getLaborPoolById(stored)) return stored;
+  return '';
+}
+function setScheduleTabSelectedPoolId(poolId) {
+  localStorage.setItem('scheduleTabSelectedPoolId', poolId || '');
+}
+function renderSchedulePoolSelector() {
+  var sel = document.getElementById('schedulePoolFilter');
+  if (!sel) return;
+  var cur = getScheduleTabSelectedPoolId();
+  sel.innerHTML = '<option value="">All Pools</option>';
+  getPoolsInPrintOrder().forEach(function(p) {
+    var opt = document.createElement('option');
+    opt.value = p.id;
+    opt.textContent = p.name || p.id;
+    sel.appendChild(opt);
+  });
+  if (cur && getLaborPoolById(cur)) sel.value = cur;
+  else sel.value = '';
+  sel.onchange = function() {
+    setScheduleTabSelectedPoolId(sel.value || '');
+    displaySchedule();
+  };
 }
 
 function populatePrintPoolFilter() {
