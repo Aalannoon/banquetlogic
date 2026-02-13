@@ -211,6 +211,18 @@ body.light-mode .employees-pool-btn-active {
   color: #fff;
   border-color: var(--brand-primary);
 }
+.employees-pool-count {
+  font-weight: 400;
+}
+.employees-pool-btn:not(.employees-pool-btn-active) .employees-pool-count {
+  opacity: 0.85;
+}
+.employees-pool-btn-active .employees-pool-count {
+  opacity: 0.9;
+}
+body.light-mode .employees-pool-btn:not(.employees-pool-btn-active) .employees-pool-count {
+  color: var(--brand-text-muted, #6b7280);
+}
 
 /* INPUTS */
 input, select, button {
@@ -1713,10 +1725,11 @@ function renderEmployeesPoolSelector() {
   var selectedId = getEmployeesTabSelectedPoolId();
   var pools = laborPools.length ? laborPools : getDefaultLaborPools();
   pools.forEach(function(p) {
+    var count = employees.filter(function(e) { return e.laborPoolId === p.id; }).length;
     var btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'employees-pool-btn' + (p.id === selectedId ? ' employees-pool-btn-active' : '');
-    btn.textContent = p.name || p.id;
+    btn.innerHTML = (p.name || p.id) + ' <span class="employees-pool-count">(' + count + ')</span>';
     btn.setAttribute('data-pool-id', p.id);
     btn.onclick = function() {
       setEmployeesTabSelectedPoolId(p.id);
@@ -2685,6 +2698,7 @@ function addEmployee(){
   
   addAuditEntry('Employee Added', newEmp.id, null, null, `${newEmp.name} (${newEmp.type}, Seniority ${newEmp.seniority})`);
   save(); 
+  renderEmployeesPoolSelector();
   renderEmployees();
 }
 
@@ -2864,6 +2878,7 @@ function parseAndImportText(text) {
   
   addAuditEntry('Employees Imported', null, null, null, `${imported} employees imported (${mode ? 'Replace' : 'Merge'} mode)`);
   save();
+  renderEmployeesPoolSelector();
   renderEmployees();
   
   alert(`✅ Successfully imported ${imported} employees!${mode ? '\n\nAll previous employees were replaced.' : '\n\nSeniority has been rebalanced.'}`);
@@ -2917,6 +2932,7 @@ function retireEmployee(id){
   
   addAuditEntry('Employee Retired', id, null, 'Active', 'Retired');
   save(); 
+  renderEmployeesPoolSelector();
   renderEmployees();
 }
 
@@ -3451,6 +3467,7 @@ function saveEmployeeEdit() {
   }
   
   save();
+  renderEmployeesPoolSelector();
   renderEmployees();
   closeEmployeeEditModal();
 }
