@@ -509,6 +509,8 @@ body.light-mode .audit-empty { color: #6b7280; background: #f9fafb; border-color
   }
   .schedule-actions,
   .schedule-pool-filter-wrap,
+  .labor-cost-panel,
+  #laborCostShowWrap,
   .schedule-grid-helper,
   .schedule-lock-helper,
   .schedule-th-helper,
@@ -1321,6 +1323,21 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
 <p class="schedule-grid-helper">Click a cell to assign an employee to an event or mark time off</p>
 <div class="schedule-container">
   <table id="scheduleTable"></table>
+</div>
+
+<div id="laborCostPanel" class="labor-cost-panel" style="margin-top: 16px; padding: 12px 16px; background: rgba(0,0,0,0.15); border-radius: 8px; border: 1px solid var(--brand-border, #444);">
+  <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 8px;">
+    <strong>Estimated labor cost (this week)</strong>
+    <button type="button" id="laborCostToggleBtn" onclick="toggleLaborCostPanel()" style="padding: 4px 10px; font-size: 12px;">Hide</button>
+  </div>
+  <div id="laborCostContent">
+    <div id="laborCostByPool"></div>
+    <p id="laborCostTotal" style="margin: 8px 0 4px 0; font-weight: 600;"></p>
+    <p class="labor-cost-disclaimer" style="margin: 0; font-size: 11px; color: var(--brand-text-muted); font-style: italic;">For planning purposes only. Gratuities and payroll adjustments are not included.</p>
+  </div>
+</div>
+<div id="laborCostShowWrap" style="display: none; margin-top: 10px;">
+  <button type="button" onclick="toggleLaborCostPanel()" style="padding: 6px 12px; font-size: 12px;">Show labor cost</button>
 </div>
 </div>
 
@@ -4554,6 +4571,97 @@ function undoApplyRecommendations() {
   displaySchedule();
 }
 
+function getLaborCostForWeek() {
+  var start = getWeekStart();
+  var days = [];
+  for (var i = 0; i < 7; i++) {
+    var d = new Date(start);
+    d.setDate(start.getDate() + i);
+    days.push(d);
+  }
+  var employeeHours = {};
+  var employeeWage = {};
+  employees.filter(function(e) { return !e.retired; }).forEach(function(emp) {
+    var pool = getLaborPoolById(emp.laborPoolId);
+    var wage = (pool && pool.defaultHourlyWage != null) ? parseFloat(pool.defaultHourlyWage, 10) : 0;
+    if (isNaN(wage) || wage < 0) wage = 0;
+    employeeWage[emp.id] = wage;
+    var totalH = 0;
+    days.forEach(function(d) {
+      var dateStr = iso(d);
+      var key = emp.id + '_' + dateStr;
+      var edit = manualEdits[key];
+      if (edit && !isFullAbsenceStatus(edit.status) && (edit.hours || edit.start || edit.end)) {
+        var h = edit.hours || (typeof edit === 'number' ? edit : 0);
+        if (typeof h !== 'number') h = parseFloat(h, 10) || 0;
+        totalH += h;
+      }
+    });
+    employeeHours[emp.id] = totalH;
+  });
+  var byPool = {};
+  getPoolsInPrintOrder().forEach(function(pool) {
+    byPool[pool.id] = { poolName: pool.name || pool.id, amount: 0 };
+  });
+  employees.filter(function(e) { return !e.retired; }).forEach(function(emp) {
+    var poolId = emp.laborPoolId;
+    if (!poolId) return;
+    if (!byPool[poolId]) byPool[poolId] = { poolName: (getLaborPoolById(poolId) && getLaborPoolById(poolId).name) || poolId, amount: 0 };
+    byPool[poolId].amount += (employeeWage[emp.id] || 0) * (employeeHours[emp.id] || 0);
+  });
+  var total = 0;
+  var list = [];
+  getPoolsInPrintOrder().forEach(function(pool) {
+    if (byPool[pool.id]) {
+      list.push({ poolId: pool.id, poolName: pool.name || pool.id, amount: byPool[pool.id].amount });
+      total += byPool[pool.id].amount;
+    }
+  });
+  return { byPool: list, total: total };
+}
+
+function updateLaborCostPanel() {
+  var panel = document.getElementById('laborCostPanel');
+  var showWrap = document.getElementById('laborCostShowWrap');
+  if (!panel || !showWrap) return;
+  var visible = sessionStorage.getItem('laborCostPanelVisible') !== 'false';
+  panel.style.display = visible ? 'block' : 'none';
+  showWrap.style.display = visible ? 'none' : 'block';
+  if (!visible) return;
+  var data = getLaborCostForWeek();
+  var byPoolEl = document.getElementById('laborCostByPool');
+  var totalEl = document.getElementById('laborCostTotal');
+  if (byPoolEl) {
+    byPoolEl.innerHTML = '';
+    data.byPool.forEach(function(item) {
+      var p = document.createElement('p');
+      p.style.margin = '2px 0';
+      p.textContent = (item.poolName || '') + ': ' + formatCurrency(item.amount);
+      byPoolEl.appendChild(p);
+    });
+  }
+  if (totalEl) totalEl.textContent = 'Total: ' + formatCurrency(data.total);
+  var btn = document.getElementById('laborCostToggleBtn');
+  if (btn) btn.textContent = 'Hide';
+}
+
+function formatCurrency(n) {
+  if (n === 0) return '$0.00';
+  return '$' + (Math.round(n * 100) / 100).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+function toggleLaborCostPanel() {
+  var panel = document.getElementById('laborCostPanel');
+  var showWrap = document.getElementById('laborCostShowWrap');
+  if (!panel || !showWrap) return;
+  var visible = panel.style.display !== 'none';
+  sessionStorage.setItem('laborCostPanelVisible', visible ? 'false' : 'true');
+  panel.style.display = visible ? 'none' : 'block';
+  showWrap.style.display = visible ? 'block' : 'none';
+  var btn = document.getElementById('laborCostToggleBtn');
+  if (btn) btn.textContent = visible ? 'Show' : 'Hide';
+}
+
 /* SCHEDULE DISPLAY */
 function displaySchedule(){
   try {
@@ -4848,6 +4956,7 @@ function displaySchedule(){
   if (lockHelper) lockHelper.textContent = scheduleGlobalLock ? 'Locked schedules cannot be edited' : 'Edits enabled — changes will affect assignments';
   var undoWrap = document.getElementById('applyRecommendationsUndoWrap');
   if (undoWrap) undoWrap.style.display = lastApplyRecommendationsSnapshot ? 'inline' : 'none';
+  updateLaborCostPanel();
   } catch(error) {
     console.error('Error in displaySchedule:', error);
     console.error('Error details:', error.message, error.stack);
