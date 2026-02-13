@@ -141,6 +141,11 @@ body.light-mode .week-header { color: #6b7280; }
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
 }
+.tab-with-info-tooltip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
 .tabs button {
   padding: 10px 16px;
   border: 1px solid var(--brand-border);
@@ -678,6 +683,87 @@ body.light-mode .settings-info-card-title { color: #1f2937; }
 }
 body.light-mode .settings-info-card-body { color: #6b7280; }
 
+/* Reusable InfoTooltip: small ⓘ icon, hover/focus shows tooltip; does not block interaction */
+.info-tooltip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+  margin-left: 4px;
+}
+.info-tooltip-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  font-size: 12px;
+  line-height: 1;
+  color: var(--brand-text-muted);
+  cursor: help;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.info-tooltip-icon:hover { color: var(--brand-primary); }
+body.light-mode .info-tooltip-icon { color: #6b7280; }
+body.light-mode .info-tooltip-icon:hover { color: var(--brand-primary); }
+.info-tooltip-bubble {
+  position: absolute;
+  z-index: 1000;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 6px;
+  padding: 8px 10px;
+  max-width: 240px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #ecf0f1;
+  background: #2c3e50;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  white-space: normal;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s ease, visibility 0.15s ease;
+}
+.info-tooltip-bubble::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -4px;
+  border: 4px solid transparent;
+  border-top-color: #2c3e50;
+}
+.info-tooltip:hover .info-tooltip-bubble,
+.info-tooltip:focus .info-tooltip-bubble,
+.info-tooltip:focus-within .info-tooltip-bubble {
+  opacity: 1;
+  visibility: visible;
+}
+.info-tooltip:focus { outline: none; }
+.info-tooltip:focus .info-tooltip-icon { outline: 2px solid var(--brand-primary); outline-offset: 2px; border-radius: 50%; }
+
+/* Optional: tooltip to the right of the icon (add class info-tooltip--right to wrapper) */
+.info-tooltip--right .info-tooltip-bubble {
+  bottom: auto;
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-bottom: 0;
+  margin-left: 8px;
+}
+.info-tooltip--right .info-tooltip-bubble::after {
+  top: 50%;
+  left: 0;
+  margin-left: -4px;
+  margin-top: -4px;
+  border-top-color: transparent;
+  border-left-color: #2c3e50;
+}
+
 /* SUPPORT / CONTACT PAGE */
 .support-page {
   max-width: 640px;
@@ -1101,48 +1187,36 @@ body.light-mode #scheduleTable td.clickable:hover {
   }
 }
 
-/* Guided Tour (read-only overlay) — enterprise / calm */
+/* Guided Tour — tooltip-based, non-blocking (no full-screen overlay) */
 .guided-tour-overlay {
   position: fixed;
   inset: 0;
   z-index: 10001;
-  pointer-events: auto;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  padding: 0 16px 24px 16px;
-  box-sizing: border-box;
-}
-.guided-tour-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 10000;
-  background: rgba(0, 0, 0, 0.48);
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
   pointer-events: none;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  box-sizing: border-box;
 }
 .guided-tour-spotlight {
   position: fixed;
   pointer-events: none;
   border-radius: 10px;
-  box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.12),
-    0 0 0 9999px rgba(0, 0, 0, 0.48),
-    0 0 28px rgba(78, 154, 241, 0.22);
-  transition: top 0.25s ease, left 0.25s ease, width 0.25s ease, height 0.25s ease;
+  box-shadow: 0 0 0 2px rgba(78, 154, 241, 0.6), 0 0 20px rgba(78, 154, 241, 0.25);
+  transition: top 0.2s ease, left 0.2s ease, width 0.2s ease, height 0.2s ease;
   z-index: 10001;
 }
 .guided-tour-card {
-  position: relative;
+  position: fixed;
   z-index: 10002;
-  max-width: 400px;
+  max-width: 340px;
   width: 100%;
+  pointer-events: auto;
   background: var(--brand-bg-elevated);
   border: 1px solid var(--brand-border);
-  border-radius: 14px;
-  padding: 22px 24px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35), 0 0 1px rgba(0, 0, 0, 0.2);
+  border-radius: 12px;
+  padding: 18px 20px;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.3), 0 0 1px rgba(0, 0, 0, 0.15);
   box-sizing: border-box;
 }
 body.light-mode .guided-tour-card {
@@ -1151,9 +1225,9 @@ body.light-mode .guided-tour-card {
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.1), 0 0 1px rgba(0, 0, 0, 0.06);
 }
 .guided-tour-text {
-  margin: 0 0 18px 0;
-  font-size: 15px;
-  line-height: 1.6;
+  margin: 0 0 14px 0;
+  font-size: 14px;
+  line-height: 1.55;
   color: var(--brand-text);
   font-weight: 400;
 }
@@ -1162,7 +1236,7 @@ body.light-mode .guided-tour-text { color: #374151; }
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 18px;
+  margin-bottom: 14px;
   gap: 12px;
 }
 .guided-tour-progress {
@@ -1184,10 +1258,9 @@ body.light-mode .guided-tour-esc-hint { color: #9ca3af; }
   justify-content: space-between;
   align-items: center;
 }
+.guided-tour-actions .guided-tour-next { margin-left: auto; }
 .guided-tour-skip {
-  order: -1;
-  flex: 0 0 auto;
-  padding: 9px 14px;
+  padding: 8px 14px;
   border-radius: 8px;
   font-size: 14px;
   font-weight: 500;
@@ -1200,14 +1273,8 @@ body.light-mode .guided-tour-esc-hint { color: #9ca3af; }
 .guided-tour-skip:hover { color: var(--brand-text); }
 body.light-mode .guided-tour-skip { color: #6b7280; }
 body.light-mode .guided-tour-skip:hover { color: #111827; }
-.guided-tour-nav {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  margin-left: auto;
-}
 .guided-tour-btn {
-  padding: 9px 18px;
+  padding: 8px 16px;
   border-radius: 8px;
   font-size: 14px;
   font-weight: 500;
@@ -1215,14 +1282,6 @@ body.light-mode .guided-tour-skip:hover { color: #111827; }
   border: none;
   font-family: inherit;
 }
-.guided-tour-back {
-  background: transparent;
-  color: var(--brand-text-muted);
-  border: 1px solid var(--brand-border);
-}
-.guided-tour-back:hover { background: rgba(255,255,255,0.06); color: var(--brand-text); }
-body.light-mode .guided-tour-back { color: #6b7280; border-color: #d1d5db; }
-body.light-mode .guided-tour-back:hover { background: #f3f4f6; color: #111827; }
 .guided-tour-next {
   background: var(--brand-primary);
   color: #fff;
@@ -1359,10 +1418,20 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
     <option value="">All Pools</option>
   </select>
   <button type="button" class="print" onclick="printSchedule()">Print / Save PDF</button>
+  <span class="info-tooltip" tabindex="0" role="button" aria-label="More info about PDF export" aria-describedby="tooltip-pdf-export">
+    <span class="info-tooltip-icon" aria-hidden="true">&#9432;</span>
+    <span id="tooltip-pdf-export" class="info-tooltip-bubble" role="tooltip">Schedules are grouped and clearly labeled by labor pool in the PDF export.</span>
+  </span>
 </span>
 
 <div class="tabs">
-  <button type="button" id="tabEmpBtn" onclick="showTab('employeesTab')">Employees</button>
+  <span class="tab-with-info-tooltip">
+    <button type="button" id="tabEmpBtn" onclick="showTab('employeesTab')">Employees</button>
+    <span class="info-tooltip" tabindex="0" role="button" aria-label="More info about labor pools" aria-describedby="tooltip-employees-pool">
+      <span class="info-tooltip-icon" aria-hidden="true">&#9432;</span>
+      <span id="tooltip-employees-pool" class="info-tooltip-bubble" role="tooltip">Employees are grouped into labor pools by role. Scheduling rules and seniority are applied within each pool.</span>
+    </span>
+  </span>
   <button type="button" id="tabEvBtn" onclick="showTab('eventsTab')">Events</button>
   <button type="button" id="tabSchBtn" onclick="showTab('scheduleTab')">Schedule</button>
   <button type="button" id="tabAuditBtn" onclick="showTab('auditTab')">Audit Log</button>
@@ -1372,7 +1441,6 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
 </div>
 
 <div id="guidedTourOverlay" class="guided-tour-overlay" aria-hidden="true" style="display: none;">
-  <div class="guided-tour-backdrop" id="guidedTourBackdrop" aria-hidden="true"></div>
   <div id="guidedTourSpotlight" class="guided-tour-spotlight" aria-hidden="true"></div>
   <div id="guidedTourCard" class="guided-tour-card" role="dialog" aria-label="Guided tour" aria-describedby="guidedTourText">
     <p id="guidedTourText" class="guided-tour-text"></p>
@@ -1381,11 +1449,8 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
       <span class="guided-tour-esc-hint">Esc to exit</span>
     </div>
     <div class="guided-tour-actions">
-      <button type="button" class="guided-tour-btn guided-tour-skip" id="guidedTourSkipBtn">Skip tour</button>
-      <div class="guided-tour-nav">
-        <button type="button" class="guided-tour-btn guided-tour-back" id="guidedTourBackBtn">Back</button>
-        <button type="button" class="guided-tour-btn guided-tour-next" id="guidedTourNextBtn">Next</button>
-      </div>
+      <button type="button" class="guided-tour-btn guided-tour-skip" id="guidedTourSkipBtn">Skip</button>
+      <button type="button" class="guided-tour-btn guided-tour-next" id="guidedTourNextBtn">Next</button>
     </div>
   </div>
 </div>
@@ -1560,7 +1625,7 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
 <div id="scheduleTab" class="tab">
 <h2>Schedule</h2>
 
-<div class="schedule-pool-filter-wrap" style="margin-bottom: 10px;">
+<div class="schedule-pool-filter-wrap" id="tourSchedulePoolFilterWrap" style="margin-bottom: 10px;">
   <label for="schedulePoolFilter">View:</label>
   <select id="schedulePoolFilter" style="margin-left: 6px; padding: 6px 10px;" title="Filter schedule by labor pool (on-screen only)">
     <option value="">All Pools</option>
@@ -1661,7 +1726,12 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
 </div>
 
 <div class="settings-section">
-  <h3>Shift Assignment Style</h3>
+  <h3>Shift Assignment Style
+    <span class="info-tooltip" tabindex="0" role="button" aria-label="More info about shift assignment style" aria-describedby="tooltip-shift-style">
+      <span class="info-tooltip-icon" aria-hidden="true">&#9432;</span>
+      <span id="tooltip-shift-style" class="info-tooltip-bubble" role="tooltip">Controls who gets first choice of shifts when you generate.</span>
+    </span>
+  </h3>
   <p class="assignment-style-intro">Choose how shifts are assigned when generating schedules:</p>
   
   <div class="assignment-style-options">
@@ -1707,7 +1777,12 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
 </div>
 
 <div class="settings-section" id="laborPoolsSection">
-  <h3>Labor Pools</h3>
+  <h3>Labor Pools
+    <span class="info-tooltip" tabindex="0" role="button" aria-label="More info about employee types" aria-describedby="tooltip-labor-pools">
+      <span class="info-tooltip-icon" aria-hidden="true">&#9432;</span>
+      <span id="tooltip-labor-pools" class="info-tooltip-bubble" role="tooltip">Don't see the role you need? You can create, rename, or remove employee types to match your operation.</span>
+    </span>
+  </h3>
   <p>Create pools (e.g. Servers, Cashiers, Housemen). Each employee is assigned to one pool. Seniority is tracked separately within each pool. Control whether a pool can be scheduled and whether it appears in event requirements.</p>
   
   <table class="settings-table event-types-table">
@@ -1757,7 +1832,12 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
 </div>
 
 <div class="settings-section" id="eventTypesSection">
-  <h3>Event Types</h3>
+  <h3>Event Types
+    <span class="info-tooltip" tabindex="0" role="button" aria-label="More info about event types" aria-describedby="tooltip-event-types">
+      <span class="info-tooltip-icon" aria-hidden="true">&#9432;</span>
+      <span id="tooltip-event-types" class="info-tooltip-bubble" role="tooltip">Customize event types to reflect real workflows such as weddings, conferences, or buyouts.</span>
+    </span>
+  </h3>
   <p>Define event types and staffing ratios (1 server per X guests). Inactive types are hidden when creating events but existing events keep displaying correctly.</p>
   
   <table class="settings-table event-types-table">
@@ -6107,21 +6187,19 @@ function submitSupport(){
 }
 
 /* GUIDED TOUR — READ-ONLY SAFETY GUARANTEE
- * This tour MUST NOT: create/delete/edit employees, events, or schedules;
- * call save(), generateSchedule(), or any function that mutates app state or localStorage.
- * It MAY ONLY: read DOM (querySelector, getBoundingClientRect), show/hide the overlay,
- * update tour UI (step text, progress, spotlight position), and manage its own step index.
- * If you add behavior here, default to safety: no side effects on user data.
+ * Tooltip-based; no full-screen overlay. Does NOT create/delete/edit employees, events, or schedules;
+ * does NOT call save() or generateSchedule(). May call showTab() only to reveal the highlighted
+ * element (UI state only, no data mutation). Default to safety: no side effects on user data.
  */
 var GuidedTour = {
   currentStep: 0,
   totalSteps: 5,
   steps: [
-    { target: '.app-header', text: 'BanquetLogic builds schedules using labor pools, seniority, and transparent rules — not guesswork.' },
-    { target: '#tabEmpBtn', text: 'Each labor pool is scheduled independently with its own seniority, rules, and wage structure. Use the Employees tab and pool selector to manage your teams.' },
-    { target: '#tabEvBtn', text: 'Staffing needs are calculated per event and per pool, with full manual override. Guest count, service ratios, and pool requirements drive how many people you need each day.' },
-    { target: '#tabSchBtn', text: 'Every assignment is explainable. You always know why someone was selected. Check the Schedule tab for the grid and the Audit Log tab for a full record of changes.' },
-    { target: '#tourPrintExportWrap', text: 'Schedules export into clean, pool-separated PDFs ready to print or share. Use the Print dropdown and Print / Save PDF button when you\'re ready.' }
+    { target: '#tabEmpBtn', tab: null, text: 'Employees are organized by labor pool. Each pool has its own seniority and is scheduled independently. Use this tab and the pool selector to manage your teams.' },
+    { target: '#laborPoolsSection', tab: 'settingsTab', text: 'Custom roles (labor pools) — e.g. Servers, Cashiers, Housemen. Add or edit pools here; each has its own wage and schedule rules.' },
+    { target: '#eventTypesSection', tab: 'settingsTab', text: 'Event types define your services and staffing ratios (e.g. 1 server per 20 guests). Customize or add types to match your venue.' },
+    { target: '#tourSchedulePoolFilterWrap', tab: 'scheduleTab', text: 'Filter the schedule by labor pool. Choose one pool or view the full schedule. Affects only the on-screen view.' },
+    { target: '#tourPrintExportWrap', tab: null, text: 'Export to PDF: choose full schedule or a single pool. Output is pool-separated and print-ready.' }
   ],
   overlay: null,
   spotlight: null,
@@ -6138,17 +6216,13 @@ var GuidedTour = {
     this.card = document.getElementById('guidedTourCard');
     this.textEl = document.getElementById('guidedTourText');
     this.progressEl = document.getElementById('guidedTourProgress');
-    this.backBtn = document.getElementById('guidedTourBackBtn');
+    this.backBtn = null;
     this.nextBtn = document.getElementById('guidedTourNextBtn');
     this.skipBtn = document.getElementById('guidedTourSkipBtn');
     if (!this.overlay || !this.spotlight || !this.card) return;
     var self = this;
-    this.backBtn.addEventListener('click', function() { self.prev(); });
     this.nextBtn.addEventListener('click', function() { self.next(); });
     this.skipBtn.addEventListener('click', function() { self.exit(); });
-    this.overlay.addEventListener('click', function(e) {
-      if (e.target === self.overlay) self.exit();
-    });
   },
 
   show: function() {
@@ -6160,9 +6234,12 @@ var GuidedTour = {
     this._onEscape = function(e) { if (e.key === 'Escape') self.exit(); };
     document.addEventListener('keydown', this._onEscape);
     this._scrollResize = function() {
-      if (self.overlay.style.display === 'none' || self.overlay.style.display === '') return;
+      if (self.overlay.style.display !== 'flex') return;
       var step = self.steps[self.currentStep];
-      if (step && step.target) self.positionSpotlight(step.target);
+      if (step && step.target) {
+        self.positionSpotlight(step.target);
+        self.positionTooltip(step.target);
+      }
     };
     window.addEventListener('scroll', this._scrollResize, true);
     window.addEventListener('resize', this._scrollResize);
@@ -6175,6 +6252,7 @@ var GuidedTour = {
     this.spotlight.style.top = '';
     this.spotlight.style.width = '';
     this.spotlight.style.height = '';
+    this.spotlight.style.boxShadow = '';
     if (this._scrollResize) {
       window.removeEventListener('scroll', this._scrollResize, true);
       window.removeEventListener('resize', this._scrollResize);
@@ -6184,11 +6262,12 @@ var GuidedTour = {
 
   update: function() {
     var step = this.steps[this.currentStep];
+    if (step.tab) showTab(step.tab);
     this.textEl.textContent = step.text;
     this.progressEl.textContent = 'Step ' + (this.currentStep + 1) + ' of ' + this.totalSteps;
-    this.backBtn.style.visibility = this.currentStep === 0 ? 'hidden' : 'visible';
     this.nextBtn.textContent = this.currentStep === this.totalSteps - 1 ? 'Done' : 'Next';
     this.positionSpotlight(step.target);
+    this.positionTooltip(step.target);
   },
 
   positionSpotlight: function(selector) {
@@ -6202,12 +6281,37 @@ var GuidedTour = {
       return;
     }
     var r = el.getBoundingClientRect();
-    var padding = 8;
+    var padding = 10;
     this.spotlight.style.left = (r.left - padding) + 'px';
     this.spotlight.style.top = (r.top - padding) + 'px';
     this.spotlight.style.width = (r.width + padding * 2) + 'px';
     this.spotlight.style.height = (r.height + padding * 2) + 'px';
-    this.spotlight.style.boxShadow = '0 0 0 1px rgba(255,255,255,0.12), 0 0 0 9999px rgba(0,0,0,0.48), 0 0 28px rgba(78,154,241,0.22)';
+    this.spotlight.style.boxShadow = '0 0 0 2px rgba(78, 154, 241, 0.6), 0 0 20px rgba(78, 154, 241, 0.25)';
+  },
+
+  positionTooltip: function(selector) {
+    var el = selector ? document.querySelector(selector) : null;
+    if (!el) return;
+    var r = el.getBoundingClientRect();
+    var padding = 16;
+    var cardWidth = Math.min(340, window.innerWidth - padding * 2);
+    var gap = 16;
+    var cardH = this.card.offsetHeight || 200;
+    var spaceBelow = window.innerHeight - r.bottom;
+    var spaceAbove = r.top;
+    var placeAbove = spaceBelow < cardH + gap && spaceAbove >= cardH + gap;
+    var top, left;
+    if (placeAbove) {
+      top = r.top - gap - cardH;
+      this.card.style.top = Math.max(padding, top) + 'px';
+    } else {
+      top = r.bottom + gap;
+      this.card.style.top = Math.min(top, window.innerHeight - cardH - padding) + 'px';
+    }
+    left = r.left + (r.width / 2) - (cardWidth / 2);
+    left = Math.max(padding, Math.min(left, window.innerWidth - cardWidth - padding));
+    this.card.style.left = left + 'px';
+    this.card.style.width = cardWidth + 'px';
   },
 
   next: function() {
@@ -6219,11 +6323,6 @@ var GuidedTour = {
     this.update();
   },
 
-  prev: function() {
-    if (this.currentStep <= 0) return;
-    this.currentStep--;
-    this.update();
-  }
 };
 
 function startGuidedTour() {
