@@ -581,27 +581,38 @@ body.light-mode .audit-empty { color: #6b7280; background: #f9fafb; border-color
   background: #e8e8e8;
   color: #333;
 }
+
 @media print {
+  /* Pool section: clearly distinct from employee rows; never orphaned at page bottom */
   .print-pool-header {
     page-break-after: avoid !important;
+    page-break-inside: avoid !important;
   }
   .print-pool-header td {
-    background: #e5e5e5 !important;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
+    background: #d0d0d0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
     overflow: hidden !important;
     word-break: break-word !important;
     overflow-wrap: break-word !important;
     white-space: normal !important;
     font-weight: 700 !important;
     font-size: 14px !important;
-    padding: 10px 5px 6px 5px !important;
-    border-top: 2px solid #999 !important;
-    border-bottom: 1px solid #999 !important;
-    color: #1a1a1a !important;
+    letter-spacing: 0.08em !important;
+    text-transform: uppercase !important;
+    padding: 14px 8px 12px 8px !important;
+    border-top: 4px solid #000 !important;
+    border-bottom: 2px solid #000 !important;
+    border-left: 1px solid #000 !important;
+    border-right: 1px solid #000 !important;
+    color: #000 !important;
   }
   #scheduleTable tbody tr.print-pool-header + tr td {
-    border-top: none !important;
+    border-top: 1px solid #000 !important;
+  }
+  /* Extra spacing above first pool section (after thead) */
+  #scheduleTable tbody tr.print-pool-header:first-child td {
+    padding-top: 18px !important;
   }
 }
 
@@ -4948,8 +4959,6 @@ function displaySchedule(){
       var text = rec.count + ' cashier' + (rec.count !== 1 ? 's' : '') + ' recommended';
       if (rec.names.length > 0) text += ': ' + rec.names.join(', ');
       td.textContent = text;
-    } else {
-      td.textContent = 'No cashiers needed for this day.';
     }
     recRow.appendChild(td);
   });
@@ -4986,8 +4995,6 @@ function displaySchedule(){
       var text = rec.count + ' houseman' + (rec.count !== 1 ? 's' : '') + ' recommended';
       if (rec.names.length > 0) text += ': ' + rec.names.join(', ');
       td.textContent = text;
-    } else {
-      td.textContent = 'No housemen needed for this day.';
     }
     housemenRecRow.appendChild(td);
   });
@@ -5572,7 +5579,7 @@ function buildScheduleTableForPrint(filterPoolId) {
     headerTr.className = 'print-pool-header';
     var headerTd = document.createElement('td');
     headerTd.setAttribute('colspan', '11');
-    headerTd.textContent = pool.name || pool.id;
+    headerTd.textContent = (pool.name || pool.id).toUpperCase();
     headerTr.appendChild(headerTd);
     tbody.appendChild(headerTr);
     poolEmps.forEach(function(emp) {
