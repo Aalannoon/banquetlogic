@@ -636,6 +636,48 @@ body.light-mode .settings-section { background: #fff; border-color: #e5e7eb; }
   margin-bottom: 12px;
 }
 
+/* Settings: informational card (discoverability, no buttons or popups) */
+.settings-info-card {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  margin-bottom: 24px;
+  padding: 18px 20px;
+  background: var(--brand-bg-elevated);
+  border: 1px solid var(--brand-border);
+  border-radius: 10px;
+  max-width: 100%;
+}
+body.light-mode .settings-info-card { background: #f8fafc; border-color: #e2e8f0; }
+.settings-info-card-icon {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--brand-text-muted);
+  background: rgba(78, 154, 241, 0.12);
+  border-radius: 50%;
+}
+body.light-mode .settings-info-card-icon { color: #4b5563; background: #e0e7ff; }
+.settings-info-card-title {
+  margin: 0 0 6px 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--brand-text);
+}
+body.light-mode .settings-info-card-title { color: #1f2937; }
+.settings-info-card-body {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--brand-text-muted);
+}
+body.light-mode .settings-info-card-body { color: #6b7280; }
+
 /* SUPPORT / CONTACT PAGE */
 .support-page {
   max-width: 640px;
@@ -1609,6 +1651,14 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
 <!-- SETTINGS -->
 <div id="settingsTab" class="tab">
 <h2>Settings</h2>
+
+<div class="settings-info-card" role="region" aria-labelledby="settings-info-card-title">
+  <span class="settings-info-card-icon" aria-hidden="true">ℹ</span>
+  <div>
+    <h3 id="settings-info-card-title" class="settings-info-card-title">Need something different?</h3>
+    <p class="settings-info-card-body">BanquetLogic is designed to adapt to your operation. Customize employee types, labor pools, and event types to fit your venue — or remove anything you don't use.</p>
+  </div>
+</div>
 
 <div class="settings-section">
   <h3>Shift Assignment Style</h3>
@@ -6056,7 +6106,13 @@ function submitSupport(){
   save();
 }
 
-/* GUIDED TOUR (read-only; no data changes) */
+/* GUIDED TOUR — READ-ONLY SAFETY GUARANTEE
+ * This tour MUST NOT: create/delete/edit employees, events, or schedules;
+ * call save(), generateSchedule(), or any function that mutates app state or localStorage.
+ * It MAY ONLY: read DOM (querySelector, getBoundingClientRect), show/hide the overlay,
+ * update tour UI (step text, progress, spotlight position), and manage its own step index.
+ * If you add behavior here, default to safety: no side effects on user data.
+ */
 var GuidedTour = {
   currentStep: 0,
   totalSteps: 5,
