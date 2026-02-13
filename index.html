@@ -4060,6 +4060,9 @@ function addHoursToDate(d, h) {
 /** Max regular hours per day before overtime. */
 var REGULAR_HOURS_MAX = 8;
 
+/** Minimum shift length (no micro-shifts). Shorter uncovered time is merged or flagged. */
+var MIN_SHIFT_HOURS = 4;
+
 /* CONFLICT DETECTION */
 function detectConflicts(empId, date, shiftStart, shiftEnd){
   const conflicts = [];
@@ -5298,10 +5301,20 @@ function assignEmployeesToWeek(days) {
           segmentHoursList.push(seg);
           rem -= seg;
         }
+        // Enforce minimum shift length: merge any trailing segment < 4h into the previous segment
+        while (segmentHoursList.length >= 2 && segmentHoursList[segmentHoursList.length - 1] < MIN_SHIFT_HOURS) {
+          var tail = segmentHoursList.pop();
+          segmentHoursList[segmentHoursList.length - 1] += tail;
+        }
+        // If the only remaining segment is < 4h, do not auto-assign (flag for manual review)
+        if (segmentHoursList.length === 1 && segmentHoursList[0] < MIN_SHIFT_HOURS) {
+          segmentHoursList = [];
+        }
+        var cumHours = 0;
         for (var j = 0; j < segmentHoursList.length; j++) {
           var h = segmentHoursList[j];
-          var isTail = (j === segmentHoursList.length - 1) && h < REGULAR_HOURS_MAX;
-          if (isTail) {
+          var isLast = (j === segmentHoursList.length - 1);
+          if (isLast) {
             slotList.push({
               hours: h,
               start: addHoursToDate(t.end, -h),
@@ -5309,10 +5322,11 @@ function assignEmployeesToWeek(days) {
             });
           } else {
             slotList.push({
-              hours: REGULAR_HOURS_MAX,
-              start: t.start,
-              end: addHoursToDate(t.start, REGULAR_HOURS_MAX)
+              hours: h,
+              start: addHoursToDate(t.start, cumHours),
+              end: addHoursToDate(t.start, cumHours + h)
             });
+            cumHours += h;
           }
         }
       }
