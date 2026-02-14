@@ -5966,14 +5966,21 @@ function canEmployeeTakeShiftFromEdits(targetEmpId, dateStr, shiftStart, shiftEn
 }
 
 function regenerateSchedule(){ 
-  if(!confirm("This will clear ALL shifts (manual and generated) and regenerate from events. Continue?")) return;
+  if(!confirm("This will clear unlocked shifts and regenerate from events. Locked shifts will be kept as-is. Continue?")) return;
   
-  manualEdits = {};
-  var weekKey = getWeekKey(getWeekStart());
+  var start = getWeekStart();
+  var weekKey = getWeekKey(start);
+  var days = getDateStrsForWeek(weekKey);
+  employees.filter(function(e) { return !e.retired; }).forEach(function(e) {
+    days.forEach(function(dateStr) {
+      var key = e.id + "_" + dateStr;
+      if (!lockedCells[key]) delete manualEdits[key];
+    });
+  });
   delete scheduleGeneratedWeeks[weekKey];
-  addAuditEntry('Schedule Regenerated', null, null, 'All shifts cleared', 'Regenerated from events');
+  addAuditEntry('Schedule Regenerated', null, null, 'Unlocked shifts cleared', 'Regenerated from events; locked shifts preserved');
   save();
-  generateSchedule(); // This will regenerate
+  generateSchedule();
 }
 
 function changeWeek(n){ 
