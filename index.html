@@ -5452,7 +5452,6 @@ function displaySchedule(){
   var undoWrap = document.getElementById('applyRecommendationsUndoWrap');
   if (undoWrap) undoWrap.style.display = lastApplyRecommendationsSnapshot ? 'inline' : 'none';
   updateLaborCostPanel();
-  initScheduleDragDrop();
   } catch(error) {
     console.error('Error in displaySchedule:', error);
     console.error('Error details:', error.message, error.stack);
