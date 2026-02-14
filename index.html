@@ -361,6 +361,8 @@ th { background: var(--brand-primary); color: #fff; font-weight: 600; }
 /* CLICKABLE CELLS */
 td[onclick], td.clickable { cursor:pointer; }
 td[onclick]:hover, td.clickable:hover { outline:2px dashed #4e9af1; }
+/* Valid drop target when dragging a shift */
+#scheduleTable td.schedule-drop-zone { outline: 3px solid #27ae60; background: rgba(39, 174, 96, 0.2) !important; }
 .schedule-why-link { font-size: 11px; color: var(--brand-text-muted); text-decoration: none; }
 .schedule-why-link:hover { color: var(--brand-primary); text-decoration: underline; }
 
@@ -1161,6 +1163,12 @@ body.light-mode #scheduleTable td.clickable:hover {
   background-color: rgba(78, 154, 241, 0.12) !important;
 }
 
+/* Drag-and-drop: valid drop zone highlight */
+#scheduleTable tr.schedule-drop-target td {
+  outline: 2px solid var(--brand-primary, #3498db);
+  background: rgba(52, 152, 219, 0.12) !important;
+}
+
 /* Schedule table: Total/Days column header helper text */
 .schedule-th-helper {
   display: block;
@@ -1898,6 +1906,15 @@ let assignmentReasonTags = JSON.parse(localStorage.getItem("assignmentReasonTags
 let assignmentReasonCodes = JSON.parse(localStorage.getItem("assignmentReasonCodes") || "{}");
 /** Week keys (YYYY-MM-DD Monday) that have generated schedule data. Used for load-before-generate. */
 let scheduleGeneratedWeeks = JSON.parse(localStorage.getItem("scheduleGeneratedWeeks") || "{}");
+/** Per-week schedule snapshots for persistence when navigating between weeks. Key: weekKey (YYYY-MM-DD Monday). Loaded from localStorage on init. */
+var weeklySchedules = (function() {
+  var saved = localStorage.getItem('weeklySchedules');
+  if (saved) try { return JSON.parse(saved); } catch(e) {}
+  return {};
+})();
+/** Set during drag of a shift cell; used by dragover to highlight valid drop targets. Cleared on drop/dragend. */
+var draggedShiftKey = null;
+var draggedShiftDateStr = null;
 let generationConflicts = [];
 var lastOvertimeSuggestions = [];
 var lastScheduleNeedsReview = false;
@@ -2191,6 +2208,7 @@ function save(){
   localStorage.setItem("eventTypes", JSON.stringify(eventTypes));
   localStorage.setItem("laborPools", JSON.stringify(laborPools));
   localStorage.setItem("scheduleGeneratedWeeks", JSON.stringify(scheduleGeneratedWeeks));
+  localStorage.setItem("weeklySchedules", JSON.stringify(weeklySchedules));
   scheduleAutoBackup();
 }
 
@@ -4009,6 +4027,40 @@ function getWeekKey(date) {
   return dateToLocalYYYYMMDD(d);
 }
 
+/** Returns array of 7 date strings (YYYY-MM-DD) for the week whose Monday is weekKey. */
+function getDateStrsForWeek(weekKey) {
+  var parts = weekKey.split('-');
+  var y = parseInt(parts[0], 10), m = parseInt(parts[1], 10) - 1, day = parseInt(parts[2], 10);
+  var out = [];
+  for (var i = 0; i < 7; i++) {
+    var d = new Date(y, m, day + i);
+    out.push(dateToLocalYYYYMMDD(d));
+  }
+  return out;
+}
+
+function saveWeeklyScheduleSnapshot(weekKey) {
+  var days = getDateStrsForWeek(weekKey);
+  var snap = {};
+  for (var k in manualEdits) {
+    var idx = k.indexOf('_');
+    if (idx === -1) continue;
+    var dateStr = k.substring(idx + 1);
+    if (days.indexOf(dateStr) !== -1) snap[k] = manualEdits[k];
+  }
+  weeklySchedules[weekKey] = snap;
+}
+
+function restoreWeeklySchedule(weekKey) {
+  var snap = weeklySchedules[weekKey];
+  if (!snap || typeof snap !== 'object') return;
+  var days = getDateStrsForWeek(weekKey);
+  employees.filter(function(e) { return !e.retired; }).forEach(function(e) {
+    days.forEach(function(d) { delete manualEdits[e.id + '_' + d]; });
+  });
+  for (var k in snap) manualEdits[k] = snap[k];
+}
+
 /** Single source of truth for weekday indexing. 0=Monday ... 6=Sunday. Use everywhere. */
 function getMondayBasedIndex(date) {
   var jsDay = date.getDay();
@@ -4746,6 +4798,7 @@ function generateSchedule(){
   alert(message);
   
   scheduleGeneratedWeeks[weekKey] = true;
+  saveWeeklyScheduleSnapshot(weekKey);
   addAuditEntry('Schedule Generated', null, null, null, `Generated ${shiftsCreated} shifts, ${understaffedEvents.length} understaffed events`);
   save();
   if (typeof console !== 'undefined' && console.log) {
@@ -4973,6 +5026,7 @@ function displaySchedule(){
   if (typeof console !== 'undefined' && console.log) {
     console.log('[Week] On load: queried weekKey =', weekKey);
   }
+  if (weeklySchedules[weekKey]) restoreWeeklySchedule(weekKey);
   try {
     var noticeEl = document.getElementById('scheduleManagerNotice');
     var otBanner = document.getElementById('scheduleOvertimeBanner');
@@ -5114,6 +5168,7 @@ function displaySchedule(){
     let total=0;
     let daysWorked=0;
     const row = document.createElement('tr');
+    row.setAttribute('data-employee-id', emp.id);
     const currentEmpId = emp.id; // Capture ID explicitly
     
     // Add row lock toggle
@@ -5141,6 +5196,60 @@ function displaySchedule(){
       cell.className = 'clickable';
       cell.setAttribute('data-emp-id', emp.id);
       cell.setAttribute('data-date', dateStr);
+      cell.ondragover = function(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        if (!draggedShiftKey) return;
+        var u = draggedShiftKey.indexOf('_');
+        if (u === -1) return;
+        var srcDate = draggedShiftKey.substring(u + 1);
+        if (srcDate !== dateStr) return;
+        var targetEmpId = cell.getAttribute('data-emp-id');
+        var srcEmpId = draggedShiftKey.substring(0, u);
+        if (targetEmpId === srcEmpId) return;
+        if (scheduleGlobalLock || lockedCells[targetEmpId + '_' + dateStr] || lockedRows[targetEmpId]) return;
+        var ed = manualEdits[draggedShiftKey];
+        if (!ed || !ed.start || !ed.end) return;
+        var targetKey = targetEmpId + '_' + dateStr;
+        var targetEdit = manualEdits[targetKey];
+        if (targetEdit && !isFullAbsenceStatus(targetEdit.status) && (targetEdit.hours || targetEdit.start)) return;
+        var shiftStart = new Date(dateStr + 'T' + ed.start);
+        var shiftEnd = new Date(dateStr + 'T' + ed.end);
+        if (!canEmployeeTakeShiftFromEdits(targetEmpId, dateStr, shiftStart, shiftEnd)) return;
+        cell.classList.add('schedule-drop-zone');
+      };
+      cell.ondrop = function(e) {
+        e.preventDefault();
+        cell.classList.remove('schedule-drop-zone');
+        if (!draggedShiftKey) return;
+        var u = draggedShiftKey.indexOf('_');
+        if (u === -1) return;
+        var srcDate = draggedShiftKey.substring(u + 1);
+        if (srcDate !== dateStr) return;
+        var targetEmpId = cell.getAttribute('data-emp-id');
+        var srcEmpId = draggedShiftKey.substring(0, u);
+        if (targetEmpId === srcEmpId) return;
+        if (scheduleGlobalLock || lockedCells[targetEmpId + '_' + dateStr] || lockedRows[targetEmpId]) return;
+        var ed = manualEdits[draggedShiftKey];
+        if (!ed || !ed.start || !ed.end) return;
+        var targetKey = targetEmpId + '_' + dateStr;
+        var targetEdit = manualEdits[targetKey];
+        if (targetEdit && !isFullAbsenceStatus(targetEdit.status) && (targetEdit.hours || targetEdit.start)) return;
+        var shiftStart = new Date(dateStr + 'T' + ed.start);
+        var shiftEnd = new Date(dateStr + 'T' + ed.end);
+        if (!canEmployeeTakeShiftFromEdits(targetEmpId, dateStr, shiftStart, shiftEnd)) return;
+        var copy = {};
+        for (var k in ed) copy[k] = ed[k];
+        delete manualEdits[draggedShiftKey];
+        manualEdits[targetKey] = copy;
+        var wk = getWeekKey(getWeekStart());
+        saveWeeklyScheduleSnapshot(wk);
+        save();
+        displaySchedule();
+        draggedShiftKey = null;
+        draggedShiftDateStr = null;
+      };
+      cell.ondragleave = function() { cell.classList.remove('schedule-drop-zone'); };
       
       const isLocked = lockedCells[key];
       if(isLocked) cell.classList.add('locked-cell');
@@ -5162,6 +5271,18 @@ function displaySchedule(){
             cell.innerHTML = h + 'h<br><small>' + edit.start + '–' + edit.end + '</small><br><span style="font-size:11px;color:var(--brand-text-muted);">' + (absenceInfo ? absenceInfo.cellLabel : '') + '</span>';
           } else {
             cell.innerHTML = h + 'h<br><span style="font-size:11px;color:var(--brand-text-muted);">' + (absenceInfo ? absenceInfo.cellLabel : '') + '</span>';
+          }
+          if (!isLocked && !lockedRows[emp.id] && !scheduleGlobalLock && edit.start && edit.end) {
+            cell.draggable = true;
+            cell.setAttribute('data-shift-id', key);
+            cell.setAttribute('data-assigned-employee-id', emp.id);
+            cell.ondragstart = function(e) {
+              draggedShiftKey = key;
+              draggedShiftDateStr = dateStr;
+              e.dataTransfer.setData('text/plain', key);
+              e.dataTransfer.effectAllowed = 'move';
+            };
+            cell.ondragend = function() { draggedShiftKey = null; draggedShiftDateStr = null; };
           }
           cell.onclick = function(ev) { if (!ev.target.closest('a')) editScheduleCell(emp.id, dateStr); };
           row.appendChild(cell);
@@ -5192,11 +5313,23 @@ function displaySchedule(){
         cell.className += ' ' + getShiftClassByHours(h);
         
         cell.style.position = 'relative';
+        if (!isLocked && !lockedRows[emp.id] && !scheduleGlobalLock) {
+          cell.draggable = true;
+          cell.setAttribute('data-shift-id', key);
+          cell.setAttribute('data-assigned-employee-id', emp.id);
+          cell.ondragstart = function(e) {
+            draggedShiftKey = key;
+            draggedShiftDateStr = dateStr;
+            e.dataTransfer.setData('text/plain', key);
+            e.dataTransfer.effectAllowed = 'move';
+          };
+          cell.ondragend = function() { draggedShiftKey = null; draggedShiftDateStr = null; };
+        }
         
         if(isLocked || lockedRows[emp.id]) {
           cell.title = 'Locked shift. Click to edit or unlock.';
         } else {
-          cell.title = 'Click to edit or remove this shift';
+          cell.title = 'Click to edit or remove this shift. Drag to another employee to reassign.';
         }
         
         if(edit.start && edit.end) {
@@ -5319,6 +5452,7 @@ function displaySchedule(){
   var undoWrap = document.getElementById('applyRecommendationsUndoWrap');
   if (undoWrap) undoWrap.style.display = lastApplyRecommendationsSnapshot ? 'inline' : 'none';
   updateLaborCostPanel();
+  initScheduleDragDrop();
   } catch(error) {
     console.error('Error in displaySchedule:', error);
     console.error('Error details:', error.message, error.stack);
@@ -5436,7 +5570,9 @@ function assignEmployeesToWeek(days) {
       }
       slotList.sort((a, b) => new Date(a.start) - new Date(b.start));
       slotList.forEach(function(slot) {
-        weekSlots.push({ dateStr: dateStr, d: d, ev: ev, slot: slot, s: s, t: t, assignedTo: null });
+        var shift = { dateStr: dateStr, d: d, ev: ev, slot: slot, s: s, t: t, assignedTo: null };
+        if (!shift.id) shift.id = 'shift_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
+        weekSlots.push(shift);
       });
     });
   });
@@ -5745,6 +5881,45 @@ function canWorkShift(empId, currentDate, shiftStart, shiftEnd, shiftHistory) {
   }
   
   return {allowed: true};
+}
+
+/** Check if target employee can take the shift (8h gap from adjacent shifts) using current manualEdits for the week. */
+function canEmployeeTakeShiftFromEdits(targetEmpId, dateStr, shiftStart, shiftEnd) {
+  var start = getWeekStart();
+  var weekKey = getWeekKey(start);
+  var days = getDateStrsForWeek(weekKey);
+  var dateIdx = days.indexOf(dateStr);
+  if (dateIdx === -1) return true;
+  var prevDateStr = dateIdx > 0 ? days[dateIdx - 1] : null;
+  var nextDateStr = dateIdx < 6 ? days[dateIdx + 1] : null;
+  var shiftHistory = {};
+  if (prevDateStr) {
+    var pk = targetEmpId + '_' + prevDateStr;
+    var ped = manualEdits[pk];
+    if (ped && (ped.hours || ped.start) && !ped.status) {
+      var pe = ped.end ? new Date(prevDateStr + 'T' + ped.end) : null;
+      var ps = ped.start ? new Date(prevDateStr + 'T' + ped.start) : null;
+      if (pe) shiftHistory[targetEmpId] = { date: prevDateStr, startTime: ps, endTime: pe };
+    }
+  }
+  if (shiftHistory[targetEmpId]) {
+    var r = canWorkShift(targetEmpId, dateStr, shiftStart, shiftEnd, shiftHistory);
+    if (!r.allowed) return false;
+  }
+  shiftHistory[targetEmpId] = { date: dateStr, startTime: shiftStart, endTime: shiftEnd };
+  if (nextDateStr) {
+    var nk = targetEmpId + '_' + nextDateStr;
+    var ned = manualEdits[nk];
+    if (ned && (ned.hours || ned.start) && !ned.status) {
+      var ns = ned.start ? new Date(nextDateStr + 'T' + ned.start) : null;
+      var ne = ned.end ? new Date(nextDateStr + 'T' + ned.end) : null;
+      if (ns) {
+        var r2 = canWorkShift(targetEmpId, nextDateStr, ns, ne, shiftHistory);
+        if (!r2.allowed) return false;
+      }
+    }
+  }
+  return true;
 }
 
 function regenerateSchedule(){ 
