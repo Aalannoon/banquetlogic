@@ -4077,9 +4077,10 @@ function calculateSmartShift(ev, paidHours) {
   const distA = Math.abs(startA - baseStart) + Math.abs(endA - baseEnd);
   const distB = Math.abs(startB - baseStart) + Math.abs(endB - baseEnd);
 
-  return distA <= distB
-    ? { start: startA, end: endA }
-    : { start: startB, end: endB };
+  const result = distA <= distB ? { start: startA, end: endA } : { start: startB, end: endB };
+  console.log("SMART SHIFT INPUT:", ev.start, "Hours:", paidHours);
+  console.log("SMART SHIFT OUTPUT:", result.start);
+  return result;
 }
 
 function normalizeHours(start, end){
@@ -5399,7 +5400,10 @@ function assignEmployeesToWeek(days) {
       if (serverSlots <= 0) return;
       var slotList = [];
       if (s.h <= REGULAR_HOURS_MAX) {
-        for (var i = 0; i < serverSlots; i++) slotList.push({ hours: s.h, start: t.start, end: t.end });
+        for (var i = 0; i < serverSlots; i++) {
+          console.log("SHIFT CREATED:", t.start, "Event:", ev.start);
+          slotList.push({ hours: s.h, start: t.start, end: t.end });
+        }
       } else {
         var totalPersonHours = serverSlots * s.h;
         var segmentHoursList = [];
@@ -5418,13 +5422,19 @@ function assignEmployeesToWeek(days) {
         for (var j = 0; j < segmentHoursList.length; j++) {
           var h = segmentHoursList[j];
           var isLast = (j === segmentHoursList.length - 1);
-          if (isLast) slotList.push({ hours: h, start: addHoursToDate(t.end, -h), end: t.end });
-          else {
-            slotList.push({ hours: h, start: addHoursToDate(t.start, cumHours), end: addHoursToDate(t.start, cumHours + h) });
+          if (isLast) {
+            var shiftStartLast = addHoursToDate(t.end, -h);
+            console.log("SHIFT CREATED:", shiftStartLast, "Event:", ev.start);
+            slotList.push({ hours: h, start: shiftStartLast, end: t.end });
+          } else {
+            var shiftStartSeg = addHoursToDate(t.start, cumHours);
+            console.log("SHIFT CREATED:", shiftStartSeg, "Event:", ev.start);
+            slotList.push({ hours: h, start: shiftStartSeg, end: addHoursToDate(t.start, cumHours + h) });
             cumHours += h;
           }
         }
       }
+      slotList.sort((a, b) => new Date(a.start) - new Date(b.start));
       slotList.forEach(function(slot) {
         weekSlots.push({ dateStr: dateStr, d: d, ev: ev, slot: slot, s: s, t: t, assignedTo: null });
       });
@@ -5436,6 +5446,7 @@ function assignEmployeesToWeek(days) {
     if (a.dateStr !== b.dateStr) return a.dateStr.localeCompare(b.dateStr);
     return a.slot.start.getTime() - b.slot.start.getTime();
   });
+  weekSlots.sort(function(a, b) { return a.slot.start.getTime() - b.slot.start.getTime(); });
   
   var assignmentStyle = settings.assignmentStyle || 'strict';
   var noonMinutes = 12 * 60;
