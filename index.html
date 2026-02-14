@@ -5512,6 +5512,34 @@ function assignEmployeesToWeek(days) {
     assignmentReasonTags[key] = tags;
   }
   
+  function isPreferenceAligned(emp, item) {
+    var startMinutes = item.slot.start.getHours() * 60 + item.slot.start.getMinutes();
+    if (emp.pref === 'AM') return startMinutes <= noonMinutes;
+    if (emp.pref === 'PM') return startMinutes >= noonMinutes;
+    return false;
+  }
+  function rankEligibleShiftsForStrict(eligible, emp) {
+    var aligned = eligible.filter(function(s) { return isPreferenceAligned(emp, s); });
+    var groupToUse = aligned.length > 0 ? aligned : eligible;
+    groupToUse.sort(function(a, b) {
+      var ah = a.slot.hours, bh = b.slot.hours;
+      var tA = a.slot.start.getTime(), tB = b.slot.start.getTime();
+      if (emp.pref === 'AM') {
+        if (tA !== tB) return tA - tB;
+        return bh - ah;
+      }
+      if (emp.pref === 'PM') {
+        if (tA !== tB) return tB - tA;
+        return bh - ah;
+      }
+      if (ah !== bh) return bh - ah;
+      var dayA = typeof getMondayBasedIndex === 'function' ? getMondayBasedIndex(a.d) : a.d.getDay();
+      var dayB = typeof getMondayBasedIndex === 'function' ? getMondayBasedIndex(b.d) : b.d.getDay();
+      if (dayA !== dayB) return dayB - dayA;
+      return tA - tB;
+    });
+    return groupToUse;
+  }
   if (assignmentStyle === 'strict') {
     for (var ei = 0; ei < employeesBySeniority.length; ei++) {
       var emp = employeesBySeniority[ei];
@@ -5520,19 +5548,8 @@ function assignEmployeesToWeek(days) {
           return s.assignedTo === null && isEligibleForSlot(emp, s) && !wouldBreakSeniorityOrdering(emp, s.slot.hours);
         });
         if (eligible.length === 0) break;
-        eligible.sort(function(a, b) {
-          var ah = a.slot.hours, bh = b.slot.hours;
-          if (ah !== bh) return bh - ah;
-          var dayA = typeof getMondayBasedIndex === 'function' ? getMondayBasedIndex(a.d) : a.d.getDay();
-          var dayB = typeof getMondayBasedIndex === 'function' ? getMondayBasedIndex(b.d) : b.d.getDay();
-          if (dayA !== dayB) return dayB - dayA;
-          var prefA = preferenceMatchScore(emp, a.slot.start), prefB = preferenceMatchScore(emp, b.slot.start);
-          if (prefA !== prefB) return prefB - prefA;
-          if (emp.pref === 'AM') return a.slot.start.getTime() - b.slot.start.getTime();
-          if (emp.pref === 'PM') return b.slot.start.getTime() - a.slot.start.getTime();
-          return a.slot.start.getTime() - b.slot.start.getTime();
-        });
-        applyOneAssignment(eligible[0], emp);
+        var ranked = rankEligibleShiftsForStrict(eligible, emp);
+        applyOneAssignment(ranked[0], emp);
       }
     }
   } else {
