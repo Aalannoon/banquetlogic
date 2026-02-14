@@ -4000,11 +4000,17 @@ function deleteEvent(id){
 /* HELPER FUNCTIONS */
 const iso=d=>d.toISOString().split("T")[0];
 
+// JavaScript getDay(): 0=Sunday, 1=Monday, ..., 6=Saturday.
+// Monday-based index (0=Monday, 6=Sunday) for week-boundary and day-order logic:
+function mondayBasedDayIndex(jsDay) {
+  return (jsDay + 6) % 7;
+}
+
 function getWeekStart(){
   const d=new Date();
   d.setDate(d.getDate()+currentWeekOffset*7);
-  const diff=d.getDay()===0?-6:1-d.getDay();
-  d.setDate(d.getDate()+diff);
+  const mondayIndex = mondayBasedDayIndex(d.getDay());
+  d.setDate(d.getDate()-mondayIndex);
   d.setHours(0,0,0,0);
   return d;
 }
@@ -5459,7 +5465,7 @@ function assignEmployeesToWeek(days) {
         var slotEndOne = best.slot.end;
         best.assignedTo = emp.id;
         var ev = best.ev, slot = best.slot, s = best.s, t = best.t;
-        var dayOfWeek = d.getDay();
+        var dayOfWeek = d.getDay(); // 0=Sun..6=Sat: used for dayPreferences (stored with JS convention)
         employeeHoursToday[dateStr][emp.id] = (employeeHoursToday[dateStr][emp.id] || 0) + slotHoursOne;
         employeeShiftHistory[emp.id] = { date: dateStr, endTime: slotEndOne };
         employeeTotalHours[emp.id] = (employeeTotalHours[emp.id] || 0) + slotHoursOne;
