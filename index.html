@@ -1896,6 +1896,8 @@ let auditLog = JSON.parse(localStorage.getItem("auditLog") || "[]");
 let assignmentReasons = JSON.parse(localStorage.getItem("assignmentReasons") || "{}"); // Store why each shift was assigned (plain-language only)
 let assignmentReasonTags = JSON.parse(localStorage.getItem("assignmentReasonTags") || "{}");
 let assignmentReasonCodes = JSON.parse(localStorage.getItem("assignmentReasonCodes") || "{}");
+/** Week keys (YYYY-MM-DD Monday) that have generated schedule data. Used for load-before-generate. */
+let scheduleGeneratedWeeks = JSON.parse(localStorage.getItem("scheduleGeneratedWeeks") || "{}");
 let generationConflicts = [];
 var lastOvertimeSuggestions = [];
 var lastScheduleNeedsReview = false;
@@ -2188,6 +2190,7 @@ function save(){
   localStorage.setItem("settings", JSON.stringify(settings));
   localStorage.setItem("eventTypes", JSON.stringify(eventTypes));
   localStorage.setItem("laborPools", JSON.stringify(laborPools));
+  localStorage.setItem("scheduleGeneratedWeeks", JSON.stringify(scheduleGeneratedWeeks));
   scheduleAutoBackup();
 }
 
@@ -3988,7 +3991,23 @@ function deleteEvent(id){
 }
 
 /* HELPER FUNCTIONS */
-const iso=d=>d.toISOString().split("T")[0];
+/** Local date only — no time, no timezone. Use for all storage keys. */
+function dateToLocalYYYYMMDD(d) {
+  var y = d.getFullYear(), m = d.getMonth() + 1, day = d.getDate();
+  return y + '-' + (m < 10 ? '0' : '') + m + '-' + (day < 10 ? '0' : '') + day;
+}
+/** Primary date string for schedule keys. Replaces toISOString() to avoid timezone shift. */
+function iso(d) {
+  return dateToLocalYYYYMMDD(d);
+}
+
+/** Stable week identifier: Monday of week as YYYY-MM-DD (local). Any day in Feb 9–15 2026 → "2026-02-09". */
+function getWeekKey(date) {
+  var d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  var mondayIndex = getMondayBasedIndex(d);
+  d.setDate(d.getDate() - mondayIndex);
+  return dateToLocalYYYYMMDD(d);
+}
 
 /** Single source of truth for weekday indexing. 0=Monday ... 6=Sunday. Use everywhere. */
 function getMondayBasedIndex(date) {
@@ -4553,10 +4572,20 @@ function editScheduleCell(empId, date){
 }
 
 function generateSchedule(){
-  // This function GENERATES shifts from events
-  if(!confirm("Generate schedule from events? This will create shifts for all employees based on events and settings.")) return;
+  const start = getWeekStart();
+  const weekKey = getWeekKey(start);
+  if (typeof console !== 'undefined' && console.log) {
+    console.log('[Week] Generate: computed weekKey =', weekKey);
+  }
+  if (scheduleGeneratedWeeks[weekKey]) {
+    if (typeof console !== 'undefined' && console.log) {
+      console.log('[Week] Week already exists, loading. queried weekKey =', weekKey);
+    }
+    displaySchedule();
+    return;
+  }
+  if (!confirm("Generate schedule from events? This will create shifts for all employees based on events and settings.")) return;
   
-  const start=getWeekStart();
   const days=[...Array(7)].map((_,i)=>{
     const d=new Date(start);
     d.setDate(start.getDate()+i);
@@ -4715,8 +4744,12 @@ function generateSchedule(){
   }
   alert(message);
   
+  scheduleGeneratedWeeks[weekKey] = true;
   addAuditEntry('Schedule Generated', null, null, null, `Generated ${shiftsCreated} shifts, ${understaffedEvents.length} understaffed events`);
   save();
+  if (typeof console !== 'undefined' && console.log) {
+    console.log('[Week] Save: saved weekKey =', weekKey);
+  }
   lastApplyRecommendationsSnapshot = null;
   displaySchedule();
 }
@@ -4934,6 +4967,11 @@ function toggleLaborCostPanel() {
 
 /* SCHEDULE DISPLAY */
 function displaySchedule(){
+  var start = getWeekStart();
+  var weekKey = getWeekKey(start);
+  if (typeof console !== 'undefined' && console.log) {
+    console.log('[Week] On load: queried weekKey =', weekKey);
+  }
   try {
     var noticeEl = document.getElementById('scheduleManagerNotice');
     var otBanner = document.getElementById('scheduleOvertimeBanner');
@@ -4958,7 +4996,6 @@ function displaySchedule(){
     // This function just DISPLAYS the current schedule (manual edits + locked cells)
     scheduleTable.innerHTML="";
     
-    const start=getWeekStart();
     const days=[...Array(7)].map((_,i)=>{
       const d=new Date(start);
       d.setDate(start.getDate()+i);
@@ -5664,13 +5701,20 @@ function regenerateSchedule(){
   if(!confirm("This will clear ALL shifts (manual and generated) and regenerate from events. Continue?")) return;
   
   manualEdits = {};
+  var weekKey = getWeekKey(getWeekStart());
+  delete scheduleGeneratedWeeks[weekKey];
   addAuditEntry('Schedule Regenerated', null, null, 'All shifts cleared', 'Regenerated from events');
   save();
   generateSchedule(); // This will regenerate
 }
 
 function changeWeek(n){ 
-  currentWeekOffset+=n; 
+  currentWeekOffset+=n;
+  var start = getWeekStart();
+  var weekKey = getWeekKey(start);
+  if (typeof console !== 'undefined' && console.log) {
+    console.log('[Week] On week switch: computed weekKey =', weekKey);
+  }
   displaySchedule(); // Just display, don't regenerate
 }
 
