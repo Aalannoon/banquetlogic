@@ -5315,11 +5315,23 @@ function assignEmployeesToWeek(days) {
     if (housemenPoolId && e.laborPoolId === housemenPoolId) return false;
     return true;
   });
+  function seniorityValue(emp) {
+    var v = getSeniorityForEmployee(emp);
+    if (v === null || v === undefined) return 99;
+    var n = Number(v);
+    return isNaN(n) ? 99 : n;
+  }
   var employeesBySeniority = serverPool.slice().sort(function(a, b) {
-    var sa = a.seniority != null ? a.seniority : 99;
-    var sb = b.seniority != null ? b.seniority : 99;
+    var sa = seniorityValue(a);
+    var sb = seniorityValue(b);
     return sa - sb;
   });
+  if (typeof console !== 'undefined' && console.log) {
+    console.log('[Schedule] employeesBySeniority AFTER initial sort (seniority descending = lowest number first):');
+    employeesBySeniority.forEach(function(emp, idx) {
+      console.log('  ' + (idx + 1) + '. ' + (emp.name || emp.id) + ' | seniority(raw)= ' + emp.seniority + ' seniority(used)= ' + seniorityValue(emp) + ' | weeklyHours= ' + (employeeTotalHours[emp.id] || 0));
+    });
+  }
   
   var weekSlots = [];
   days.forEach(function(d) {
@@ -5396,11 +5408,11 @@ function assignEmployeesToWeek(days) {
   }
   
   function wouldBreakSeniorityOrdering(emp, addHours) {
-    var empSr = emp.seniority != null ? emp.seniority : 99;
+    var empSr = seniorityValue(emp);
     var newTotal = (employeeTotalHours[emp.id] || 0) + addHours;
     for (var i = 0; i < employeesBySeniority.length; i++) {
       var h = employeesBySeniority[i];
-      var hSr = h.seniority != null ? h.seniority : 99;
+      var hSr = seniorityValue(h);
       if (hSr >= empSr) continue;
       var hHours = employeeTotalHours[h.id] || 0;
       if (newTotal > hHours) return true;
@@ -5430,9 +5442,15 @@ function assignEmployeesToWeek(days) {
       eligible.push(emp);
     }
     if (eligible.length === 0) return;
+    if (typeof console !== 'undefined' && console.log) {
+      console.log('[Schedule] Shift ' + dateStr + ' ' + slotHours + 'h (before sort) eligible:');
+      eligible.forEach(function(e) {
+        console.log('  ' + (e.name || e.id) + ' | seniority(raw)= ' + e.seniority + ' seniority(used)= ' + seniorityValue(e) + ' | weeklyHours= ' + (employeeTotalHours[e.id] || 0));
+      });
+    }
     eligible.sort(function(a, b) {
-      var aSr = a.seniority != null ? a.seniority : 99;
-      var bSr = b.seniority != null ? b.seniority : 99;
+      var aSr = seniorityValue(a);
+      var bSr = seniorityValue(b);
       if (aSr !== bSr) return aSr - bSr;
       var aHours = employeeTotalHours[a.id] || 0;
       var bHours = employeeTotalHours[b.id] || 0;
@@ -5442,6 +5460,12 @@ function assignEmployeesToWeek(days) {
       if (aPref !== bPref) return bPref - aPref;
       return (a.id || '').localeCompare(b.id || '');
     });
+    if (typeof console !== 'undefined' && console.log) {
+      console.log('[Schedule] Shift ' + dateStr + ' ' + slotHours + 'h (after sort) chosen order:');
+      eligible.forEach(function(e, idx) {
+        console.log('  ' + (idx + 1) + '. ' + (e.name || e.id) + ' | seniority(used)= ' + seniorityValue(e) + ' | weeklyHours= ' + (employeeTotalHours[e.id] || 0));
+      });
+    }
     var chosen = eligible[0];
     if (!chosen) return;
     item.assignedTo = chosen.id;
