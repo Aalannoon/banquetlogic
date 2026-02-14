@@ -5082,23 +5082,11 @@ function displaySchedule(){
   headerRow.innerHTML = '<th>🔒</th><th>Employee</th>';
   days.forEach(d=>{
     const th = document.createElement('th');
-    th.textContent = d.toLocaleDateString(undefined,{weekday:"short",day:"numeric"});
+    var dateStr = iso(d);
+    th.textContent = d.toLocaleDateString(undefined,{weekday:"short",day:"numeric"}) + (lastOvertimeLikelyByDay && lastOvertimeLikelyByDay[dateStr] ? ' ⚠' : '');
     headerRow.appendChild(th);
   });
   headerRow.innerHTML += '<th>Total<br><small class="schedule-th-helper">Total scheduled hours</small></th><th>Days<br><small class="schedule-th-helper">Days worked this week</small></th>';
-  var overtimeHintRow = document.createElement('tr');
-  overtimeHintRow.className = 'schedule-overtime-hint-row';
-  var otTh0 = document.createElement('th'); otTh0.style.border = 'none'; otTh0.style.background = 'transparent'; overtimeHintRow.appendChild(otTh0);
-  var otTh1 = document.createElement('th'); otTh1.style.border = 'none'; otTh1.style.background = 'transparent'; overtimeHintRow.appendChild(otTh1);
-  days.forEach(function(d) {
-    var dateStr = iso(d);
-    var th = document.createElement('th');
-    th.style.fontSize = '11px'; th.style.color = 'var(--brand-text-muted, #95a5a6)'; th.style.fontWeight = 'normal';
-    if (lastOvertimeLikelyByDay && lastOvertimeLikelyByDay[dateStr]) th.textContent = '⚠ Overtime likely required for this day.';
-    overtimeHintRow.appendChild(th);
-  });
-  var otThTotal = document.createElement('th'); otThTotal.style.border = 'none'; otThTotal.style.background = 'transparent'; overtimeHintRow.appendChild(otThTotal);
-  var otThDays = document.createElement('th'); otThDays.style.border = 'none'; otThDays.style.background = 'transparent'; overtimeHintRow.appendChild(otThDays);
 
   var selectedPoolId = getScheduleTabSelectedPoolId();
 
@@ -5425,7 +5413,6 @@ function displaySchedule(){
       scheduleTable.appendChild(sectionTr);
     }
     scheduleTable.appendChild(headerRow);
-    scheduleTable.appendChild(overtimeHintRow);
     singlePoolEmps.forEach(function(emp) { appendEmployeeRow(emp); });
   } else {
     var poolsOrder = getPoolsInPrintOrder();
@@ -5443,7 +5430,6 @@ function displaySchedule(){
         scheduleTable.appendChild(sectionTr);
         if (firstPool) {
           scheduleTable.appendChild(headerRow);
-          scheduleTable.appendChild(overtimeHintRow);
           firstPool = false;
         }
       }
