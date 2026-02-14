@@ -5222,26 +5222,22 @@ function displaySchedule(){
         e.preventDefault();
         cell.classList.remove('schedule-drop-zone');
         if (!draggedShiftKey) return;
-        var u = draggedShiftKey.indexOf('_');
-        if (u === -1) return;
-        var srcDate = draggedShiftKey.substring(u + 1);
-        if (srcDate !== dateStr) return;
+        if (scheduleGlobalLock) return;
+        var sourceKey = draggedShiftKey;
+        var sourceShift = manualEdits[sourceKey];
+        if (!sourceShift) return;
         var targetEmpId = cell.getAttribute('data-emp-id');
-        var srcEmpId = draggedShiftKey.substring(0, u);
-        if (targetEmpId === srcEmpId) return;
-        if (scheduleGlobalLock || lockedCells[targetEmpId + '_' + dateStr] || lockedRows[targetEmpId]) return;
-        var ed = manualEdits[draggedShiftKey];
-        if (!ed || !ed.start || !ed.end) return;
-        var targetKey = targetEmpId + '_' + dateStr;
-        var targetEdit = manualEdits[targetKey];
-        if (targetEdit && !isFullAbsenceStatus(targetEdit.status) && (targetEdit.hours || targetEdit.start)) return;
-        var shiftStart = new Date(dateStr + 'T' + ed.start);
-        var shiftEnd = new Date(dateStr + 'T' + ed.end);
-        if (!canEmployeeTakeShiftFromEdits(targetEmpId, dateStr, shiftStart, shiftEnd)) return;
-        var copy = {};
-        for (var k in ed) copy[k] = ed[k];
-        delete manualEdits[draggedShiftKey];
-        manualEdits[targetKey] = copy;
+        var targetDateStr = cell.getAttribute('data-date');
+        var targetKey = targetEmpId + '_' + targetDateStr;
+        if (targetKey === sourceKey) return;
+        var targetShift = manualEdits[targetKey];
+        if (!targetShift) {
+          manualEdits[targetKey] = sourceShift;
+          delete manualEdits[sourceKey];
+        } else {
+          manualEdits[sourceKey] = targetShift;
+          manualEdits[targetKey] = sourceShift;
+        }
         var wk = getWeekKey(getWeekStart());
         saveWeeklyScheduleSnapshot(wk);
         save();
