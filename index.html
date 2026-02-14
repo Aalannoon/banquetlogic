@@ -5549,9 +5549,10 @@ function assignEmployeesToWeek(days) {
       if (serverSlots <= 0) return;
       var slotList = [];
       if (s.h <= REGULAR_HOURS_MAX) {
+        var slotHours = s.h < MIN_SHIFT_HOURS ? MIN_SHIFT_HOURS : s.h;
         for (var i = 0; i < serverSlots; i++) {
           console.log("SHIFT CREATED:", t.start, "Event:", ev.start);
-          slotList.push({ hours: s.h, start: t.start, end: t.end });
+          slotList.push({ hours: slotHours, start: t.start, end: addHoursToDate(t.start, slotHours) });
         }
       } else {
         var totalPersonHours = serverSlots * s.h;
@@ -5577,6 +5578,10 @@ function assignEmployeesToWeek(days) {
         for (var j = 0; j < segmentHoursList.length; j++) {
           var h = segmentHoursList[j];
           var isLast = (j === segmentHoursList.length - 1);
+          if (h < MIN_SHIFT_HOURS) {
+            cumHours += h;
+            continue;
+          }
           if (isLast) {
             var shiftStartLast = addHoursToDate(t.end, -h);
             console.log("SHIFT CREATED:", shiftStartLast, "Event:", ev.start);
