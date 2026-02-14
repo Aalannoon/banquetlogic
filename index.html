@@ -4083,6 +4083,7 @@ function addHoursToDate(d, h) {
 
 /** Max regular hours per day before overtime. */
 var REGULAR_HOURS_MAX = 8;
+var TARGET_WEEKLY_HOURS = 40;
 
 /** Minimum shift length (no micro-shifts). Shorter uncovered time is merged or flagged. */
 var MIN_SHIFT_HOURS = 4;
@@ -5395,21 +5396,25 @@ function assignEmployeesToWeek(days) {
   
   employeesBySeniority.forEach(function(emp) {
     var empMaxDays = emp.maxDaysPerWeek !== undefined ? emp.maxDaysPerWeek : 5;
-    while (employeeWorkDays[emp.id] < empMaxDays) {
+    while (employeeWorkDays[emp.id] < empMaxDays && (employeeTotalHours[emp.id] || 0) < TARGET_WEEKLY_HOURS) {
       var eligible = weekSlots.filter(function(item) { return isEligibleForSlot(emp, item); });
       if (eligible.length === 0) break;
       var preferEarly = emp.pref === 'AM';
-      function earlierThan(a, b) {
-        if (a.dateStr !== b.dateStr) return a.dateStr < b.dateStr;
-        return a.slot.start.getTime() < b.slot.start.getTime();
-      }
-      function laterThan(a, b) {
-        if (a.dateStr !== b.dateStr) return a.dateStr > b.dateStr;
-        return a.slot.start.getTime() > b.slot.start.getTime();
-      }
-      var best = preferEarly
-        ? eligible.reduce(function(acc, it) { return !acc || earlierThan(it, acc) ? it : acc; }, null)
-        : eligible.reduce(function(acc, it) { return !acc || laterThan(it, acc) ? it : acc; }, null);
+      eligible.sort(function(a, b) {
+        var ad = a.dateStr, bd = b.dateStr;
+        var at = a.slot.start.getTime(), bt = b.slot.start.getTime();
+        var ah = a.slot.hours, bh = b.slot.hours;
+        if (preferEarly) {
+          if (ad !== bd) return ad < bd ? -1 : 1;
+          if (at !== bt) return at < bt ? -1 : 1;
+          return bh - ah;
+        } else {
+          if (ad !== bd) return ad > bd ? -1 : 1;
+          if (at !== bt) return at > bt ? -1 : 1;
+          return bh - ah;
+        }
+      });
+      var best = eligible[0];
       if (!best) break;
       best.assignedTo = emp.id;
       var dateStr = best.dateStr;
