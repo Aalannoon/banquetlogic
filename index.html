@@ -5365,10 +5365,22 @@ function assignEmployeesToWeek(days) {
     if (sa !== sb) return sa - sb;
     return 0;
   });
+  // Preference audit: shift preference is stored on employee as emp.pref. Expected values: 'AM' | 'PM' | null | ''. Scheduler uses emp.pref everywhere (preferenceMatchScore, isPreferenceAligned, rankEligibleShiftsForStrict, applyOneAssignment).
   if (typeof console !== 'undefined' && console.log) {
     console.log('[Schedule] employeesBySeniority AFTER initial sort (seniority first, lower number = higher seniority):');
     employeesBySeniority.forEach(function(emp, idx) {
       console.log('  ' + (idx + 1) + '. name=' + (emp.name || emp.id) + ' seniority=' + seniorityValue(emp) + ' totalHours=' + (employeeTotalHours[emp.id] || 0));
+    });
+    console.log('[Schedule] Preference audit — expected values: AM | PM | null | ""');
+    employeesBySeniority.forEach(function(emp) {
+      var name = emp.name || emp.id;
+      var pref = emp.pref;
+      var defined = pref !== undefined;
+      var inEnum = pref === 'AM' || pref === 'PM' || pref === null || pref === '';
+      console.log('[Schedule] preference name=' + name + ' pref=' + JSON.stringify(pref) + ' defined=' + defined + ' inEnum=' + inEnum);
+      if (!inEnum && typeof console !== 'undefined' && console.warn) {
+        console.warn('[Schedule] preference INVALID: name=' + name + ' pref=' + JSON.stringify(pref) + ' (expected AM, PM, null, or "")');
+      }
     });
   }
   
