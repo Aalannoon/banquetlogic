@@ -5322,24 +5322,18 @@ function assignEmployeesToWeek(days) {
       return true;
     }).map(e => ({...e, assignedToday: false}));
     
-    // Only one shift per day per employee: assignedToday is set when we assign and excludes them from later slots/events this day.
-    dayEvents.forEach((ev, eventIndex) => {
-      const isEarliestShift = eventIndex === 0;
-      const isLatestShift = eventIndex === dayEvents.length - 1;
-      
+    // Build all server slots for the day, then sort chronologically (earliest → latest) so directional assignment is deterministic.
+    var daySlots = [];
+    dayEvents.forEach(function(ev) {
       const s = normalizeHours(ev.start, ev.end);
       const t = calculateSmartShift(ev, s.h);
       var cashierReq = (ev.laborPoolRequirements || []).find(function(r) { return r.laborPoolId === cashierPoolId; });
       var housemenReq = (ev.laborPoolRequirements || []).find(function(r) { return r.laborPoolId === housemenPoolId; });
       var serverSlots = ev.staff - (cashierReq ? (cashierReq.quantity || 0) : 0) - (housemenReq ? (housemenReq.quantity || 0) : 0);
       if (serverSlots <= 0) return;
-      
-      // Build list of slots to fill: either full shifts or split segments (to avoid OT when event > 8h)
       var slotList = [];
       if (s.h <= REGULAR_HOURS_MAX) {
-        for (var i = 0; i < serverSlots; i++) {
-          slotList.push({ hours: s.h, start: t.start, end: t.end });
-        }
+        for (var i = 0; i < serverSlots; i++) slotList.push({ hours: s.h, start: t.start, end: t.end });
       } else {
         var totalPersonHours = serverSlots * s.h;
         var segmentHoursList = [];
@@ -5349,131 +5343,125 @@ function assignEmployeesToWeek(days) {
           segmentHoursList.push(seg);
           rem -= seg;
         }
-        // Enforce minimum shift length: merge any trailing segment < 4h into the previous segment
         while (segmentHoursList.length >= 2 && segmentHoursList[segmentHoursList.length - 1] < MIN_SHIFT_HOURS) {
           var tail = segmentHoursList.pop();
           segmentHoursList[segmentHoursList.length - 1] += tail;
         }
-        // If the only remaining segment is < 4h, do not auto-assign (flag for manual review)
-        if (segmentHoursList.length === 1 && segmentHoursList[0] < MIN_SHIFT_HOURS) {
-          segmentHoursList = [];
-        }
+        if (segmentHoursList.length === 1 && segmentHoursList[0] < MIN_SHIFT_HOURS) segmentHoursList = [];
         var cumHours = 0;
         for (var j = 0; j < segmentHoursList.length; j++) {
           var h = segmentHoursList[j];
           var isLast = (j === segmentHoursList.length - 1);
-          if (isLast) {
-            slotList.push({
-              hours: h,
-              start: addHoursToDate(t.end, -h),
-              end: t.end
-            });
-          } else {
-            slotList.push({
-              hours: h,
-              start: addHoursToDate(t.start, cumHours),
-              end: addHoursToDate(t.start, cumHours + h)
-            });
+          if (isLast) slotList.push({ hours: h, start: addHoursToDate(t.end, -h), end: t.end });
+          else {
+            slotList.push({ hours: h, start: addHoursToDate(t.start, cumHours), end: addHoursToDate(t.start, cumHours + h) });
             cumHours += h;
           }
         }
       }
+      slotList.forEach(function(slot) { daySlots.push({ ev: ev, slot: slot, s: s, t: t }); });
+    });
+    daySlots.sort(function(a, b) { return a.slot.start.getTime() - b.slot.start.getTime(); });
+    
+    var assignmentStyle = settings.assignmentStyle || 'strict';
+    var dayOfWeek = d.getDay();
+    var totalSlotsForDay = daySlots.length;
+    var MINUTES_PER_DAY = 24 * 60;
+    
+    daySlots.forEach(function(item, slotIndexInDay) {
+      var ev = item.ev, slot = item.slot, s = item.s, t = item.t;
+      var slotHours = slot.hours;
+      var slotStart = slot.start;
+      var slotEnd = slot.end;
       
-      var assignmentStyle = settings.assignmentStyle || 'strict';
-      
-      slotList.forEach(function(slot) {
-        var slotHours = slot.hours;
-        var slotStart = slot.start;
-        var slotEnd = slot.end;
-        
-        var eligible = available.filter(function(emp) {
-          const key = emp.id + "_" + dateStr;
-          if(lockedCells[key]) return false;
-          var ed = manualEdits[key];
-          if (ed) {
-            if (isFullAbsenceStatus(ed.status)) return false;
-            if (ed.status === 'requested_off' && !ed.hours && !ed.start) { }
-            else return false;
-          }
-          if(emp.assignedToday) return false;
-          const empMaxDays = emp.maxDaysPerWeek !== undefined ? emp.maxDaysPerWeek : 5;
-          if(employeeWorkDays[emp.id] >= empMaxDays) return false;
-          var gapCheck = canWorkShift(emp.id, dateStr, slotStart, employeeShiftHistory);
-          return gapCheck.allowed;
-        });
-        
-        // TIME-ORDER preference: AM = earliest available (earlier start = higher score), PM = latest available (later start = higher score). Seniority is primary; preference influences ranking but does NOT override seniority.
-        var hoursToday = function(empId) { return (employeeHoursToday[dateStr][empId] || 0); };
-        var dayOfWeek = d.getDay();
-        var startMinutes = slotStart.getHours() * 60 + slotStart.getMinutes();
-        var MINUTES_PER_DAY = 24 * 60;
-        var scored = eligible.map(function(emp) {
-          var timeOrderScore = 0;
-          if (emp.pref === 'AM') timeOrderScore = MINUTES_PER_DAY - startMinutes;
-          else if (emp.pref === 'PM') timeOrderScore = startMinutes;
-          var dayBonus = (emp.dayPreferences && emp.dayPreferences[dayOfWeek] === true) ? 200 : (emp.dayPreferences && emp.dayPreferences[dayOfWeek] === false) ? -200 : 0;
-          var preferenceScoreContribution = timeOrderScore + dayBonus;
-          var sr = emp.seniority != null ? emp.seniority : 99;
-          return { ...emp, timeOrderScore: timeOrderScore, preferenceScoreContribution: preferenceScoreContribution, seniority: sr };
-        });
-        scored.sort(function(a, b) {
-          if (a.seniority !== b.seniority) return a.seniority - b.seniority;
-          return b.preferenceScoreContribution - a.preferenceScoreContribution;
-        });
-        var chosen = scored[0];
-        if (!chosen) return;
-        
-        var empRef = available.find(function(e) { return e.id === chosen.id; });
-        if(empRef) empRef.assignedToday = true;
-        
-        employeeHoursToday[dateStr][chosen.id] = (employeeHoursToday[dateStr][chosen.id] || 0) + slotHours;
-        employeeShiftHistory[chosen.id] = { date: dateStr, endTime: slotEnd };
-        employeeTotalHours[chosen.id] = (employeeTotalHours[chosen.id] || 0) + slotHours;
-        employeeWorkDays[chosen.id] = (employeeWorkDays[chosen.id] || 0) + 1;
-        
-        if (!assignmentDetails[dateStr]) assignmentDetails[dateStr] = {};
-        if (slotHours !== s.h || slotStart.getTime() !== t.start.getTime() || slotEnd.getTime() !== t.end.getTime()) {
-          assignmentDetails[dateStr][chosen.id] = { hours: slotHours, start: slotStart, end: slotEnd };
+      var eligible = available.filter(function(emp) {
+        const key = emp.id + "_" + dateStr;
+        if(lockedCells[key]) return false;
+        var ed = manualEdits[key];
+        if (ed) {
+          if (isFullAbsenceStatus(ed.status)) return false;
+          if (ed.status === 'requested_off' && !ed.hours && !ed.start) { }
+          else return false;
         }
-        
-        if(!assignments[dateStr]) assignments[dateStr] = [];
-        if(assignments[dateStr].indexOf(chosen.id) === -1) assignments[dateStr].push(chosen.id);
-        
-        var key = chosen.id + "_" + dateStr;
-        var noonMinutes = 12 * 60;
-        var preferredShift = (chosen.pref === 'AM' && startMinutes <= noonMinutes) || (chosen.pref === 'PM' && startMinutes >= noonMinutes);
-        var preferredDay = chosen.dayPreferences && chosen.dayPreferences[dayOfWeek] === true;
-        var dislikesShift = (chosen.pref === 'AM' && startMinutes > noonMinutes) || (chosen.pref === 'PM' && startMinutes < noonMinutes);
-        var dislikesDay = chosen.dayPreferences && chosen.dayPreferences[dayOfWeek] === false;
-        var totalHoursAfter = (employeeHoursToday[dateStr][chosen.id] || 0);
-        var wouldBeOT = totalHoursAfter > REGULAR_HOURS_MAX;
-        
-        if (wouldBeOT) {
-          otFlaggedAssignments.push({ key: key, dateStr: dateStr, eventName: ev.name, empName: chosen.name });
-        }
-        
-        var reasonCode;
-        if (wouldBeOT) reasonCode = 'OT_SUGGESTED';
-        else if (preferredShift || preferredDay) reasonCode = 'PREFERENCE_MATCH';
-        else if (dislikesShift || dislikesDay) reasonCode = 'PREFERENCE_MISMATCH';
-        else if (eligible.length <= 1) reasonCode = 'LIMITED_AVAILABILITY';
-        else reasonCode = 'SENIORITY_PRIORITY';
-        
-        assignmentReasonCodes[key] = reasonCode;
-        assignmentReasons[key] = [REASON_CODE_EXPLANATIONS[reasonCode] || reasonCode];
-        var tags = ['availability', 'within_max_days', 'seniority'];
-        if (chosen.type === 'FT') tags.push('full_time');
-        if (preferredShift || preferredDay) tags.push('prefers_shift');
-        if (dislikesShift || dislikesDay) tags.push('preference_overridden');
-        if (wouldBeOT) tags.push('OT_SUGGESTED');
-        if (assignmentStyle === 'balanced' || assignmentStyle === 'fair') tags.push('rotation_balance');
-        assignmentReasonTags[key] = tags;
-        
-        if (typeof console !== 'undefined' && console.log) {
-          var shiftStartStr = slotStart.getHours() + ':' + String(slotStart.getMinutes()).padStart(2, '0');
-          console.log('[Schedule] assignment', { employee: chosen.name, seniority: chosen.seniority, preference: chosen.pref || 'neutral', shiftStartTime: shiftStartStr, preferenceScoreContribution: chosen.preferenceScoreContribution, finalSelectionReason: reasonCode });
-        }
+        if(emp.assignedToday) return false;
+        const empMaxDays = emp.maxDaysPerWeek !== undefined ? emp.maxDaysPerWeek : 5;
+        if(employeeWorkDays[emp.id] >= empMaxDays) return false;
+        var gapCheck = canWorkShift(emp.id, dateStr, slotStart, employeeShiftHistory);
+        return gapCheck.allowed;
       });
+      
+      var isEarlySlot = slotIndexInDay < totalSlotsForDay / 2;
+      var amPref = eligible.filter(function(e) { return e.pref === 'AM'; });
+      var pmPref = eligible.filter(function(e) { return e.pref === 'PM'; });
+      var candidatePool = isEarlySlot ? (amPref.length > 0 ? amPref : eligible) : (pmPref.length > 0 ? pmPref : eligible);
+      
+      var startMinutes = slotStart.getHours() * 60 + slotStart.getMinutes();
+      var scored = candidatePool.map(function(emp) {
+        var timeOrderScore = 0;
+        if (emp.pref === 'AM') timeOrderScore = MINUTES_PER_DAY - startMinutes;
+        else if (emp.pref === 'PM') timeOrderScore = startMinutes;
+        var dayBonus = (emp.dayPreferences && emp.dayPreferences[dayOfWeek] === true) ? 200 : (emp.dayPreferences && emp.dayPreferences[dayOfWeek] === false) ? -200 : 0;
+        var preferenceScoreContribution = timeOrderScore + dayBonus;
+        var sr = emp.seniority != null ? emp.seniority : 99;
+        return { ...emp, timeOrderScore: timeOrderScore, preferenceScoreContribution: preferenceScoreContribution, seniority: sr };
+      });
+      scored.sort(function(a, b) {
+        if (a.seniority !== b.seniority) return a.seniority - b.seniority;
+        return b.preferenceScoreContribution - a.preferenceScoreContribution;
+      });
+      var chosen = scored[0];
+      if (!chosen) return;
+      
+      var empRef = available.find(function(e) { return e.id === chosen.id; });
+      if(empRef) empRef.assignedToday = true;
+      
+      employeeHoursToday[dateStr][chosen.id] = (employeeHoursToday[dateStr][chosen.id] || 0) + slotHours;
+      employeeShiftHistory[chosen.id] = { date: dateStr, endTime: slotEnd };
+      employeeTotalHours[chosen.id] = (employeeTotalHours[chosen.id] || 0) + slotHours;
+      employeeWorkDays[chosen.id] = (employeeWorkDays[chosen.id] || 0) + 1;
+      
+      if (!assignmentDetails[dateStr]) assignmentDetails[dateStr] = {};
+      if (slotHours !== s.h || slotStart.getTime() !== t.start.getTime() || slotEnd.getTime() !== t.end.getTime()) {
+        assignmentDetails[dateStr][chosen.id] = { hours: slotHours, start: slotStart, end: slotEnd };
+      }
+      
+      if(!assignments[dateStr]) assignments[dateStr] = [];
+      if(assignments[dateStr].indexOf(chosen.id) === -1) assignments[dateStr].push(chosen.id);
+      
+      var key = chosen.id + "_" + dateStr;
+      var noonMinutes = 12 * 60;
+      var preferredShift = (chosen.pref === 'AM' && startMinutes <= noonMinutes) || (chosen.pref === 'PM' && startMinutes >= noonMinutes);
+      var preferredDay = chosen.dayPreferences && chosen.dayPreferences[dayOfWeek] === true;
+      var dislikesShift = (chosen.pref === 'AM' && startMinutes > noonMinutes) || (chosen.pref === 'PM' && startMinutes < noonMinutes);
+      var dislikesDay = chosen.dayPreferences && chosen.dayPreferences[dayOfWeek] === false;
+      var totalHoursAfter = (employeeHoursToday[dateStr][chosen.id] || 0);
+      var wouldBeOT = totalHoursAfter > REGULAR_HOURS_MAX;
+      
+      if (wouldBeOT) {
+        otFlaggedAssignments.push({ key: key, dateStr: dateStr, eventName: ev.name, empName: chosen.name });
+      }
+      
+      var reasonCode;
+      if (wouldBeOT) reasonCode = 'OT_SUGGESTED';
+      else if (preferredShift || preferredDay) reasonCode = 'PREFERENCE_MATCH';
+      else if (dislikesShift || dislikesDay) reasonCode = 'PREFERENCE_MISMATCH';
+      else if (eligible.length <= 1) reasonCode = 'LIMITED_AVAILABILITY';
+      else reasonCode = 'SENIORITY_PRIORITY';
+      
+      assignmentReasonCodes[key] = reasonCode;
+      assignmentReasons[key] = [REASON_CODE_EXPLANATIONS[reasonCode] || reasonCode];
+      var tags = ['availability', 'within_max_days', 'seniority'];
+      if (chosen.type === 'FT') tags.push('full_time');
+      if (preferredShift || preferredDay) tags.push('prefers_shift');
+      if (dislikesShift || dislikesDay) tags.push('preference_overridden');
+      if (wouldBeOT) tags.push('OT_SUGGESTED');
+      if (assignmentStyle === 'balanced' || assignmentStyle === 'fair') tags.push('rotation_balance');
+      assignmentReasonTags[key] = tags;
+      
+      if (typeof console !== 'undefined' && console.log) {
+        var shiftStartStr = slotStart.getHours() + ':' + String(slotStart.getMinutes()).padStart(2, '0');
+        console.log('[Schedule] assignment', { employee: chosen.name, seniority: chosen.seniority, preference: chosen.pref || 'neutral', shiftStartTime: shiftStartStr, slotDirection: isEarlySlot ? 'early' : 'late', preferenceScoreContribution: chosen.preferenceScoreContribution, finalSelectionReason: reasonCode });
+      }
     });
   });
   
