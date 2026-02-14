@@ -5543,18 +5543,11 @@ function assignEmployeesToWeek(days) {
           return s.assignedTo === null && isEligibleForSlot(emp, s) && !wouldBreakSeniorityOrdering(emp, s.slot.hours);
         });
         if (eligible.length === 0) break;
-        eligible.sort(function(a, b) {
-          var ah = a.slot.hours, bh = b.slot.hours;
-          if (ah !== bh) return bh - ah;
-          var dayA = typeof getMondayBasedIndex === 'function' ? getMondayBasedIndex(a.d) : a.d.getDay();
-          var dayB = typeof getMondayBasedIndex === 'function' ? getMondayBasedIndex(b.d) : b.d.getDay();
-          if (dayA !== dayB) return dayB - dayA;
-          var prefA = preferenceMatchScore(emp, a.slot.start), prefB = preferenceMatchScore(emp, b.slot.start);
-          if (prefA !== prefB) return prefB - prefA;
-          if (emp.pref === 'AM') return a.slot.start.getTime() - b.slot.start.getTime();
-          if (emp.pref === 'PM') return b.slot.start.getTime() - a.slot.start.getTime();
-          return a.slot.start.getTime() - b.slot.start.getTime();
-        });
+        if (emp.pref === 'PM') {
+          eligible.sort(function(a, b) { return b.slot.start.getTime() - a.slot.start.getTime(); });
+        } else {
+          eligible.sort(function(a, b) { return a.slot.start.getTime() - b.slot.start.getTime(); });
+        }
         applyOneAssignment(eligible[0], emp);
       }
     }
