@@ -1923,6 +1923,7 @@ var draggedShiftDateStr = null;
 let generationConflicts = [];
 var lastOvertimeSuggestions = [];
 var lastScheduleNeedsReview = false;
+var lastOvertimeLikelyByDay = {};
 var lastApplyRecommendationsSnapshot = null;
 var APP_VERSION = '1.0';
 var SCHEMA_VERSION = 1;
@@ -4673,6 +4674,7 @@ function generateSchedule(){
   const assignments = result.assignments;
   const assignmentDetails = result.assignmentDetails || {};
   lastOvertimeSuggestions = result.otFlaggedAssignments || [];
+  lastOvertimeLikelyByDay = result.overtimeLikelyByDay || {};
   lastScheduleNeedsReview = lastOvertimeSuggestions.length > 0 || understaffedEvents.length > 0;
   
   // Convert assignments to manual edits (but don't overwrite locked/existing manual edits)
@@ -5074,6 +5076,19 @@ function displaySchedule(){
     headerRow.appendChild(th);
   });
   headerRow.innerHTML += '<th>Total<br><small class="schedule-th-helper">Total scheduled hours</small></th><th>Days<br><small class="schedule-th-helper">Days worked this week</small></th>';
+  var overtimeHintRow = document.createElement('tr');
+  overtimeHintRow.className = 'schedule-overtime-hint-row';
+  var otTh0 = document.createElement('th'); otTh0.style.border = 'none'; otTh0.style.background = 'transparent'; overtimeHintRow.appendChild(otTh0);
+  var otTh1 = document.createElement('th'); otTh1.style.border = 'none'; otTh1.style.background = 'transparent'; overtimeHintRow.appendChild(otTh1);
+  days.forEach(function(d) {
+    var dateStr = iso(d);
+    var th = document.createElement('th');
+    th.style.fontSize = '11px'; th.style.color = 'var(--brand-text-muted, #95a5a6)'; th.style.fontWeight = 'normal';
+    if (lastOvertimeLikelyByDay && lastOvertimeLikelyByDay[dateStr]) th.textContent = '⚠ Overtime likely required for this day.';
+    overtimeHintRow.appendChild(th);
+  });
+  var otThTotal = document.createElement('th'); otThTotal.style.border = 'none'; otThTotal.style.background = 'transparent'; overtimeHintRow.appendChild(otThTotal);
+  var otThDays = document.createElement('th'); otThDays.style.border = 'none'; otThDays.style.background = 'transparent'; overtimeHintRow.appendChild(otThDays);
 
   var selectedPoolId = getScheduleTabSelectedPoolId();
 
@@ -5400,6 +5415,7 @@ function displaySchedule(){
       scheduleTable.appendChild(sectionTr);
     }
     scheduleTable.appendChild(headerRow);
+    scheduleTable.appendChild(overtimeHintRow);
     singlePoolEmps.forEach(function(emp) { appendEmployeeRow(emp); });
   } else {
     var poolsOrder = getPoolsInPrintOrder();
@@ -5417,6 +5433,7 @@ function displaySchedule(){
         scheduleTable.appendChild(sectionTr);
         if (firstPool) {
           scheduleTable.appendChild(headerRow);
+          scheduleTable.appendChild(overtimeHintRow);
           firstPool = false;
         }
       }
@@ -5551,7 +5568,13 @@ function assignEmployeesToWeek(days) {
         }
         while (segmentHoursList.length >= 2 && segmentHoursList[segmentHoursList.length - 1] < MIN_SHIFT_HOURS) {
           var tail = segmentHoursList.pop();
-          segmentHoursList[segmentHoursList.length - 1] += tail;
+          var prev = segmentHoursList[segmentHoursList.length - 1];
+          if (prev + tail <= REGULAR_HOURS_MAX) {
+            segmentHoursList[segmentHoursList.length - 1] = prev + tail;
+          } else {
+            segmentHoursList.push(tail);
+            break;
+          }
         }
         if (segmentHoursList.length === 1 && segmentHoursList[0] < MIN_SHIFT_HOURS) segmentHoursList = [];
         var cumHours = 0;
@@ -5606,6 +5629,7 @@ function assignEmployeesToWeek(days) {
       if (ed.status !== 'requested_off' || (ed.hours || ed.start)) return false;
     }
     if (assignments[dateStr] && assignments[dateStr].indexOf(emp.id) !== -1) return false;
+    if ((employeeHoursToday[dateStr][emp.id] || 0) + item.slot.hours > REGULAR_HOURS_MAX) return false;
     var empMaxDays = emp.maxDaysPerWeek !== undefined ? emp.maxDaysPerWeek : 5;
     if (employeeWorkDays[emp.id] >= empMaxDays) return false;
     var gapCheck = canWorkShift(emp.id, dateStr, slotStart, item.slot.end, employeeShiftHistory);
@@ -5637,8 +5661,9 @@ function assignEmployeesToWeek(days) {
     var slotHoursOne = one.slot.hours;
     var slotStartOne = one.slot.start;
     var slotEndOne = one.slot.end;
-    one.assignedTo = emp.id;
     var dateStrOne = one.dateStr;
+    if ((employeeHoursToday[dateStrOne][emp.id] || 0) + slotHoursOne > REGULAR_HOURS_MAX) return;
+    one.assignedTo = emp.id;
     var ev = one.ev, slot = one.slot, s = one.s, t = one.t;
     var d = one.d;
     var dayOfWeek = typeof getMondayBasedIndex === 'function' ? getMondayBasedIndex(d) : d.getDay();
@@ -5840,7 +5865,22 @@ function assignEmployeesToWeek(days) {
     if (!moved) break;
   }
   
-  return { assignments: assignments, assignmentDetails: assignmentDetails, otFlaggedAssignments: otFlaggedAssignments };
+  var overtimeLikelyByDay = {};
+  days.forEach(function(d) {
+    var dateStr = iso(d);
+    var requiredHours = 0;
+    weekSlots.forEach(function(it) { if (it.dateStr === dateStr) requiredHours += it.slot.hours; });
+    var assignedHours = 0;
+    if (assignments[dateStr] && assignmentDetails[dateStr]) {
+      assignments[dateStr].forEach(function(empId) {
+        var det = assignmentDetails[dateStr][empId];
+        if (det && det.hours != null) assignedHours += det.hours;
+      });
+    }
+    if (requiredHours > assignedHours) overtimeLikelyByDay[dateStr] = true;
+  });
+  
+  return { assignments: assignments, assignmentDetails: assignmentDetails, otFlaggedAssignments: otFlaggedAssignments, overtimeLikelyByDay: overtimeLikelyByDay };
 }
 
 function canWorkShift(empId, currentDate, shiftStart, shiftEnd, shiftHistory) {
