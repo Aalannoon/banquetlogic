@@ -5083,8 +5083,7 @@ function displaySchedule(){
   headerRow.innerHTML = '<th>🔒</th><th>Employee</th>';
   days.forEach(d=>{
     const th = document.createElement('th');
-    var dateStr = iso(d);
-    th.textContent = d.toLocaleDateString(undefined,{weekday:"short",day:"numeric"}) + (lastOvertimeLikelyByDay && lastOvertimeLikelyByDay[dateStr] ? ' ⚠' : '');
+    th.textContent = d.toLocaleDateString(undefined,{weekday:"short",day:"numeric"});
     headerRow.appendChild(th);
   });
   headerRow.innerHTML += '<th>Total<br><small class="schedule-th-helper">Total scheduled hours</small></th><th>Days<br><small class="schedule-th-helper">Days worked this week</small></th>';
