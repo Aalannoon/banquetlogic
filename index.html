@@ -5409,6 +5409,18 @@ function assignEmployeesToWeek(days) {
         });
         return !blockedByHigher;
       });
+      var minHoursHigher = Infinity;
+      employeesBySeniority.forEach(function(h) {
+        var hSr = h.seniority != null ? h.seniority : 99;
+        if (hSr < empSr) {
+          var ht = employeeTotalHours[h.id] || 0;
+          if (ht < minHoursHigher) minHoursHigher = ht;
+        }
+      });
+      var maxAllowedHours = Math.min(TARGET_WEEKLY_HOURS, minHoursHigher === Infinity ? TARGET_WEEKLY_HOURS : minHoursHigher);
+      eligible = eligible.filter(function(item) {
+        return (employeeTotalHours[emp.id] || 0) + item.slot.hours <= maxAllowedHours;
+      });
       if (eligible.length === 0) break;
       var preferEarly = emp.pref === 'AM';
       eligible.sort(function(a, b) {
@@ -5484,6 +5496,72 @@ function assignEmployeesToWeek(days) {
       }
     }
   });
+  
+  function seniorityOrderViolated() {
+    for (var i = 0; i < employeesBySeniority.length; i++) {
+      var h = employeesBySeniority[i];
+      var hHours = employeeTotalHours[h.id] || 0;
+      for (var j = i + 1; j < employeesBySeniority.length; j++) {
+        var l = employeesBySeniority[j];
+        var lHours = employeeTotalHours[l.id] || 0;
+        if (hHours < lHours) return { higher: h, lower: l };
+      }
+    }
+    return null;
+  }
+  
+  var rebalanceLimit = 500;
+  while (rebalanceLimit-- > 0) {
+    var violation = seniorityOrderViolated();
+    if (!violation) break;
+    var H = violation.higher, L = violation.lower;
+    var moved = false;
+    for (var si = 0; si < weekSlots.length && !moved; si++) {
+      var item = weekSlots[si];
+      if (item.assignedTo !== L.id) continue;
+      var dateStr = item.dateStr, slot = item.slot, ev = item.ev, s = item.s, t = item.t;
+      var slotHours = slot.hours, slotStart = slot.start, slotEnd = slot.end;
+      var wasAssigned = item.assignedTo;
+      item.assignedTo = null;
+      var hEligible = isEligibleForSlot(H, item);
+      item.assignedTo = wasAssigned;
+      if (!hEligible) continue;
+      item.assignedTo = H.id;
+      if (assignments[dateStr]) {
+        var idx = assignments[dateStr].indexOf(L.id);
+        if (idx !== -1) assignments[dateStr].splice(idx, 1);
+        if (assignments[dateStr].indexOf(H.id) === -1) assignments[dateStr].push(H.id);
+      }
+      if (!assignmentDetails[dateStr]) assignmentDetails[dateStr] = {};
+      delete assignmentDetails[dateStr][L.id];
+      assignmentDetails[dateStr][H.id] = { hours: slotHours, start: slotStart, end: slotEnd };
+      employeeTotalHours[L.id] = (employeeTotalHours[L.id] || 0) - slotHours;
+      employeeTotalHours[H.id] = (employeeTotalHours[H.id] || 0) + slotHours;
+      employeeHoursToday[dateStr][L.id] = (employeeHoursToday[dateStr][L.id] || 0) - slotHours;
+      employeeHoursToday[dateStr][H.id] = (employeeHoursToday[dateStr][H.id] || 0) + slotHours;
+      employeeWorkDays[L.id] = (employeeWorkDays[L.id] || 0) - 1;
+      employeeWorkDays[H.id] = (employeeWorkDays[H.id] || 0) + 1;
+      employeeShiftHistory[H.id] = { date: dateStr, endTime: slotEnd };
+      var lLast = null;
+      weekSlots.forEach(function(it) {
+        if (it.assignedTo === L.id && it.dateStr !== dateStr) {
+          if (!lLast || it.dateStr > lLast.dateStr) lLast = { dateStr: it.dateStr, endTime: it.slot.end };
+        }
+      });
+      employeeShiftHistory[L.id] = lLast ? { date: lLast.dateStr, endTime: lLast.endTime } : null;
+      var keyL = L.id + "_" + dateStr, keyH = H.id + "_" + dateStr;
+      delete assignmentReasonCodes[keyL]; delete assignmentReasons[keyL]; delete assignmentReasonTags[keyL];
+      assignmentReasonCodes[keyH] = 'SENIORITY_PRIORITY';
+      assignmentReasons[keyH] = [REASON_CODE_EXPLANATIONS.SENIORITY_PRIORITY || 'Rebalanced for seniority hour fairness.'];
+      assignmentReasonTags[keyH] = ['availability', 'within_max_days', 'seniority'];
+      otFlaggedAssignments = otFlaggedAssignments.filter(function(o) { return o.key !== keyL; });
+      if ((employeeHoursToday[dateStr][H.id] || 0) > REGULAR_HOURS_MAX) {
+        otFlaggedAssignments.push({ key: keyH, dateStr: dateStr, eventName: ev.name, empName: H.name });
+      }
+      moved = true;
+    }
+    if (!moved) break;
+  }
   
   return { assignments: assignments, assignmentDetails: assignmentDetails, otFlaggedAssignments: otFlaggedAssignments };
 }
