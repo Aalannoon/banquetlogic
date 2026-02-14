@@ -5446,6 +5446,7 @@ function assignEmployeesToWeek(days) {
     if (a.dateStr !== b.dateStr) return a.dateStr.localeCompare(b.dateStr);
     return a.slot.start.getTime() - b.slot.start.getTime();
   });
+  weekSlots.sort(function(a, b) { return a.slot.start.getTime() - b.slot.start.getTime(); });
   
   var assignmentStyle = settings.assignmentStyle || 'strict';
   var noonMinutes = 12 * 60;
@@ -5469,22 +5470,6 @@ function assignEmployeesToWeek(days) {
     if (assignments[dateStr] && assignments[dateStr].indexOf(emp.id) !== -1) return false;
     var empMaxDays = emp.maxDaysPerWeek !== undefined ? emp.maxDaysPerWeek : 5;
     if (employeeWorkDays[emp.id] >= empMaxDays) return false;
-    var gapCheck = canWorkShift(emp.id, dateStr, slotStart, employeeShiftHistory);
-    return gapCheck.allowed;
-  }
-  
-  function isEligibleForSlotStrict(emp, item) {
-    var dateStr = item.dateStr;
-    var slotStart = item.slot.start;
-    var key = emp.id + "_" + dateStr;
-    if (item.assignedTo !== null) return false;
-    if (lockedCells[key]) return false;
-    var ed = manualEdits[key];
-    if (ed) {
-      if (isFullAbsenceStatus(ed.status)) return false;
-      if (ed.status !== 'requested_off' || (ed.hours || ed.start)) return false;
-    }
-    if (assignments[dateStr] && assignments[dateStr].indexOf(emp.id) !== -1) return false;
     var gapCheck = canWorkShift(emp.id, dateStr, slotStart, employeeShiftHistory);
     return gapCheck.allowed;
   }
@@ -5555,7 +5540,7 @@ function assignEmployeesToWeek(days) {
       var emp = employeesBySeniority[ei];
       while ((employeeTotalHours[emp.id] || 0) < TARGET_WEEKLY_HOURS) {
         var eligible = weekSlots.filter(function(s) {
-          return s.assignedTo === null && isEligibleForSlotStrict(emp, s) && !wouldBreakSeniorityOrdering(emp, s.slot.hours);
+          return s.assignedTo === null && isEligibleForSlot(emp, s) && !wouldBreakSeniorityOrdering(emp, s.slot.hours);
         });
         if (eligible.length === 0) break;
         eligible.sort(function(a, b) {
