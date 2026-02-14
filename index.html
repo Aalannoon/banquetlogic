@@ -5449,16 +5449,17 @@ function assignEmployeesToWeek(days) {
         console.log('  name=' + (e.name || e.id) + ' seniority=' + seniorityValue(e) + ' totalHours=' + (employeeTotalHours[e.id] || 0));
       });
     }
+    // Required order: 1) Seniority descending, 2) Weekly hours ascending, 3) Preference, 4) tie-break. Never evaluate hours before seniority.
     eligible.sort(function(a, b) {
       var aSr = Number(seniorityValue(a));
       var bSr = Number(seniorityValue(b));
-      if (aSr !== bSr) return aSr - bSr; // 1) Seniority (higher seniority = lower number first)
+      if (aSr !== bSr) return aSr - bSr;
       var aHours = employeeTotalHours[a.id] || 0;
       var bHours = employeeTotalHours[b.id] || 0;
-      if (aHours !== bHours) return aHours - bHours; // 2) Weekly hours (lower first)
+      if (aHours !== bHours) return aHours - bHours;
       var aPref = preferenceMatchScore(a, slotStart);
       var bPref = preferenceMatchScore(b, slotStart);
-      if (aPref !== bPref) return bPref - aPref; // 3) Preference match (higher first)
+      if (aPref !== bPref) return bPref - aPref;
       return 0;
     });
     if (typeof console !== 'undefined' && console.log) {
