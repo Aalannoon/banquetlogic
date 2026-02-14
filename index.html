@@ -4727,8 +4727,8 @@ function generateSchedule(){
     assignments[dateStr].forEach(empId => {
       const key = empId + "_" + dateStr;
       
-      // Skip if locked or already manually edited
-      if(lockedCells[key]) {
+      // Skip if locked (cell or row) or already manually edited
+      if(lockedCells[key] || lockedRows[empId]) {
         console.log(`Skipping ${key} - locked`);
         return;
       }
@@ -5499,7 +5499,7 @@ function assignEmployeesToWeek(days) {
     days.forEach(function(d) {
       var dateStr = iso(d);
       var key = e.id + "_" + dateStr;
-      if (!lockedCells[key] || !manualEdits[key]) return;
+      if ((!lockedCells[key] && !lockedRows[e.id]) || !manualEdits[key]) return;
       var ed = manualEdits[key];
       if (isFullAbsenceStatus(ed.status)) return;
       if (!ed.hours && !ed.start) return;
@@ -5640,7 +5640,7 @@ function assignEmployeesToWeek(days) {
     lockedCountByDate[dateStr] = 0;
     employees.filter(function(emp) { return !emp.retired; }).forEach(function(emp) {
       var key = emp.id + '_' + dateStr;
-      if (lockedCells[key] && manualEdits[key] && !isFullAbsenceStatus(manualEdits[key].status) && (manualEdits[key].hours || manualEdits[key].start)) lockedCountByDate[dateStr]++;
+      if ((lockedCells[key] || lockedRows[emp.id]) && manualEdits[key] && !isFullAbsenceStatus(manualEdits[key].status) && (manualEdits[key].hours || manualEdits[key].start)) lockedCountByDate[dateStr]++;
     });
   });
   for (var dateStr in lockedCountByDate) {
@@ -5665,7 +5665,7 @@ function assignEmployeesToWeek(days) {
     var slotStart = item.slot.start;
     var key = emp.id + "_" + dateStr;
     if (item.assignedTo !== null) return false;
-    if (lockedCells[key]) return false;
+    if (lockedCells[key] || lockedRows[emp.id]) return false;
     var ed = manualEdits[key];
     if (ed) {
       if (isFullAbsenceStatus(ed.status)) return false;
@@ -6016,7 +6016,7 @@ function regenerateSchedule(){
   employees.filter(function(e) { return !e.retired; }).forEach(function(e) {
     days.forEach(function(dateStr) {
       var key = e.id + "_" + dateStr;
-      if (!lockedCells[key]) delete manualEdits[key];
+      if (!lockedCells[key] && !lockedRows[e.id]) delete manualEdits[key];
     });
   });
   delete scheduleGeneratedWeeks[weekKey];
