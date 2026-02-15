@@ -2947,7 +2947,7 @@ function validateSeniority(value, excludeEmployeeId, poolId) {
   if (value === '' || value === null || value === undefined) return { ok: false, message: 'Please enter a seniority number (1 = highest).' };
   if (isNaN(num)) return { ok: false, message: 'Seniority must be a number.' };
   if (num < 1) return { ok: false, message: 'Seniority must be at least 1.' };
-  var inPool = employees.filter(function(e) { return e.laborPoolId === poolId; });
+  var inPool = employees.filter(function(e) { return !e.retired && e.laborPoolId === poolId; });
   var taken = inPool.some(function(e) { return e.id !== excludeEmployeeId && (getSeniorityForEmployee(e)) === num; });
   if (taken) return { ok: false, message: 'This number is already used in this pool. Seniority must be unique per pool.' };
   return { ok: true, value: num };
