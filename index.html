@@ -1871,6 +1871,7 @@ body.light-mode .email-cell-input { background: #fff; color: #1a1f26; border-col
 
 
   <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
+  <script src="absence-utils.js"></script>
   <script>
 let employees = JSON.parse(localStorage.getItem("employees") || "[]");
 let events = JSON.parse(localStorage.getItem("events") || "[]");
@@ -2059,6 +2060,7 @@ function getCashierRecommendationForDate(dateStr) {
   if (totalRecommended <= 0) return { count: 0, names: [] };
   var cashiers = employees.filter(function(e) {
     if (e.retired || e.laborPoolId !== cashierPoolId) return false;
+    if (typeof isAbsentOnDate === 'function' && isAbsentOnDate(e, dateStr)) return false;
     var k = e.id + '_' + dateStr;
     var ed = manualEdits[k];
     if (ed && isFullAbsenceStatus(ed.status)) return false;
@@ -2093,6 +2095,7 @@ function getHousemenRecommendationForDate(dateStr) {
   if (totalRecommended <= 0) return { count: 0, names: [] };
   var housemen = employees.filter(function(e) {
     if (e.retired || e.laborPoolId !== housemenPoolId) return false;
+    if (typeof isAbsentOnDate === 'function' && isAbsentOnDate(e, dateStr)) return false;
     var k = e.id + '_' + dateStr;
     var ed = manualEdits[k];
     if (ed && isFullAbsenceStatus(ed.status)) return false;
@@ -2114,6 +2117,7 @@ function getRecommendedCashiersForDate(dateStr) {
   if (!cashierPoolId || rec.count <= 0) return [];
   var cashiers = employees.filter(function(e) {
     if (e.retired || e.laborPoolId !== cashierPoolId) return false;
+    if (typeof isAbsentOnDate === 'function' && isAbsentOnDate(e, dateStr)) return false;
     var k = e.id + '_' + dateStr;
     var ed = manualEdits[k];
     if (ed && isFullAbsenceStatus(ed.status)) return false;
@@ -2132,6 +2136,7 @@ function getRecommendedHousemenForDate(dateStr) {
   if (!housemenPoolId || rec.count <= 0) return [];
   var housemen = employees.filter(function(e) {
     if (e.retired || e.laborPoolId !== housemenPoolId) return false;
+    if (typeof isAbsentOnDate === 'function' && isAbsentOnDate(e, dateStr)) return false;
     var k = e.id + '_' + dateStr;
     var ed = manualEdits[k];
     if (ed && isFullAbsenceStatus(ed.status)) return false;
@@ -2518,6 +2523,7 @@ function ensureEmployeeDefaults(list) {
     if (emp.seniority != null && emp.laborPoolId && emp.seniorityByPool[emp.laborPoolId] === undefined) emp.seniorityByPool[emp.laborPoolId] = emp.seniority;
     ensureDayPreferencesMondayBased(emp);
     if (emp.maxDaysPerWeek === undefined) emp.maxDaysPerWeek = 5;
+    if (!Array.isArray(emp.absences)) emp.absences = [];
   });
 }
 
@@ -4081,6 +4087,7 @@ function getEligibleEmployeesForDate(dateStr) {
   return employees.filter(function(e) {
     if (!e || typeof e !== 'object') return true;
     if (e.retired) return false;
+    if (typeof isAbsentOnDate === 'function' && isAbsentOnDate(e, dateStr)) return false;
     var key = e.id + '_' + dateStr;
     var edit = manualEdits[key];
     if (edit && isFullAbsenceStatus(edit.status)) return false;
@@ -4125,6 +4132,7 @@ function checkCashierSeniorityOverride(empId, dateStr) {
   empSeniority = empSeniority != null ? empSeniority : 999;
   for (var i = 0; i < cashiers.length; i++) {
     if (cashiers[i].id === empId) continue;
+    if (typeof isAbsentOnDate === 'function' && isAbsentOnDate(cashiers[i], dateStr)) continue;
     var k = cashiers[i].id + '_' + dateStr;
     var ed = manualEdits[k];
     if (ed && isFullAbsenceStatus(ed.status)) continue;
@@ -4160,6 +4168,8 @@ function editScheduleCell(empId, date){
   var key;
   if (emp.status) {
     key = emp.id + "_" + date;
+    if (!Array.isArray(emp.absences)) emp.absences = [];
+    emp.absences.push({ type: emp.status, startDate: date, endDate: date });
     manualEdits[key] = {
       status: emp.status
     };
@@ -4239,8 +4249,17 @@ function editScheduleCell(empId, date){
   if(trimmed === 'remove' || trimmed === 'clear' || trimmed === '') {
     const oldValue = currentEdit ? JSON.stringify(currentEdit) : 'Auto-assigned';
     delete manualEdits[key];
+    if (currentEdit && currentEdit.status && typeof isFullAbsenceStatus === 'function' && isFullAbsenceStatus(currentEdit.status)) {
+      if (emp.absences && Array.isArray(emp.absences)) {
+        emp.absences = emp.absences.filter(function(a) {
+          return !(a.startDate === date && a.endDate === date && a.type === currentEdit.status);
+        });
+      }
+    }
+    var weekKey = getWeekKey(getWeekStart());
+    saveWeeklyScheduleSnapshot(weekKey);
     addAuditEntry('Shift Removed', empId, date, oldValue, null);
-    save(); 
+    save();
     displaySchedule();
     return;
   }
@@ -4248,6 +4267,8 @@ function editScheduleCell(empId, date){
   // Mark as sick
   if(trimmed === 'sick') {
     const oldValue = currentEdit ? JSON.stringify(currentEdit) : null;
+    if (!Array.isArray(emp.absences)) emp.absences = [];
+    emp.absences.push({ type: 'sick', startDate: date, endDate: date });
     manualEdits[key] = { status: 'sick', manualOverride: true, absenceReason: 'Marked Sick manually' };
     delete assignmentReasonTags[key];
     delete assignmentReasons[key];
@@ -4261,6 +4282,8 @@ function editScheduleCell(empId, date){
   // Mark as vacation
   if(trimmed === 'vacation' || trimmed === 'vac') {
     const oldValue = currentEdit ? JSON.stringify(currentEdit) : null;
+    if (!Array.isArray(emp.absences)) emp.absences = [];
+    emp.absences.push({ type: 'vacation', startDate: date, endDate: date });
     manualEdits[key] = { status: 'vacation', manualOverride: true, absenceReason: 'Vacation added by manager' };
     delete assignmentReasonTags[key];
     delete assignmentReasons[key];
@@ -4273,6 +4296,8 @@ function editScheduleCell(empId, date){
   // Mark as floating holiday
   if(trimmed === 'floating_holiday' || trimmed === 'floating' || trimmed === 'floating holiday') {
     const oldValue = currentEdit ? JSON.stringify(currentEdit) : null;
+    if (!Array.isArray(emp.absences)) emp.absences = [];
+    emp.absences.push({ type: 'floating_holiday', startDate: date, endDate: date });
     manualEdits[key] = { status: 'floating_holiday', manualOverride: true, absenceReason: 'Floating holiday added by manager' };
     delete assignmentReasonTags[key];
     delete assignmentReasons[key];
@@ -4285,6 +4310,8 @@ function editScheduleCell(empId, date){
   // Mark as unpaid vacation
   if(trimmed === 'unpaid_vacation' || trimmed === 'unpaid' || trimmed === 'unpaid vacation') {
     const oldValue = currentEdit ? JSON.stringify(currentEdit) : null;
+    if (!Array.isArray(emp.absences)) emp.absences = [];
+    emp.absences.push({ type: 'unpaid_vacation', startDate: date, endDate: date });
     manualEdits[key] = { status: 'unpaid_vacation', manualOverride: true, absenceReason: 'Unpaid vacation added by manager' };
     delete assignmentReasonTags[key];
     delete assignmentReasons[key];
@@ -4297,6 +4324,8 @@ function editScheduleCell(empId, date){
   // Mark as requested off (off)
   if(trimmed === 'off' || trimmed === 'requested_off' || trimmed === 'request off') {
     const oldValue = currentEdit ? JSON.stringify(currentEdit) : null;
+    if (!Array.isArray(emp.absences)) emp.absences = [];
+    emp.absences.push({ type: 'requested_off', startDate: date, endDate: date });
     manualEdits[key] = { status: 'requested_off', manualOverride: true, absenceReason: 'Request off', requestedOff: true };
     delete assignmentReasonTags[key];
     delete assignmentReasons[key];
@@ -4567,6 +4596,8 @@ function generateSchedule(){
     
     // Never write shifts for anyone who has absence on this date (sick, vacation, etc.)
     assignments[dateStr] = (assignments[dateStr] || []).filter(function(empId) {
+      var emp = employees.find(function(e) { return e.id === empId; });
+      if (emp && typeof isAbsentOnDate === 'function' && isAbsentOnDate(emp, dateStr)) return false;
       var k = empId + '_' + dateStr;
       var ex = manualEdits && manualEdits[k];
       if (ex && isFullAbsenceStatus(ex.status)) return false;
@@ -4582,6 +4613,8 @@ function generateSchedule(){
         return;
       }
       var existing = manualEdits != null ? manualEdits[key] : null;
+      var empForAbsence = employees.find(function(e) { return e.id === empId; });
+      if (empForAbsence && typeof isAbsentOnDate === 'function' && isAbsentOnDate(empForAbsence, dateStr)) return;
       if (existing && isFullAbsenceStatus(existing.status)) {
         return;
       }
@@ -5536,6 +5569,7 @@ function assignEmployeesToWeek(days) {
     var dateStr = item.dateStr;
     var key = emp.id + "_" + dateStr;
     var edit = manualEdits[key];
+    if (typeof isAbsentOnDate === 'function' && isAbsentOnDate(emp, dateStr)) return false;
     if (edit && isFullAbsenceStatus(edit.status)) return false;
     if (item.assignedTo !== null) return false;
     if (lockedCells[key] || lockedRows[emp.id]) return false;
