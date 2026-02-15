@@ -5292,6 +5292,21 @@ function displaySchedule(){
       cell.className = 'clickable';
       cell.setAttribute('data-emp-id', emp.id);
       cell.setAttribute('data-date', dateStr);
+      // Week-level employee status (full-week absence): render status cell only, no shift
+      var fullWeekStatusIds = { sick: 1, vacation: 1, unpaid_vacation: 1, floating_holiday: 1, off: 1, requested_off: 1 };
+      if (emp.status && fullWeekStatusIds[emp.status]) {
+        cell.innerHTML = '';
+        cell.classList.add('status-cell');
+        var weekStatusInfo = ABSENCE_TYPES.find(function(a) { return a.id === emp.status; });
+        var statusLabelText = weekStatusInfo ? weekStatusInfo.label : (emp.status === 'off' ? 'Off' : emp.status.replace(/_/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); }));
+        var statusLabelEl = document.createElement('div');
+        statusLabelEl.className = 'status-label';
+        statusLabelEl.textContent = statusLabelText;
+        cell.appendChild(statusLabelEl);
+        cell.onclick = function() { editScheduleCell(emp.id, dateStr); };
+        row.appendChild(cell);
+        return;
+      }
       cell.ondragover = function(e) {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
