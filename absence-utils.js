@@ -25,8 +25,16 @@ function isAbsentOnDate(employee, date) {
 // Return the absence type (e.g. 'sick', 'vacation') for the first absence covering this date, or null
 function getAbsenceTypeOnDate(employee, date) {
   if (!employee) return null;
-  // Employee-tab checkbox: status set = show this type on every date until unchecked
-  if (employee.status && GLOBAL_ABSENCE_STATUSES.indexOf(employee.status) !== -1) return employee.status;
+  // Employee-tab checkbox: status set = show this type. Vacation (paid) only on weekdays so Days shows 5/5; others every day
+  if (employee.status && GLOBAL_ABSENCE_STATUSES.indexOf(employee.status) !== -1) {
+    if (employee.status === 'vacation') {
+      var d = date instanceof Date ? date : new Date(date + 'T12:00:00');
+      var day = d.getDay(); // 0 = Sunday, 6 = Saturday
+      if (day >= 1 && day <= 5) return employee.status; // Monday–Friday only
+      return null;
+    }
+    return employee.status; // sick, floating_holiday, unpaid_vacation, requested_off: every day
+  }
   if (!employee.absences || employee.absences.length === 0) return null;
   const shiftTime = toMidnightTime(date);
   const match = employee.absences.find(absence => {

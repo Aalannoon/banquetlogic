@@ -1445,7 +1445,7 @@ body.light-mode .email-cell-input { background: #fff; color: #1a1f26; border-col
 <thead>
 <tr>
   <th>Name</th><th>Type</th><th>Email</th><th>Pref</th>
-  <th>Max Days/Wk</th><th>Day Prefs</th><th>Sick</th><th>Vac</th><th>Unpaid</th><th>Float</th><th>Off</th><th>Actions</th>
+  <th>Max Days/Wk</th><th>Day Prefs</th><th>Sick</th><th>Vac</th><th>Unpaid</th><th>Off</th><th>Actions</th>
 </tr>
 </thead>
 <tbody id="employeesTable"></tbody>
@@ -1480,7 +1480,7 @@ body.light-mode .email-cell-input { background: #fff; color: #1a1f26; border-col
       <input type="number" id="employeeEditSeniority" min="1" style="width: 80px;" />
       <small class="edit-helper">Override will be logged in the audit log.</small>
     </div>
-    <p style="font-size: 12px; color: #95a5a6; margin: 12px 0 0 0;">Check Sick, Vac, Unpaid, Float, or Off to mark an employee as that absence type until you uncheck it; they won't be scheduled. <strong>Uncheck when the employee is available again.</strong></p>
+    <p style="font-size: 12px; color: #95a5a6; margin: 12px 0 0 0;">Check Sick, Vac, Unpaid, or Off to mark an employee as that absence type until you uncheck it; they won't be scheduled. <strong>Uncheck when the employee is available again.</strong></p>
     <div class="edit-actions">
       <button type="button" class="save-btn btn-primary" id="employeeEditSaveBtn">Save Changes</button>
       <button type="button" class="cancel-btn" id="employeeEditCancelBtn">Cancel</button>
@@ -3273,7 +3273,6 @@ function renderEmployees(){
       <td><input type="checkbox" class="sick-check" ${e.status === 'sick' ? "checked" : ""} title="Mark as Sick until unmarked. Uncheck when available."></td>
       <td><input type="checkbox" class="vacation-check" ${e.status === 'vacation' ? "checked" : ""} title="Mark as Vacation until unmarked. Uncheck when available."></td>
       <td><input type="checkbox" class="unpaid-vacation-check" ${e.status === 'unpaid_vacation' ? "checked" : ""} title="Mark as Unpaid vacation until unmarked. Uncheck when available."></td>
-      <td><input type="checkbox" class="floating-holiday-check" ${e.status === 'floating_holiday' ? "checked" : ""} title="Mark as Floating holiday until unmarked. Uncheck when available."></td>
       <td><input type="checkbox" class="off-check" ${e.status === 'requested_off' ? "checked" : ""} title="Mark as Off until unmarked. Uncheck when available."></td>
       <td>
         <button type="button" class="info-btn" style="background:#27ae60; padding:4px 8px;" title="View/Edit Info">Info</button>
@@ -3331,7 +3330,6 @@ function renderEmployees(){
     const sickCheck = row.querySelector('.sick-check');
     const vacationCheck = row.querySelector('.vacation-check');
     const unpaidVacationCheck = row.querySelector('.unpaid-vacation-check');
-    const floatingHolidayCheck = row.querySelector('.floating-holiday-check');
     const offCheck = row.querySelector('.off-check');
     const retireBtn = row.querySelector('.retire');
     const infoBtn = row.querySelector('.info-btn');
@@ -3356,9 +3354,6 @@ function renderEmployees(){
     }
     if(unpaidVacationCheck) {
       unpaidVacationCheck.onclick = function() { onStatusCheckboxClick(e, 'unpaid_vacation'); };
-    }
-    if(floatingHolidayCheck) {
-      floatingHolidayCheck.onclick = function() { onStatusCheckboxClick(e, 'floating_holiday'); };
     }
     if(offCheck) {
       offCheck.onclick = function() { onStatusCheckboxClick(e, 'requested_off'); };
