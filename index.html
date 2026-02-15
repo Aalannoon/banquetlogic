@@ -4157,8 +4157,9 @@ function applyOverrideToEdit(edit, reason) {
 function editScheduleCell(empId, date){
   var emp = employees.find(function(e) { return e.id === empId; });
   if (!emp) return;
+  var key;
   if (emp.status) {
-    var key = emp.id + "_" + date;
+    key = emp.id + "_" + date;
     manualEdits[key] = {
       status: emp.status
     };
@@ -4176,7 +4177,7 @@ function editScheduleCell(empId, date){
     alert('This employee\'s row is locked. Click the lock icon next to their name to unlock and edit.');
     return;
   }
-  const key = empId + "_" + date;
+  key = empId + "_" + date;
   const ev = events.find(e => e.date === date);
   
   let currentEdit = manualEdits[key];
