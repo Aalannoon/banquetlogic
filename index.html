@@ -1943,6 +1943,12 @@ function isFullAbsenceStatus(status) {
   if (typeof status !== 'string') return false;
   return status === 'sick' || status === 'vacation' || status === 'floating_holiday' || status === 'unpaid_vacation' || status === 'requested_off';
 }
+// Paid absences (vacation, floating holiday) count against max days per week
+function isPaidAbsenceDay(emp, dateStr) {
+  if (!emp) return false;
+  var t = typeof getAbsenceTypeOnDate === 'function' ? getAbsenceTypeOnDate(emp, dateStr) : null;
+  return t === 'vacation' || t === 'floating_holiday';
+}
 var REASON_TAG_PRIORITY = ['manual_lock', 'availability', 'seniority', 'no_conflicts', 'rotation_balance', 'within_max_days', 'full_time', 'prefers_shift', 'day_preference', 'preference_overridden'];
 let settings = JSON.parse(localStorage.getItem("settings") || JSON.stringify({
   assignmentStyle: "strict", // Default: Strict Seniority
@@ -4543,12 +4549,12 @@ function generateSchedule(){
   let skippedDueToLimit = 0;
   let understaffedEvents = []; // Track events that couldn't be fully staffed
   
-  // First, count existing work days for each employee (manual edits)
+  // First, count existing work days for each employee (manual edits) plus paid absence days (vacation, floating holiday)
   const employeeWorkDays = {};
   employees.filter(function(e) { return e && typeof e === 'object' && !e.retired; }).forEach(function(e) {
     employeeWorkDays[e.id] = 0;
     
-    // Count days that already have manual edits
+    // Count days that already have manual edits (shifts)
     days.forEach(d => {
       const dateStr = iso(d);
       const key = e.id + "_" + dateStr;
@@ -4556,6 +4562,11 @@ function generateSchedule(){
       if (me && !isFullAbsenceStatus(me.status) && (me.hours || me.start)) {
         employeeWorkDays[e.id]++;
       }
+    });
+    // Paid absences (vacation, floating holiday) count against max days per week
+    days.forEach(d => {
+      const dateStr = iso(d);
+      if (typeof isPaidAbsenceDay === 'function' && isPaidAbsenceDay(e, dateStr)) employeeWorkDays[e.id]++;
     });
   });
   
@@ -5106,6 +5117,8 @@ function displaySchedule(){
     days.forEach(d=>{
       const dateStr = iso(d);
       const key=emp.id+"_"+dateStr;
+      // Paid absences (vacation, floating holiday) count against max days per week
+      if (typeof isPaidAbsenceDay === 'function' && isPaidAbsenceDay(emp, dateStr)) daysWorked++;
       const cell = document.createElement('td');
       cell.className = 'clickable';
       cell.setAttribute('data-emp-id', emp.id);
@@ -5425,6 +5438,13 @@ function assignEmployeesToWeek(days) {
     var dateStr = iso(d);
     employeeHoursToday[dateStr] = {};
     assignments[dateStr] = [];
+  });
+  // Count paid absence days (vacation, floating holiday) against max days per week
+  employees.filter(function(e) { return e && typeof e === 'object' && !e.retired; }).forEach(function(e) {
+    days.forEach(function(d) {
+      var dateStr = iso(d);
+      if (typeof isPaidAbsenceDay === 'function' && isPaidAbsenceDay(e, dateStr)) employeeWorkDays[e.id]++;
+    });
   });
   employees.filter(function(e) { return e && typeof e === 'object' && !e.retired; }).forEach(function(e) {
     days.forEach(function(d) {
@@ -6073,6 +6093,7 @@ function buildScheduleTableForPrint(filterPoolId) {
       days.forEach(function(d) {
         var dateStr = iso(d);
         var key = emp.id + '_' + dateStr;
+        if (typeof isPaidAbsenceDay === 'function' && isPaidAbsenceDay(emp, dateStr)) daysWorked++;
         var cell = document.createElement('td');
         var edit = manualEdits[key];
         if (edit) {
