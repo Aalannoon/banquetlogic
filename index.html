@@ -4141,8 +4141,8 @@ function applyOverrideToEdit(edit, reason) {
 
 function editScheduleCell(empId, date){
   if (currentAbsenceMode) {
-    var key = currentAbsenceMode.empId + "_" + date;
-    manualEdits[key] = { status: currentAbsenceMode.status, manualOverride: true };
+    var absenceKey = currentAbsenceMode.empId + "_" + date;
+    manualEdits[absenceKey] = { status: currentAbsenceMode.status, manualOverride: true };
     save();
     displaySchedule();
     return;
