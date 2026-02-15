@@ -3476,30 +3476,60 @@ function onStatusCheckboxClick(emp, statusName) {
   var statusLabel = (ABSENCE_TYPES.find(function(a) { return a.id === statusName; }) || {}).label || statusName;
   var weekStart = getWeekStart();
   var mondayStr = iso(weekStart);
-  var msg = 'Apply ' + statusLabel + ' for ' + emp.name + '.\n\nEnter date (YYYY-MM-DD). This week\'s Monday is ' + mondayStr + '.\nLeave empty and click Cancel to apply by clicking dates on the Schedule tab.';
-  var raw = prompt(msg, mondayStr);
-  if (raw === null) {
+  var friday = new Date(weekStart);
+  friday.setDate(friday.getDate() + 4);
+  var fridayStr = iso(friday);
+  var msgStart = 'Apply ' + statusLabel + ' for ' + emp.name + '.\n\nStart date (YYYY-MM-DD). This week: Mon ' + mondayStr + ' to Fri ' + fridayStr + '.\nLeave empty and click Cancel to pick dates on the Schedule tab.';
+  var rawStart = prompt(msgStart, mondayStr);
+  if (rawStart === null) {
     renderEmployees();
     displaySchedule();
     return;
   }
-  raw = (raw || '').trim();
-  if (raw === '') {
+  rawStart = (rawStart || '').trim();
+  if (rawStart === '') {
     renderEmployees();
     displaySchedule();
     return;
   }
-  var d = new Date(raw + 'T12:00:00');
-  if (isNaN(d.getTime())) {
-    alert('Invalid date. Use YYYY-MM-DD (e.g. ' + mondayStr + ').');
+  var dStart = new Date(rawStart + 'T12:00:00');
+  if (isNaN(dStart.getTime())) {
+    alert('Invalid start date. Use YYYY-MM-DD (e.g. ' + mondayStr + ').');
     renderEmployees();
     displaySchedule();
     return;
   }
-  var dateStr = dateToLocalYYYYMMDD(d);
-  var absenceKey = emp.id + '_' + dateStr;
-  manualEdits[absenceKey] = { status: statusName, manualOverride: true };
-  addAuditEntry('Absence Set', emp.id, dateStr, null, statusLabel + ' for ' + emp.name);
+  var startStr = dateToLocalYYYYMMDD(dStart);
+  var msgEnd = 'End date (YYYY-MM-DD). Same as start for one day.\nExample: ' + startStr;
+  var rawEnd = prompt(msgEnd, startStr);
+  if (rawEnd === null) {
+    renderEmployees();
+    displaySchedule();
+    return;
+  }
+  rawEnd = (rawEnd || '').trim();
+  if (rawEnd === '') rawEnd = startStr;
+  var dEnd = new Date(rawEnd + 'T12:00:00');
+  if (isNaN(dEnd.getTime())) {
+    alert('Invalid end date. Use YYYY-MM-DD.');
+    renderEmployees();
+    displaySchedule();
+    return;
+  }
+  var endStr = dateToLocalYYYYMMDD(dEnd);
+  if (dEnd < dStart) {
+    alert('End date must be on or after start date.');
+    renderEmployees();
+    displaySchedule();
+    return;
+  }
+  var dateStrs = getDateRangeInclusive(startStr, endStr);
+  for (var i = 0; i < dateStrs.length; i++) {
+    var dateStr = dateStrs[i];
+    var absenceKey = emp.id + '_' + dateStr;
+    manualEdits[absenceKey] = { status: statusName, manualOverride: true };
+  }
+  addAuditEntry('Absence Set', emp.id, startStr + ' to ' + endStr, null, statusLabel + ' for ' + emp.name + ' (' + dateStrs.length + ' days)');
   save();
   currentAbsenceMode = null;
   renderEmployees();
@@ -3839,6 +3869,21 @@ function dateToLocalYYYYMMDD(d) {
 /** Primary date string for schedule keys. Replaces toISOString() to avoid timezone shift. */
 function iso(d) {
   return dateToLocalYYYYMMDD(d);
+}
+
+/** Returns array of date strings (YYYY-MM-DD) from startStr through endStr inclusive. */
+function getDateRangeInclusive(startStr, endStr) {
+  var start = new Date(startStr + 'T12:00:00');
+  var end = new Date(endStr + 'T12:00:00');
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) return [];
+  if (end < start) return [];
+  var out = [];
+  var d = new Date(start.getTime());
+  while (d <= end) {
+    out.push(dateToLocalYYYYMMDD(d));
+    d.setDate(d.getDate() + 1);
+  }
+  return out;
 }
 
 /** Stable week identifier: Monday of week as YYYY-MM-DD (local). Any day in Feb 9-15 2026 → "2026-02-09". */
