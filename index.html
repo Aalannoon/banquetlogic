@@ -1988,6 +1988,8 @@ var ABSENCE_TYPES = [
   { id: 'requested_off', label: 'Request Off', cellLabel: '(Requested Off)', reason: 'Request off (visual only)', paid: null }
 ];
 function isFullAbsenceStatus(status) {
+  if (status == null) return false;
+  if (typeof status !== 'string') return false;
   return status === 'sick' || status === 'vacation' || status === 'floating_holiday' || status === 'unpaid_vacation' || status === 'requested_off';
 }
 var REASON_TAG_PRIORITY = ['manual_lock', 'availability', 'seniority', 'no_conflicts', 'rotation_balance', 'within_max_days', 'full_time', 'prefers_shift', 'day_preference', 'preference_overridden'];
@@ -2558,22 +2560,25 @@ function migrateImportData(data) {
 
 var WEEK_LEVEL_STATUS_IDS = { sick: 1, vacation: 1, unpaid_vacation: 1, floating_holiday: 1, off: 1, requested_off: 1 };
 function isWeekLevelAbsenceStatus(status) {
-  return status && WEEK_LEVEL_STATUS_IDS[status];
+  if (status == null) return false;
+  if (typeof status !== 'string') return false;
+  return !!WEEK_LEVEL_STATUS_IDS[status];
 }
 function ensureEmployeeDefaults(list) {
   if (!Array.isArray(list)) return;
   var defaultPoolId = (laborPools.length && getLaborPoolById(DEFAULT_SERVERS_POOL_ID)) ? DEFAULT_SERVERS_POOL_ID : (laborPools[0] ? laborPools[0].id : null);
   list.forEach(function(emp) {
+    if (!emp || typeof emp !== 'object') return;
     if (!emp.laborPoolId) emp.laborPoolId = defaultPoolId || (laborPools[0] ? laborPools[0].id : null);
     if (!emp.seniorityByPool) emp.seniorityByPool = {};
     if (emp.seniority != null && emp.laborPoolId && emp.seniorityByPool[emp.laborPoolId] === undefined) emp.seniorityByPool[emp.laborPoolId] = emp.seniority;
     ensureDayPreferencesMondayBased(emp);
     if (emp.maxDaysPerWeek === undefined) emp.maxDaysPerWeek = 5;
-    if (emp.hasOwnProperty('sick')) {
+    if (Object.prototype.hasOwnProperty.call(emp, 'sick')) {
       emp.status = emp.sick ? 'sick' : (emp.status || null);
       delete emp.sick;
     }
-    if (emp.status && !isWeekLevelAbsenceStatus(emp.status)) emp.status = null;
+    if (emp.status != null && !isWeekLevelAbsenceStatus(emp.status)) emp.status = null;
   });
 }
 
@@ -4339,15 +4344,18 @@ var OVERRIDE_REASONS = [
 
 function getEligibleEmployeesForDate(dateStr) {
   return employees.filter(function(e) {
+    if (!e || typeof e !== 'object') return true;
     if (e.retired || isWeekLevelAbsenceStatus(e.status)) return false;
     var vk = e.id + '_' + dateStr;
-    if (manualEdits[vk] && isFullAbsenceStatus(manualEdits[vk].status)) return false;
+    var edit = manualEdits[vk];
+    if (edit && isFullAbsenceStatus(edit.status)) return false;
     return true;
   });
 }
 
 function getEmployeesWithShiftOnDate(dateStr) {
   return employees.filter(function(e) {
+    if (!e || typeof e !== 'object') return false;
     if (e.retired) return false;
     var k = e.id + '_' + dateStr;
     var edit = manualEdits[k];
@@ -4756,14 +4764,15 @@ function generateSchedule(){
   
   // First, count existing work days for each employee (manual edits)
   const employeeWorkDays = {};
-  employees.filter(e => !e.retired).forEach(e => {
+  employees.filter(function(e) { return e && typeof e === 'object' && !e.retired; }).forEach(function(e) {
     employeeWorkDays[e.id] = 0;
     
     // Count days that already have manual edits
     days.forEach(d => {
       const dateStr = iso(d);
       const key = e.id + "_" + dateStr;
-      if(manualEdits[key] && !isFullAbsenceStatus(manualEdits[key].status) && (manualEdits[key].hours || manualEdits[key].start)) {
+      var me = manualEdits[key];
+      if (me && !isFullAbsenceStatus(me.status) && (me.hours || me.start)) {
         employeeWorkDays[e.id]++;
       }
     });
@@ -4830,7 +4839,8 @@ function generateSchedule(){
       }
       
       // Check individual employee's max days limit (including already scheduled days)
-      const employee = employees.find(e => e.id === empId);
+      const employee = employees.find(function(e) { return e && e.id === empId; });
+      if (!employee) return;
       const empMaxDays = employee.maxDaysPerWeek !== undefined ? employee.maxDaysPerWeek : 5;
       
       if(employeeWorkDays[empId] >= empMaxDays) {
@@ -5275,6 +5285,7 @@ function displaySchedule(){
   }
 
   function appendEmployeeRow(emp) {
+    if (!emp || typeof emp !== 'object') return;
     let total=0;
     let daysWorked=0;
     const row = document.createElement('tr');
@@ -5615,7 +5626,7 @@ function assignEmployeesToWeek(days) {
   const employeeWorkDays = {};
   const employeeHoursToday = {}; // dateStr -> { empId -> hours } for OT-avoidance
   
-  employees.filter(e => !e.retired).forEach(e => {
+  employees.filter(function(e) { return e && typeof e === 'object' && !e.retired; }).forEach(function(e) {
     employeeShiftHistory[e.id] = null;
     employeeTotalHours[e.id] = 0;
     employeeWorkDays[e.id] = 0;
@@ -5626,13 +5637,13 @@ function assignEmployeesToWeek(days) {
     employeeHoursToday[dateStr] = {};
     assignments[dateStr] = [];
   });
-  employees.filter(function(e) { return !e.retired; }).forEach(function(e) {
+  employees.filter(function(e) { return e && typeof e === 'object' && !e.retired; }).forEach(function(e) {
     days.forEach(function(d) {
       var dateStr = iso(d);
       var key = e.id + "_" + dateStr;
       if ((!lockedCells[key] && !lockedRows[e.id]) || !manualEdits[key]) return;
       var ed = manualEdits[key];
-      if (isFullAbsenceStatus(ed.status)) return;
+      if (ed && isFullAbsenceStatus(ed.status)) return;
       if (!ed.hours && !ed.start) return;
       var hours = ed.hours;
       if (hours == null && ed.start && ed.end) {
@@ -5654,6 +5665,7 @@ function assignEmployeesToWeek(days) {
   var cashierPoolId = getCashierPoolId();
   var housemenPoolId = getHousemenPoolId();
   var serverPool = employees.filter(function(e) {
+    if (!e || typeof e !== 'object') return false;
     if (e.retired || isWeekLevelAbsenceStatus(e.status)) return false;
     if (cashierPoolId && e.laborPoolId === cashierPoolId) return false;
     if (housemenPoolId && e.laborPoolId === housemenPoolId) return false;
@@ -5792,6 +5804,7 @@ function assignEmployeesToWeek(days) {
   }
   
   function isEligibleForSlot(emp, item) {
+    if (!emp || typeof emp !== 'object') return false;
     var dateStr = item.dateStr;
     var slotStart = item.slot.start;
     var key = emp.id + "_" + dateStr;
