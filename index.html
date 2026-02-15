@@ -1573,8 +1573,8 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
 
 <div class="schedule-actions">
   <span class="schedule-action-group">
-    <button type="button" onclick="changeWeek(-1)">â¬… Previous Week</button>
-    <button type="button" onclick="changeWeek(1)">Next Week âž¡</button>
+    <button type="button" onclick="changeWeek(-1)"><- Previous Week</button>
+    <button type="button" onclick="changeWeek(1)">Next Week -></button>
   </span>
   <span class="schedule-action-sep" aria-hidden="true">|</span>
   <span class="schedule-action-group">
@@ -1896,7 +1896,7 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
         Email: <a href="mailto:Alialannoon@gmail.com">Alialannoon@gmail.com</a>
       </p>
       <p class="support-response-time">
-        We aim to respond within 1–2 business days.
+        We aim to respond within 1-2 business days.
       </p>
     </div>
   </div>
@@ -2264,7 +2264,7 @@ function getDataForBackup(backupType) {
   return payload;
 }
 
-/* AUTOMATIC BACKUPS (IndexedDB – separate from live data) */
+/* AUTOMATIC BACKUPS (IndexedDB - separate from live data) */
 var BACKUP_DB_NAME = 'BanquetLogicBackups';
 var BACKUP_STORE = 'backups';
 var MAX_AUTO_BACKUPS = 10;
@@ -2380,7 +2380,7 @@ function formatBackupLabel(record) {
   } else {
     dateStr = 'Unknown date';
   }
-  return type + ' – ' + dateStr;
+  return type + ' - ' + dateStr;
 }
 
 function openRestoreBackupModal() {
@@ -2774,7 +2774,7 @@ function showAssignmentReason(empId, dateStr) {
   const emp = employees.find(e => e.id === empId);
   const date = new Date(dateStr);
   const explanation = getAssignmentExplanation(empId, dateStr);
-  const title = emp ? (emp.name + ' – ' + date.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })) : 'Shift';
+  const title = emp ? (emp.name + ' - ' + date.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })) : 'Shift';
   if (explanation) {
     alert(title + '\n\n' + explanation);
   } else {
@@ -2792,7 +2792,7 @@ function emailSchedulesToAll() {
     return d;
   });
   
-  const weekRange = `${days[0].toLocaleDateString()} – ${days[6].toLocaleDateString()}`;
+  const weekRange = `${days[0].toLocaleDateString()} - ${days[6].toLocaleDateString()}`;
   
   // Check for employees without email
   const activeEmployees = employees.filter(e => !e.retired);
@@ -2916,7 +2916,7 @@ function generateEmployeeScheduleEmail(emp, days) {
         email += `${dayName}\n`;
         email += `  Hours: ${hours}h\n`;
         if(edit.start && edit.end) {
-          email += `  Time: ${edit.start} – ${edit.end}\n`;
+          email += `  Time: ${edit.start} - ${edit.end}\n`;
         }
         
         // Find event for this day
@@ -3413,7 +3413,7 @@ function openVacationPicker(empId) {
   
   // Build dialog
   let dialog = `Set vacation days for ${emp.name}\n`;
-  dialog += `Current week: ${days[0].toLocaleDateString()} – ${days[6].toLocaleDateString()}\n\n`;
+  dialog += `Current week: ${days[0].toLocaleDateString()} - ${days[6].toLocaleDateString()}\n\n`;
   dialog += `Select days to mark as VACATION:\n`;
   dialog += `â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”\n`;
   
@@ -3477,7 +3477,7 @@ function openVacationPicker(empId) {
   const selectedDays = trimmed.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n) && n >= 1 && n <= 7);
   
   if (selectedDays.length === 0) {
-    alert('Check required. Please enter day numbers (1–7), "all", or "clear".');
+    alert('Check required. Please enter day numbers (1-7), "all", or "clear".');
     return;
   }
   
@@ -3528,7 +3528,7 @@ function openDayPreferences(empId) {
     var pref = emp.dayPreferences[index];
     var prefText = '(no preference)';
     if (pref === true) prefText = 'âœ“ PREFERS to work';
-    if (pref === false) prefText = 'âœ— PREFERS OFF';
+    if (pref === false) prefText = 'âœ- PREFERS OFF';
     dialog += index + '. ' + name.padEnd(10) + ' ' + prefText + '\n';
   });
   
@@ -3961,7 +3961,7 @@ function renderEvents(){
     row.innerHTML = `
       <td>${ev.name}</td>
       <td>${ev.date}</td>
-      <td>${ev.start}–${ev.end}</td>
+      <td>${ev.start}-${ev.end}</td>
       <td>${ev.guests}</td>
       <td>${ev.eventTypeName || ev.service || ev.serviceType || ''}</td>
       <td>${staffDisplay}</td>
@@ -4039,7 +4039,7 @@ function iso(d) {
   return dateToLocalYYYYMMDD(d);
 }
 
-/** Stable week identifier: Monday of week as YYYY-MM-DD (local). Any day in Feb 9–15 2026 → "2026-02-09". */
+/** Stable week identifier: Monday of week as YYYY-MM-DD (local). Any day in Feb 9-15 2026 → "2026-02-09". */
 function getWeekKey(date) {
   var d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
   var mondayIndex = getMondayBasedIndex(d);
@@ -4678,7 +4678,7 @@ function editScheduleCell(empId, date){
   delete assignmentReasonCodes[key];
   addAuditEntry('Shift Manually Edited', empId, date, oldValue, JSON.stringify(newEdit));
   
-  alert('Shift saved. Total: ' + newEdit.hours + ' hours (' + newEdit.start + '–' + newEdit.end + ').');
+  alert('Shift saved. Total: ' + newEdit.hours + ' hours (' + newEdit.start + '-' + newEdit.end + ').');
   save(); 
   displaySchedule();
 }
@@ -5117,7 +5117,7 @@ function displaySchedule(){
     return d;
   });
 
-  weekHeader.textContent = `${days[0].toLocaleDateString()} – ${days[6].toLocaleDateString()}`;
+  weekHeader.textContent = `${days[0].toLocaleDateString()} - ${days[6].toLocaleDateString()}`;
 
   // ========== DESKTOP TABLE VIEW ==========
   // Blue column header row: built once, inserted inside first pool section (header → toolbar → content)
@@ -5324,7 +5324,7 @@ function displaySchedule(){
           cell.style.position = 'relative';
           cell.title = 'Click to edit or change status. ' + absenceInfo.cellLabel;
           if(edit.start && edit.end) {
-            cell.innerHTML = h + 'h<br><small>' + edit.start + '–' + edit.end + '</small><br><span style="font-size:11px;color:var(--brand-text-muted);">' + (absenceInfo ? absenceInfo.cellLabel : '') + '</span>';
+            cell.innerHTML = h + 'h<br><small>' + edit.start + '-' + edit.end + '</small><br><span style="font-size:11px;color:var(--brand-text-muted);">' + (absenceInfo ? absenceInfo.cellLabel : '') + '</span>';
           } else {
             cell.innerHTML = h + 'h<br><span style="font-size:11px;color:var(--brand-text-muted);">' + (absenceInfo ? absenceInfo.cellLabel : '') + '</span>';
           }
@@ -5397,7 +5397,7 @@ function displaySchedule(){
             cell.title = (cell.title || '') + ' Less than 8 hours rest from another shift.';
           }
           var overrideInd = edit.seniorityOverride ? ' <span class="override-indicator" title="Seniority override' + (edit.overrideReason ? ': ' + edit.overrideReason : '') + '">&#9888;</span>' : '';
-          cell.innerHTML = `${h}h<br><small>${edit.start}–${edit.end}</small>${overrideInd}<br><a href="#" class="schedule-why-link" title="Why this employee?">Why?</a>`;
+          cell.innerHTML = `${h}h<br><small>${edit.start}-${edit.end}</small>${overrideInd}<br><a href="#" class="schedule-why-link" title="Why this employee?">Why?</a>`;
         } else {
           var overrideInd = edit.seniorityOverride ? ' <span class="override-indicator" title="Seniority override' + (edit.overrideReason ? ': ' + edit.overrideReason : '') + '">&#9888;</span>' : '';
           cell.innerHTML = `${h}h<br>${overrideInd}<a href="#" class="schedule-why-link" title="Why this employee?">Why?</a>`;
@@ -6197,7 +6197,7 @@ function buildScheduleTableForPrint(filterPoolId) {
             total += h;
             daysWorked++;
             cell.className = getShiftClassByHours(h);
-            cell.innerHTML = h + 'h' + (edit.start && edit.end ? '<br><small>' + edit.start + '–' + edit.end + '</small>' : '');
+            cell.innerHTML = h + 'h' + (edit.start && edit.end ? '<br><small>' + edit.start + '-' + edit.end + '</small>' : '');
           } else if (absenceInfo && absenceInfo.id === 'requested_off') {
             cell.style.background = '#3d4550';
             cell.textContent = absenceInfo.cellLabel || '';
@@ -6206,7 +6206,7 @@ function buildScheduleTableForPrint(filterPoolId) {
             total += h;
             daysWorked++;
             cell.className = getShiftClassByHours(h);
-            cell.innerHTML = h + 'h' + (edit.start && edit.end ? '<br><small>' + edit.start + '–' + edit.end + '</small>' : '');
+            cell.innerHTML = h + 'h' + (edit.start && edit.end ? '<br><small>' + edit.start + '-' + edit.end + '</small>' : '');
           }
         }
         row.appendChild(cell);
