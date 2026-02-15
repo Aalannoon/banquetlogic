@@ -3466,72 +3466,18 @@ function openDayPreferences(empId) {
 }
 
 function onStatusCheckboxClick(emp, statusName) {
-  if (currentAbsenceMode && currentAbsenceMode.empId === emp.id && currentAbsenceMode.status === statusName) {
+  if (
+    currentAbsenceMode &&
+    currentAbsenceMode.empId === emp.id &&
+    currentAbsenceMode.status === statusName
+  ) {
     currentAbsenceMode = null;
-    renderEmployees();
-    displaySchedule();
-    return;
+  } else {
+    currentAbsenceMode = {
+      empId: emp.id,
+      status: statusName
+    };
   }
-  currentAbsenceMode = { empId: emp.id, status: statusName };
-  var statusLabel = (ABSENCE_TYPES.find(function(a) { return a.id === statusName; }) || {}).label || statusName;
-  var weekStart = getWeekStart();
-  var mondayStr = iso(weekStart);
-  var friday = new Date(weekStart);
-  friday.setDate(friday.getDate() + 4);
-  var fridayStr = iso(friday);
-  var msgStart = 'Apply ' + statusLabel + ' for ' + emp.name + '.\n\nStart date (YYYY-MM-DD). This week: Mon ' + mondayStr + ' to Fri ' + fridayStr + '.\nLeave empty and click Cancel to pick dates on the Schedule tab.';
-  var rawStart = prompt(msgStart, mondayStr);
-  if (rawStart === null) {
-    renderEmployees();
-    displaySchedule();
-    return;
-  }
-  rawStart = (rawStart || '').trim();
-  if (rawStart === '') {
-    renderEmployees();
-    displaySchedule();
-    return;
-  }
-  var dStart = new Date(rawStart + 'T12:00:00');
-  if (isNaN(dStart.getTime())) {
-    alert('Invalid start date. Use YYYY-MM-DD (e.g. ' + mondayStr + ').');
-    renderEmployees();
-    displaySchedule();
-    return;
-  }
-  var startStr = dateToLocalYYYYMMDD(dStart);
-  var msgEnd = 'End date (YYYY-MM-DD). Same as start for one day.\nExample: ' + startStr;
-  var rawEnd = prompt(msgEnd, startStr);
-  if (rawEnd === null) {
-    renderEmployees();
-    displaySchedule();
-    return;
-  }
-  rawEnd = (rawEnd || '').trim();
-  if (rawEnd === '') rawEnd = startStr;
-  var dEnd = new Date(rawEnd + 'T12:00:00');
-  if (isNaN(dEnd.getTime())) {
-    alert('Invalid end date. Use YYYY-MM-DD.');
-    renderEmployees();
-    displaySchedule();
-    return;
-  }
-  var endStr = dateToLocalYYYYMMDD(dEnd);
-  if (dEnd < dStart) {
-    alert('End date must be on or after start date.');
-    renderEmployees();
-    displaySchedule();
-    return;
-  }
-  var dateStrs = getDateRangeInclusive(startStr, endStr);
-  for (var i = 0; i < dateStrs.length; i++) {
-    var dateStr = dateStrs[i];
-    var absenceKey = emp.id + '_' + dateStr;
-    manualEdits[absenceKey] = { status: statusName, manualOverride: true };
-  }
-  addAuditEntry('Absence Set', emp.id, startStr + ' to ' + endStr, null, statusLabel + ' for ' + emp.name + ' (' + dateStrs.length + ' days)');
-  save();
-  currentAbsenceMode = null;
   renderEmployees();
   displaySchedule();
 }
@@ -4217,9 +4163,11 @@ function applyOverrideToEdit(edit, reason) {
 
 function editScheduleCell(empId, date){
   if (currentAbsenceMode) {
-    // Apply selected status to the employee chosen in absence mode; date comes from the cell clicked
     var absenceKey = currentAbsenceMode.empId + "_" + date;
-    manualEdits[absenceKey] = { status: currentAbsenceMode.status, manualOverride: true };
+    manualEdits[absenceKey] = {
+      status: currentAbsenceMode.status
+    };
+    currentAbsenceMode = null;
     save();
     displaySchedule();
     return;
@@ -4626,7 +4574,6 @@ function generateSchedule(){
       var k = empId + '_' + dateStr;
       var ex = manualEdits && manualEdits[k];
       if (ex && isFullAbsenceStatus(ex.status)) return false;
-      if (ex && ex.status && !ex.hours && !ex.start) return false;
       return true;
     });
     
@@ -4639,11 +4586,7 @@ function generateSchedule(){
         return;
       }
       var existing = manualEdits != null ? manualEdits[key] : null;
-      // Never overwrite absence/status-only entries (sick, vacation, etc.)
       if (existing && isFullAbsenceStatus(existing.status)) {
-        return;
-      }
-      if (existing && existing.status && !existing.hours && !existing.start) {
         return;
       }
       if(existing) {
@@ -5597,12 +5540,9 @@ function assignEmployeesToWeek(days) {
     var dateStr = item.dateStr;
     var key = emp.id + "_" + dateStr;
     var edit = manualEdits[key];
-    if (edit && (isFullAbsenceStatus(edit.status) || (edit.status && !edit.hours && !edit.start))) return false;
+    if (edit && isFullAbsenceStatus(edit.status)) return false;
     if (item.assignedTo !== null) return false;
     if (lockedCells[key] || lockedRows[emp.id]) return false;
-    if (edit) {
-      if (edit.status !== 'requested_off' || (edit.hours || edit.start)) return false;
-    }
     if (assignments[dateStr] && assignments[dateStr].indexOf(emp.id) !== -1) return false;
     if ((employeeHoursToday[dateStr][emp.id] || 0) + item.slot.hours > REGULAR_HOURS_MAX) return false;
     var empMaxDays = emp.maxDaysPerWeek !== undefined ? emp.maxDaysPerWeek : 5;
