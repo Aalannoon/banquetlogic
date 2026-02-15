@@ -2556,6 +2556,10 @@ function migrateImportData(data) {
   return result;
 }
 
+var WEEK_LEVEL_STATUS_IDS = { sick: 1, vacation: 1, unpaid_vacation: 1, floating_holiday: 1, off: 1, requested_off: 1 };
+function isWeekLevelAbsenceStatus(status) {
+  return status && WEEK_LEVEL_STATUS_IDS[status];
+}
 function ensureEmployeeDefaults(list) {
   if (!Array.isArray(list)) return;
   var defaultPoolId = (laborPools.length && getLaborPoolById(DEFAULT_SERVERS_POOL_ID)) ? DEFAULT_SERVERS_POOL_ID : (laborPools[0] ? laborPools[0].id : null);
@@ -2565,6 +2569,11 @@ function ensureEmployeeDefaults(list) {
     if (emp.seniority != null && emp.laborPoolId && emp.seniorityByPool[emp.laborPoolId] === undefined) emp.seniorityByPool[emp.laborPoolId] = emp.seniority;
     ensureDayPreferencesMondayBased(emp);
     if (emp.maxDaysPerWeek === undefined) emp.maxDaysPerWeek = 5;
+    if (emp.hasOwnProperty('sick')) {
+      emp.status = emp.sick ? 'sick' : (emp.status || null);
+      delete emp.sick;
+    }
+    if (emp.status && !isWeekLevelAbsenceStatus(emp.status)) emp.status = null;
   });
 }
 
@@ -3030,7 +3039,6 @@ function addEmployee(){
     employeeId: document.getElementById('empEmployeeId').value || null,
     hireDate: document.getElementById('empHireDate').value || null,
     birthdate: document.getElementById('empBirthdate').value || null,
-    sick: false,
     retired: false,
     maxDaysPerWeek: 5,
     dayPreferences: {
@@ -3214,7 +3222,6 @@ function parseAndImportText(text) {
       seniority: emp.seniority,
       type: emp.type,
       pref: emp.pref || null,
-      sick: false,
       retired: false,
       maxDaysPerWeek: 5,
       dayPreferences: { 0: null, 1: null, 2: null, 3: null, 4: null, 5: null, 6: null }
@@ -3309,7 +3316,7 @@ function renderEmployees(){
       <td><button type="button" class="vacation-btn" style="background:#3498db; padding:4px 8px;">Vacation</button></td>
       <td><button type="button" class="dayprefs-btn" style="background:#9b59b6; padding:4px 8px;">Day Prefs</button></td>
       <td><button type="button" class="timeoff-btn" style="background:#6b7c8d; padding:4px 8px;" title="Time Off / Sick">Time Off</button></td>
-      <td><input type="checkbox" class="sick-check" ${e.sick ? "checked" : ""}></td>
+      <td><input type="checkbox" class="sick-check" ${e.status === 'sick' ? "checked" : ""}></td>
       <td>
         <button type="button" class="info-btn" style="background:#27ae60; padding:4px 8px;" title="View/Edit Info">Info</button>
         ${e.retired ? "-" : '<button type="button" class="retire">Retire</button>'}
@@ -3466,7 +3473,8 @@ function openVacationPicker(empId) {
         delete manualEdits[key];
       }
     });
-    
+    emp.status = null;
+    delete emp.status;
     addAuditEntry('Time Off Cleared', empId, null, 'Had time off', 'Cleared');
     save();
     displaySchedule();
@@ -3483,7 +3491,7 @@ function openVacationPicker(empId) {
       delete assignmentReasons[key];
       delete assignmentReasonCodes[key];
     });
-    
+    emp.status = 'vacation';
     addAuditEntry('Vacation Set', empId, null, null, 'Entire week');
     save();
     displaySchedule();
@@ -3726,7 +3734,8 @@ function syncSickToSchedule(empId, isSick) {
 
 function toggleSick(id, checked){
   const emp = employees.find(e=>e.id===id);
-  emp.sick=checked;
+  emp.status = checked ? 'sick' : null;
+  if (!emp.status) delete emp.status;
   syncSickToSchedule(id, checked);
   addAuditEntry('Sick Status Changed', id, null, !checked, checked);
   save();
@@ -3772,7 +3781,7 @@ function viewEmployeeInfo(empId) {
   document.getElementById('employeeEditLaborPool').value = emp.laborPoolId || (laborPools[0] ? laborPools[0].id : '');
   document.getElementById('employeeEditPref').value = emp.pref || '';
   document.getElementById('employeeEditSeniority').value = getSeniorityForEmployee(emp) != null ? getSeniorityForEmployee(emp) : '';
-  document.getElementById('employeeEditSick').checked = !!emp.sick;
+  document.getElementById('employeeEditSick').checked = emp.status === 'sick';
   var overlay = document.getElementById('employeeEditModalOverlay');
   overlay.classList.add('employee-edit-visible');
   setTimeout(function(){ var el = document.getElementById('employeeEditType'); if(el) el.focus(); }, 50);
@@ -3821,7 +3830,7 @@ function saveEmployeeEdit() {
   var oldPoolId = emp.laborPoolId;
   var oldPref = emp.pref || '';
   var oldSeniority = getSeniorityForEmployee(emp);
-  var oldSick = emp.sick;
+  var oldStatus = emp.status;
   
   emp.type = typeEl.value;
   emp.laborPoolId = poolId;
@@ -3829,20 +3838,21 @@ function saveEmployeeEdit() {
   emp.seniorityByPool[poolId] = check.value;
   emp.seniority = check.value;
   emp.pref = prefEl.value || null;
-  emp.sick = sickEl.checked;
+  emp.status = sickEl.checked ? 'sick' : null;
+  if (!emp.status) delete emp.status;
   
   var changes = [];
   if (oldType !== emp.type) changes.push('type ' + oldType + ' → ' + emp.type);
   if (oldPoolId !== emp.laborPoolId) changes.push('labor pool → ' + (getLaborPoolById(emp.laborPoolId) ? getLaborPoolById(emp.laborPoolId).name : emp.laborPoolId));
   if (oldPref !== (emp.pref || '')) changes.push('preference ' + (oldPref || 'none') + ' → ' + (emp.pref || 'none'));
   if (oldSeniority !== emp.seniority) changes.push('seniority ' + oldSeniority + ' → ' + emp.seniority);
-  if (oldSick !== emp.sick) changes.push('sick ' + (oldSick ? 'yes' : 'no') + ' → ' + (emp.sick ? 'yes' : 'no'));
+  if (oldStatus !== emp.status) changes.push('sick ' + (oldStatus === 'sick' ? 'yes' : 'no') + ' → ' + (emp.status === 'sick' ? 'yes' : 'no'));
   
   if (changes.length) {
     addAuditEntry('Employee Updated', emp.id, null, changes.join('; '), emp.name);
   }
   
-  if (oldSick !== emp.sick) syncSickToSchedule(emp.id, emp.sick);
+  if (oldStatus !== emp.status) syncSickToSchedule(emp.id, emp.status === 'sick');
   save();
   renderEmployeesPoolSelector();
   renderEmployees();
@@ -4329,7 +4339,7 @@ var OVERRIDE_REASONS = [
 
 function getEligibleEmployeesForDate(dateStr) {
   return employees.filter(function(e) {
-    if (e.retired || e.sick || e.vacation || e.unpaid_vacation || e.floating_holiday || e.off) return false;
+    if (e.retired || isWeekLevelAbsenceStatus(e.status)) return false;
     var vk = e.id + '_' + dateStr;
     if (manualEdits[vk] && isFullAbsenceStatus(manualEdits[vk].status)) return false;
     return true;
@@ -5292,7 +5302,7 @@ function displaySchedule(){
       cell.className = 'clickable';
       cell.setAttribute('data-emp-id', emp.id);
       cell.setAttribute('data-date', dateStr);
-      if (emp.sick === true) {
+      if (emp.status === 'sick') {
         cell.classList.add('status-cell');
         var sickLabelEl = document.createElement('div');
         sickLabelEl.className = 'status-label';
@@ -5640,7 +5650,7 @@ function assignEmployeesToWeek(days) {
   var cashierPoolId = getCashierPoolId();
   var housemenPoolId = getHousemenPoolId();
   var serverPool = employees.filter(function(e) {
-    if (e.retired || e.sick || e.vacation || e.unpaid_vacation || e.floating_holiday || e.off) return false;
+    if (e.retired || isWeekLevelAbsenceStatus(e.status)) return false;
     if (cashierPoolId && e.laborPoolId === cashierPoolId) return false;
     if (housemenPoolId && e.laborPoolId === housemenPoolId) return false;
     return true;
@@ -5782,7 +5792,7 @@ function assignEmployeesToWeek(days) {
     var slotStart = item.slot.start;
     var key = emp.id + "_" + dateStr;
     if (item.assignedTo !== null) return false;
-    if (emp.sick || emp.vacation || emp.unpaid_vacation || emp.floating_holiday || emp.off) return false;
+    if (isWeekLevelAbsenceStatus(emp.status)) return false;
     if (lockedCells[key] || lockedRows[emp.id]) return false;
     var ed = manualEdits[key];
     if (ed) {
