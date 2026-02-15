@@ -2668,7 +2668,7 @@ function showGenerationRules() {
   const assignmentStyle = settings.assignmentStyle || 'strict';
   
   let rules = '📋 How We Build Your Schedule\n';
-  rules += 'â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"\n\n';
+  rules += '--------------------------\n\n';
   rules += 'We only assign people who are available and within your rules. ';
   rules += 'That means we skip anyone who is sick, on vacation, or already working their max days that week. ';
   rules += 'We never change locked shifts or locked rows-those stay exactly as you set them. ';
@@ -2706,7 +2706,7 @@ function showConflictReport() {
   }
   
   let report = '⚠ SCHEDULE GENERATION CONFLICTS\n';
-  report += 'â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"\n\n';
+  report += '--------------------------\n\n';
   report += `Found ${generationConflicts.length} conflict(s):\n\n`;
   
   generationConflicts.forEach((conflict, index) => {
@@ -2892,7 +2892,7 @@ function emailSchedulesToAll() {
 function generateEmployeeScheduleEmail(emp, days) {
   let email = `Hello ${emp.name},\n\n`;
   email += `Here is your work schedule for the week of ${days[0].toLocaleDateString()}:\n\n`;
-  email += `â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"\n\n`;
+  email += `------------------------------\n\n`;
   
   let totalHours = 0;
   let daysWorked = 0;
@@ -2935,7 +2935,7 @@ function generateEmployeeScheduleEmail(emp, days) {
     }
   });
   
-  email += `â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"\n\n`;
+  email += `------------------------------\n\n`;
   email += `SUMMARY:\n`;
   email += `Total Hours: ${totalHours}h\n`;
   email += `Days Worked: ${daysWorked}\n\n`;
@@ -3038,7 +3038,7 @@ function addEmployee(){
 function showImportHelp() {
   const helpText = `
 SENIORITY LIST IMPORT FORMAT
-â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"
+--------------------------------
 
 You can import employees using CSV or plain text.
 
@@ -3415,7 +3415,7 @@ function openVacationPicker(empId) {
   let dialog = `Set vacation days for ${emp.name}\n`;
   dialog += `Current week: ${days[0].toLocaleDateString()} - ${days[6].toLocaleDateString()}\n\n`;
   dialog += `Select days to mark as VACATION:\n`;
-  dialog += `â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"\n`;
+  dialog += `--------------------------\n`;
   
   const dayOptions = [];
   days.forEach((d, index) => {
@@ -3428,7 +3428,7 @@ function openVacationPicker(empId) {
     dayOptions.push({ dateStr, dayName, isTimeOff });
   });
   
-  dialog += `â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"\n\n`;
+  dialog += `--------------------------\n\n`;
   dialog += `Enter day numbers separated by commas:\n`;
   dialog += `Example: 1,3,5 (for Mon, Wed, Fri)\n`;
   dialog += `Or enter "all" for entire week\n`;
@@ -3522,7 +3522,7 @@ function openDayPreferences(empId) {
   dialog += `These are PREFERENCES only - employee can still be scheduled\n`;
   dialog += `on any day if needed to maximize hours.\n\n`;
   dialog += `Current preferences:\n`;
-  dialog += `â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"\n`;
+  dialog += `--------------------------\n`;
   
   dayNames.forEach((name, index) => {
     var pref = emp.dayPreferences[index];
@@ -3532,7 +3532,7 @@ function openDayPreferences(empId) {
     dialog += index + '. ' + name.padEnd(10) + ' ' + prefText + '\n';
   });
   
-  dialog += `â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"\n\n`;
+  dialog += `--------------------------\n\n`;
   dialog += `To set preferences, enter day numbers (0=Mon ... 6=Sun):\n\n`;
   dialog += `PREFERS TO WORK: Enter numbers with '+'\n`;
   dialog += `  Example: +0,1,4 (prefers Mon, Tue, Fri)\n\n`;
@@ -4388,7 +4388,7 @@ function editScheduleCell(empId, date){
   // Create a clearer menu dialog
   let dialog = "Edit shift for " + emp.name + " on " + date + ":\n\n";
   dialog += "Enter start and end time (hours are calculated for you):\n";
-  dialog += "â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"\n";
+  dialog += "--------------------\n";
   dialog += "SHIFT (start end):\n";
   dialog += "  09:00 15:30\n\n";
   dialog += "STATUS:\n";
@@ -4404,7 +4404,7 @@ function editScheduleCell(empId, date){
   }
   dialog += "  lock\n";
   dialog += "  clear\n";
-  dialog += "â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"â"\n\n";
+  dialog += "--------------------\n\n";
   
   if(lockedCells[key]) {
     dialog += "🔒 LOCKED\n\n";
