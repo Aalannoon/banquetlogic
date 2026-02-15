@@ -4584,11 +4584,15 @@ function generateSchedule(){
         console.log(`Skipping ${key} - locked`);
         return;
       }
-      var dateAbsence = manualEdits != null ? manualEdits[key] : null;
-      if (dateAbsence && isFullAbsenceStatus(dateAbsence.status)) {
+      var existing = manualEdits != null ? manualEdits[key] : null;
+      // Never overwrite absence/status-only entries (sick, vacation, etc.)
+      if (existing && isFullAbsenceStatus(existing.status)) {
         return;
       }
-      if(manualEdits[key]) {
+      if (existing && existing.status && !existing.hours && !existing.start) {
+        return;
+      }
+      if(existing) {
         console.log(`Skipping ${key} - already has manual edit`);
         return;
       }
@@ -5543,6 +5547,7 @@ function assignEmployeesToWeek(days) {
     if (lockedCells[key] || lockedRows[emp.id]) return false;
     var edit = manualEdits[key];
     if (edit && isFullAbsenceStatus(edit.status)) return false;
+    if (edit && edit.status && !edit.hours && !edit.start) return false;
     if (edit) {
       if (edit.status !== 'requested_off' || (edit.hours || edit.start)) return false;
     }
