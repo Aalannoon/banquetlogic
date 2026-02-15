@@ -5347,6 +5347,27 @@ function displaySchedule(){
       if(isLocked) cell.classList.add('locked-cell');
       if(lockedRows[emp.id]) cell.classList.add('locked-cell');
 
+      // If employee has a status for this date (no shift to show), render status only and skip shift
+      const editForStatus = manualEdits[key];
+      if (editForStatus && editForStatus.status) {
+        var statusOnlyInfo = ABSENCE_TYPES.find(function(a) { return a.id === editForStatus.status; });
+        var isStatusOnly = statusOnlyInfo && (isFullAbsenceStatus(editForStatus.status) || (editForStatus.status === 'requested_off' && !editForStatus.hours && !editForStatus.start));
+        if (isStatusOnly) {
+          cell.innerHTML = '';
+          var statusLabelEl = document.createElement('div');
+          statusLabelEl.className = 'status-label';
+          statusLabelEl.textContent = statusOnlyInfo.id === 'requested_off' ? 'OFF' : statusOnlyInfo.label;
+          cell.appendChild(statusLabelEl);
+          cell.classList.add('status-cell');
+          cell.title = 'Click to edit or change status' + (statusOnlyInfo.id === 'requested_off' ? '. Request Off is visual only until converted.' : '');
+          cell.onclick = function() { editScheduleCell(emp.id, dateStr); };
+          cell.draggable = false;
+          cell.ondragstart = null;
+          row.appendChild(cell);
+          return;
+        }
+      }
+
       // Check for manual edits (includes generated shifts)
       if(manualEdits[key]){
         const edit = manualEdits[key];
