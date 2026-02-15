@@ -4820,6 +4820,10 @@ function generateSchedule(){
         console.log(`Skipping ${key} - locked`);
         return;
       }
+      var existingEdit = manualEdits[key];
+      if (existingEdit && isFullAbsenceStatus(existingEdit.status)) {
+        return;
+      }
       if(manualEdits[key]) {
         console.log(`Skipping ${key} - already has manual edit`);
         return;
@@ -5795,8 +5799,8 @@ function assignEmployeesToWeek(days) {
     if (isWeekLevelAbsenceStatus(emp.status)) return false;
     if (lockedCells[key] || lockedRows[emp.id]) return false;
     var ed = manualEdits[key];
+    if (ed && isFullAbsenceStatus(ed.status)) return false;
     if (ed) {
-      if (isFullAbsenceStatus(ed.status)) return false;
       if (ed.status !== 'requested_off' || (ed.hours || ed.start)) return false;
     }
     if (assignments[dateStr] && assignments[dateStr].indexOf(emp.id) !== -1) return false;
