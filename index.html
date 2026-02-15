@@ -4444,8 +4444,7 @@ var OVERRIDE_REASONS = [
 function getEligibleEmployeesForDate(dateStr) {
   return employees.filter(function(e) {
     if (!e || typeof e !== 'object') return true;
-    var safeStatus = e?.status ?? null;
-    if (e.retired || isWeekLevelAbsenceStatus(safeStatus)) return false;
+    if (e.retired || e.status) return false;
     var vk = e.id + '_' + dateStr;
     var edit = manualEdits[vk];
     if (edit && isFullAbsenceStatus(edit.status)) return false;
@@ -5765,8 +5764,7 @@ function assignEmployeesToWeek(days) {
   var housemenPoolId = getHousemenPoolId();
   var serverPool = employees.filter(function(e) {
     if (!e || typeof e !== 'object') return false;
-    var safeStatus = e?.status ?? null;
-    if (e.retired || isWeekLevelAbsenceStatus(safeStatus)) return false;
+    if (e.retired || e.status) return false;
     if (cashierPoolId && e.laborPoolId === cashierPoolId) return false;
     if (housemenPoolId && e.laborPoolId === housemenPoolId) return false;
     return true;
@@ -5905,12 +5903,11 @@ function assignEmployeesToWeek(days) {
   
   function isEligibleForSlot(emp, item) {
     if (!emp || typeof emp !== 'object') return false;
+    if (emp.status) return false;
     var dateStr = item.dateStr;
     var slotStart = item.slot.start;
     var key = emp.id + "_" + dateStr;
     if (item.assignedTo !== null) return false;
-    var safeStatus = emp?.status ?? null;
-    if (isWeekLevelAbsenceStatus(safeStatus)) return false;
     if (lockedCells[key] || lockedRows[emp.id]) return false;
     var dateAbsence = manualEdits != null ? manualEdits[key] : null;
     if (dateAbsence && isFullAbsenceStatus(dateAbsence.status)) return false;
