@@ -15,3 +15,15 @@ function isAbsentOnDate(employee, date) {
     return shiftTime >= start && shiftTime <= end; // Check if date is within the absence range
   });
 }
+
+// Return the absence type (e.g. 'sick', 'vacation') for the first absence covering this date, or null
+function getAbsenceTypeOnDate(employee, date) {
+  if (!employee || !employee.absences || employee.absences.length === 0) return null;
+  const shiftTime = toMidnightTime(date);
+  const match = employee.absences.find(absence => {
+    const start = toMidnightTime(absence.startDate);
+    const end = toMidnightTime(absence.endDate);
+    return shiftTime >= start && shiftTime <= end;
+  });
+  return match ? match.type : null;
+}

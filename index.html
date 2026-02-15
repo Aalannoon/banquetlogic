@@ -5157,6 +5157,26 @@ function displaySchedule(){
       if(isLocked) cell.classList.add('locked-cell');
       if(lockedRows[emp.id]) cell.classList.add('locked-cell');
 
+      // Show absence label from employee.absences if present (e.g. Sick, Vacation, OFF)
+      var absenceTypeFromEmp = typeof getAbsenceTypeOnDate === 'function' ? getAbsenceTypeOnDate(emp, dateStr) : null;
+      if (absenceTypeFromEmp) {
+        var absenceTypeInfo = ABSENCE_TYPES.find(function(a) { return a.id === absenceTypeFromEmp; });
+        if (absenceTypeInfo) {
+          cell.innerHTML = '';
+          var statusLabelEl = document.createElement('div');
+          statusLabelEl.className = 'status-label';
+          statusLabelEl.textContent = absenceTypeInfo.id === 'requested_off' ? 'OFF' : absenceTypeInfo.label;
+          cell.appendChild(statusLabelEl);
+          cell.classList.add('status-cell');
+          cell.title = 'Click to edit or change status' + (absenceTypeInfo.id === 'requested_off' ? '. Request Off is visual only until converted.' : '');
+          cell.onclick = function() { editScheduleCell(emp.id, dateStr); };
+          cell.draggable = false;
+          cell.ondragstart = null;
+          row.appendChild(cell);
+          return;
+        }
+      }
+
       // If employee has a status for this date (no shift to show), render status only and skip shift
       const editForStatus = manualEdits[key];
       if (editForStatus && editForStatus.status) {
