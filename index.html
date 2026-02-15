@@ -1878,7 +1878,6 @@ let manualEdits = JSON.parse(localStorage.getItem("manualEdits") || "{}");
 let lockedCells = JSON.parse(localStorage.getItem("lockedCells") || "{}");
 let lockedRows = JSON.parse(localStorage.getItem("lockedRows") || "{}");
 let scheduleGlobalLock = JSON.parse(localStorage.getItem("scheduleGlobalLock") || "false");
-var currentAbsenceMode = null;
 let auditLog = JSON.parse(localStorage.getItem("auditLog") || "[]");
 (function() {
   var reasonVersion = localStorage.getItem("assignmentReasonVersion");
@@ -3259,11 +3258,11 @@ function renderEmployees(){
       <td>${e.pref || "-"}</td>
       <td><input type="number" class="max-days-input" value="${maxDays}" min="1" max="5" placeholder="5" style="width:50px;" ${e.retired ? 'disabled' : ''}></td>
       <td><button type="button" class="dayprefs-btn" style="background:#9b59b6; padding:4px 8px;">Day Prefs</button></td>
-      <td><input type="checkbox" class="sick-check" ${(currentAbsenceMode && currentAbsenceMode.empId === e.id && currentAbsenceMode.status === 'sick') ? "checked" : ""} title="Sick – click then click schedule days"></td>
-      <td><input type="checkbox" class="vacation-check" ${(currentAbsenceMode && currentAbsenceMode.empId === e.id && currentAbsenceMode.status === 'vacation') ? "checked" : ""} title="Vacation – click then click schedule days"></td>
-      <td><input type="checkbox" class="unpaid-vacation-check" ${(currentAbsenceMode && currentAbsenceMode.empId === e.id && currentAbsenceMode.status === 'unpaid_vacation') ? "checked" : ""} title="Unpaid vacation – click then click schedule days"></td>
-      <td><input type="checkbox" class="floating-holiday-check" ${(currentAbsenceMode && currentAbsenceMode.empId === e.id && currentAbsenceMode.status === 'floating_holiday') ? "checked" : ""} title="Floating holiday – click then click schedule days"></td>
-      <td><input type="checkbox" class="off-check" ${(currentAbsenceMode && currentAbsenceMode.empId === e.id && currentAbsenceMode.status === 'requested_off') ? "checked" : ""} title="Off – click then click schedule days"></td>
+      <td><input type="checkbox" class="sick-check" ${e.status === 'sick' ? "checked" : ""} title="Sick – click then click schedule days"></td>
+      <td><input type="checkbox" class="vacation-check" ${e.status === 'vacation' ? "checked" : ""} title="Vacation – click then click schedule days"></td>
+      <td><input type="checkbox" class="unpaid-vacation-check" ${e.status === 'unpaid_vacation' ? "checked" : ""} title="Unpaid vacation – click then click schedule days"></td>
+      <td><input type="checkbox" class="floating-holiday-check" ${e.status === 'floating_holiday' ? "checked" : ""} title="Floating holiday – click then click schedule days"></td>
+      <td><input type="checkbox" class="off-check" ${e.status === 'requested_off' ? "checked" : ""} title="Off – click then click schedule days"></td>
       <td>
         <button type="button" class="info-btn" style="background:#27ae60; padding:4px 8px;" title="View/Edit Info">Info</button>
         ${e.retired ? "-" : '<button type="button" class="retire">Retire</button>'}
@@ -3466,18 +3465,12 @@ function openDayPreferences(empId) {
 }
 
 function onStatusCheckboxClick(emp, statusName) {
-  if (
-    currentAbsenceMode &&
-    currentAbsenceMode.empId === emp.id &&
-    currentAbsenceMode.status === statusName
-  ) {
-    currentAbsenceMode = null;
+  if (emp.status === statusName) {
+    emp.status = null;
   } else {
-    currentAbsenceMode = {
-      empId: emp.id,
-      status: statusName
-    };
+    emp.status = statusName;
   }
+  save();
   renderEmployees();
   displaySchedule();
 }
@@ -4162,13 +4155,16 @@ function applyOverrideToEdit(edit, reason) {
 }
 
 function editScheduleCell(empId, date){
-  if (currentAbsenceMode) {
-    var absenceKey = currentAbsenceMode.empId + "_" + date;
-    manualEdits[absenceKey] = {
-      status: currentAbsenceMode.status
+  var emp = employees.find(function(e) { return e.id === empId; });
+  if (!emp) return;
+  if (emp.status) {
+    var key = emp.id + "_" + date;
+    manualEdits[key] = {
+      status: emp.status
     };
-    currentAbsenceMode = null;
+    emp.status = null;
     save();
+    renderEmployees();
     displaySchedule();
     return;
   }
@@ -4181,7 +4177,6 @@ function editScheduleCell(empId, date){
     return;
   }
   const key = empId + "_" + date;
-  const emp = employees.find(e => e.id === empId);
   const ev = events.find(e => e.date === date);
   
   let currentEdit = manualEdits[key];
