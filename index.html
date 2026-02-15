@@ -1306,6 +1306,18 @@ body.light-mode #employeeEditModal { background: #ecf0f1; color: #2c3e50; }
 body.light-mode #employeeEditModal h3 { color: #2980b9; }
 body.light-mode #employeeEditModal label { color: #374151; }
 
+/* Day preferences modal */
+#dayPrefsModalOverlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1001; align-items: center; justify-content: center; }
+#dayPrefsModalOverlay.day-prefs-visible { display: flex; }
+#dayPrefsModal { background: #2c3e50; color: #ecf0f1; padding: 24px; border-radius: 12px; min-width: 360px; max-width: 95vw; box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
+#dayPrefsModal h3 { margin-top: 0; color: #4e9af1; }
+#dayPrefsModal .day-pref-row { display: flex; align-items: center; justify-content: space-between; margin: 8px 0; gap: 12px; }
+#dayPrefsModal .day-pref-row label { min-width: 90px; font-size: 13px; }
+#dayPrefsModal .day-pref-row select { flex: 1; max-width: 200px; padding: 6px 8px; border-radius: 6px; }
+#dayPrefsModal .edit-actions { margin-top: 20px; display: flex; gap: 10px; }
+body.light-mode #dayPrefsModal { background: #ecf0f1; color: #2c3e50; }
+body.light-mode #dayPrefsModal h3 { color: #2980b9; }
+
 .override-indicator { color: #f39c12; font-size: 12px; cursor: help; }
 
 /* Inline editable email in employees table */
@@ -1431,14 +1443,27 @@ body.light-mode .email-cell-input { background: #fff; color: #1a1f26; border-col
       📋 Paste Text
     </button>
     
-    <button type="button" onclick="exportEmployeeList()" style="background: #3498db;">
-      💾 Export List
+    <button type="button" onclick="exportEmployeeList('basic')" style="background: #3498db;">
+      💾 Export (basic)
     </button>
-    
+    <button type="button" onclick="exportEmployeeList('full')" style="background: #2980b9;">
+      💾 Export (full)
+    </button>
+    <button type="button" onclick="downloadSampleImportCsv()" style="background: #7f8c8d;">
+      📥 Sample CSV
+    </button>
     <button type="button" onclick="showImportHelp()" style="background: #95a5a6;">
       &#8505; Format Help
     </button>
   </div>
+</div>
+
+<div style="margin-bottom: 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px;">
+  <input type="text" id="employeesSearchInput" placeholder="Search by name..." oninput="renderEmployees()" style="padding: 8px 12px; width: 220px; border-radius: 6px; border: 1px solid var(--brand-border);" />
+  <label style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px; color: var(--brand-text-muted);">
+    <input type="checkbox" id="employeesShowRetired" onchange="renderEmployees()" />
+    Show retired
+  </label>
 </div>
 
 <table class="employees-table">
@@ -1455,7 +1480,10 @@ body.light-mode .email-cell-input { background: #fff; color: #1a1f26; border-col
 <div id="employeeEditModalOverlay" class="employee-edit-overlay">
   <div id="employeeEditModal">
     <h3 id="employeeEditTitle">Edit employee</h3>
-    <p id="employeeEditName" style="margin: 0 0 16px 0; font-size: 15px;"></p>
+    <div class="edit-row">
+      <label for="employeeEditName">Name</label>
+      <input type="text" id="employeeEditName" placeholder="Name" style="width: 100%; padding: 8px; margin: 0 0 16px 0; font-size: 15px;" />
+    </div>
     <div class="edit-row">
       <label for="employeeEditType">Full-time / Part-time</label>
       <select id="employeeEditType">
@@ -1484,6 +1512,18 @@ body.light-mode .email-cell-input { background: #fff; color: #1a1f26; border-col
     <div class="edit-actions">
       <button type="button" class="save-btn btn-primary" id="employeeEditSaveBtn">Save Changes</button>
       <button type="button" class="cancel-btn" id="employeeEditCancelBtn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div id="dayPrefsModalOverlay" class="day-prefs-overlay">
+  <div id="dayPrefsModal">
+    <h3 id="dayPrefsModalTitle">Day preferences</h3>
+    <p id="dayPrefsModalSubtitle" style="margin: 0 0 16px 0; font-size: 13px; color: var(--brand-text-muted);">Preferences only; employee can still be scheduled any day if needed.</p>
+    <div id="dayPrefsModalRows"></div>
+    <div class="edit-actions">
+      <button type="button" class="save-btn btn-primary" id="dayPrefsSaveBtn">Save</button>
+      <button type="button" class="cancel-btn" id="dayPrefsCancelBtn">Cancel</button>
     </div>
   </div>
 </div>
@@ -3197,36 +3237,50 @@ function parseAndImportText(text) {
 }
 
 /* EXPORT FUNCTION */
-function exportEmployeeList() {
+function exportEmployeeList(format) {
   if (employees.length === 0) {
     alert('No employees to export');
     return;
   }
-  
-  // Generate CSV
-  let csv = 'Name,Type,Seniority,Preference\n';
-  
-  employees.filter(e => !e.retired)
-    .sort((a, b) => {
-      var sa = getSeniorityForEmployee(a) != null ? getSeniorityForEmployee(a) : 999;
-      var sb = getSeniorityForEmployee(b) != null ? getSeniorityForEmployee(b) : 999;
-      if (sa !== sb) return sa - sb;
-      return (a.laborPoolId || '').localeCompare(b.laborPoolId || '');
-    })
-    .forEach(e => {
-      csv += `${e.name},${e.type},${getSeniorityForEmployee(e) != null ? getSeniorityForEmployee(e) : ''},${e.pref || ''}\n`;
-    });
-  
-  // Create download
-  const blob = new Blob([csv], { type: 'text/csv' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
+  var isFull = (format === 'full');
+  var header = isFull
+    ? 'Name,Type,Seniority,Preference,Labor Pool,Email,Max Days/Wk\n'
+    : 'Name,Type,Seniority,Preference\n';
+  var csv = header;
+  var list = employees.filter(e => !e.retired);
+  list.sort(function(a, b) {
+    var sa = getSeniorityForEmployee(a) != null ? getSeniorityForEmployee(a) : 999;
+    var sb = getSeniorityForEmployee(b) != null ? getSeniorityForEmployee(b) : 999;
+    if (sa !== sb) return sa - sb;
+    return (a.laborPoolId || '').localeCompare(b.laborPoolId || '');
+  });
+  list.forEach(function(e) {
+    var poolName = (getLaborPoolById(e.laborPoolId) && getLaborPoolById(e.laborPoolId).name) ? getLaborPoolById(e.laborPoolId).name : (e.laborPoolId || '');
+    var maxDays = e.maxDaysPerWeek !== undefined ? e.maxDaysPerWeek : 5;
+    if (isFull)
+      csv += (e.name || '') + ',' + (e.type || '') + ',' + (getSeniorityForEmployee(e) != null ? getSeniorityForEmployee(e) : '') + ',' + (e.pref || '') + ',' + (poolName || '') + ',' + (e.email || '') + ',' + maxDays + '\n';
+    else
+      csv += (e.name || '') + ',' + (e.type || '') + ',' + (getSeniorityForEmployee(e) != null ? getSeniorityForEmployee(e) : '') + ',' + (e.pref || '') + '\n';
+  });
+  var blob = new Blob([csv], { type: 'text/csv' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
   a.href = url;
-  a.download = `BanquetLogic-Employees-${new Date().toISOString().split('T')[0]}.csv`;
+  a.download = 'BanquetLogic-Employees-' + (isFull ? 'full-' : '') + new Date().toISOString().split('T')[0] + '.csv';
   a.click();
   URL.revokeObjectURL(url);
-  
   alert('\u2713 Employee list exported!');
+}
+
+function downloadSampleImportCsv() {
+  var sample = 'Name,Type,Seniority,Preference\nJane Doe,FT,1,AM\nJohn Smith,PT,2,PM\n';
+  var blob = new Blob([sample], { type: 'text/csv' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'BanquetLogic-import-sample.csv';
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 function rebalanceSeniority(){
@@ -3260,7 +3314,21 @@ function renderEmployees(){
   if (!tableEl) return;
   tableEl.innerHTML = "";
   var selectedPoolId = getEmployeesTabSelectedPoolId();
-  var filtered = employees.filter(function(e) { return e.laborPoolId === selectedPoolId; });
+  var searchEl = document.getElementById('employeesSearchInput');
+  var showRetiredEl = document.getElementById('employeesShowRetired');
+  var searchQuery = (searchEl && searchEl.value) ? searchEl.value.trim().toLowerCase() : '';
+  var showRetired = showRetiredEl ? showRetiredEl.checked : false;
+  var filtered = employees.filter(function(e) {
+    if (e.laborPoolId !== selectedPoolId) return false;
+    if (!showRetired && e.retired) return false;
+    if (searchQuery) {
+      var name = (e.name || '').toLowerCase();
+      var poolName = (getLaborPoolById(e.laborPoolId) && getLaborPoolById(e.laborPoolId).name) ? getLaborPoolById(e.laborPoolId).name.toLowerCase() : '';
+      var type = (e.type || '').toLowerCase();
+      if (name.indexOf(searchQuery) === -1 && poolName.indexOf(searchQuery) === -1 && type.indexOf(searchQuery) === -1) return false;
+    }
+    return true;
+  });
   filtered.sort(function(a, b) {
     return (getSeniorityForEmployee(a) || 999) - (getSeniorityForEmployee(b) || 999);
   });
@@ -3386,96 +3454,56 @@ function renderEmployees(){
   }
 }
 
+var dayPrefsEmployeeId = null;
+
 function openDayPreferences(empId) {
-  const emp = employees.find(e => e.id === empId);
-  
+  var emp = employees.find(e => e.id === empId);
+  if (!emp) return;
   ensureDayPreferencesMondayBased(emp);
-  
-  // dayPreferences use Monday-based index: 0=Monday ... 6=Sunday (DAY_NAMES_MONDAY_BASED)
+  dayPrefsEmployeeId = empId;
+  document.getElementById('dayPrefsModalTitle').textContent = 'Day preferences: ' + (emp.name || 'Employee');
+  var container = document.getElementById('dayPrefsModalRows');
+  container.innerHTML = '';
   var dayNames = DAY_NAMES_MONDAY_BASED;
-  
-  let dialog = `Set weekly day preferences for ${emp.name}\n\n`;
-  dialog += `These are PREFERENCES only - employee can still be scheduled\n`;
-  dialog += `on any day if needed to maximize hours.\n\n`;
-  dialog += `Current preferences:\n`;
-  dialog += `--------------------------\n`;
-  
-  dayNames.forEach((name, index) => {
-    var pref = emp.dayPreferences[index];
-    var prefText = '(no preference)';
-    if (pref === true) prefText = '\u2713 PREFERS to work';
-    if (pref === false) prefText = '\u2717 PREFERS OFF';
-    dialog += index + '. ' + name.padEnd(10) + ' ' + prefText + '\n';
-  });
-  
-  dialog += `--------------------------\n\n`;
-  dialog += `To set preferences, enter day numbers (0=Mon ... 6=Sun):\n\n`;
-  dialog += `PREFERS TO WORK: Enter numbers with '+'\n`;
-  dialog += `  Example: +0,1,4 (prefers Mon, Tue, Fri)\n\n`;
-  dialog += `PREFERS OFF: Enter numbers with '-'\n`;
-  dialog += `  Example: -5,6 (prefers off Sat, Sun)\n\n`;
-  dialog += `BOTH: Separate with semicolon\n`;
-  dialog += `  Example: +0,1,2,3,4;-5,6\n`;
-  dialog += `  (prefers to work weekdays, off weekends)\n\n`;
-  dialog += `CLEAR ALL: Enter "clear"\n`;
-  
-  const input = prompt(dialog);
-  
-  if(input === null) return; // Cancelled
-  
-  const trimmed = input.trim().toLowerCase();
-  
-  // Clear all preferences
-  if(trimmed === 'clear' || trimmed === '') {
-    emp.dayPreferences = {
-      0: null, 1: null, 2: null, 3: null, 4: null, 5: null, 6: null
-    };
-    addAuditEntry('Day Preferences Cleared', empId, null, 'Has preferences', 'No preferences');
-    save();
-    return;
+  for (var i = 0; i <= 6; i++) {
+    var pref = emp.dayPreferences[i];
+    var value = '';
+    if (pref === true) value = 'work';
+    if (pref === false) value = 'off';
+    var row = document.createElement('div');
+    row.className = 'day-pref-row';
+    row.innerHTML = '<label for="dayPrefSelect' + i + '">' + dayNames[i] + '</label><select id="dayPrefSelect' + i + '" data-day-index="' + i + '"><option value="">No preference</option><option value="work">Prefers to work</option><option value="off">Prefers off</option></select>';
+    container.appendChild(row);
+    var sel = document.getElementById('dayPrefSelect' + i);
+    if (sel) sel.value = value;
   }
-  
-  // Parse input
-  const parts = input.split(';');
-  const prefersWork = [];
-  const prefersOff = [];
-  
-  parts.forEach(part => {
-    const trimmedPart = part.trim();
-    
-    if(trimmedPart.startsWith('+')) {
-      // Prefers to work
-      const days = trimmedPart.substring(1).split(',')
-        .map(s => parseInt(s.trim()))
-        .filter(n => !isNaN(n) && n >= 0 && n <= 6);
-      prefersWork.push(...days);
-    } else if(trimmedPart.startsWith('-')) {
-      // Prefers off
-      const days = trimmedPart.substring(1).split(',')
-        .map(s => parseInt(s.trim()))
-        .filter(n => !isNaN(n) && n >= 0 && n <= 6);
-      prefersOff.push(...days);
-    }
-  });
-  
-  if (prefersWork.length === 0 && prefersOff.length === 0) {
-    alert('Format needs review. Use:\n+0,1,4 (prefers Mon, Tue, Fri)\n-5,6 (prefers off Sat, Sun)\n+0,1,2,3,4;-5,6 (both)');
-    return;
-  }
-  
+  document.getElementById('dayPrefsModalOverlay').classList.add('day-prefs-visible');
+}
+
+function closeDayPrefsModal() {
+  dayPrefsEmployeeId = null;
+  document.getElementById('dayPrefsModalOverlay').classList.remove('day-prefs-visible');
+}
+
+function saveDayPrefsModal() {
+  if (!dayPrefsEmployeeId) { closeDayPrefsModal(); return; }
+  var emp = employees.find(e => e.id === dayPrefsEmployeeId);
+  if (!emp) { closeDayPrefsModal(); return; }
+  var dayNames = DAY_NAMES_MONDAY_BASED;
   emp.dayPreferences = { 0: null, 1: null, 2: null, 3: null, 4: null, 5: null, 6: null };
-  prefersWork.forEach(function(day) { emp.dayPreferences[day] = true; });
-  prefersOff.forEach(function(day) { emp.dayPreferences[day] = false; });
-  
-  var workDays = prefersWork.map(function(d) { return dayNames[d]; }).join(', ');
-  var offDays = prefersOff.map(function(d) { return dayNames[d]; }).join(', ');
-  let auditMsg = '';
-  if(workDays) auditMsg += `Work: ${workDays}`;
-  if(offDays) auditMsg += `${auditMsg ? '; ' : ''}Off: ${offDays}`;
-  
-  addAuditEntry('Day Preferences Set', empId, null, null, auditMsg);
+  var prefersWork = [], prefersOff = [];
+  for (var i = 0; i <= 6; i++) {
+    var sel = document.getElementById('dayPrefSelect' + i);
+    if (!sel) continue;
+    var v = (sel.value || '').trim();
+    if (v === 'work') { emp.dayPreferences[i] = true; prefersWork.push(dayNames[i]); }
+    else if (v === 'off') { emp.dayPreferences[i] = false; prefersOff.push(dayNames[i]); }
+  }
+  var auditMsg = (prefersWork.length ? 'Work: ' + prefersWork.join(', ') : '') + (prefersOff.length ? (prefersWork.length ? '; ' : '') + 'Off: ' + prefersOff.join(', ') : '');
+  addAuditEntry('Day Preferences Set', dayPrefsEmployeeId, null, null, auditMsg || 'Cleared');
   save();
-  alert(`Preferences saved!\n\nPrefers to work: ${workDays || 'none'}\nPrefers off: ${offDays || 'none'}`);
+  renderEmployees();
+  closeDayPrefsModal();
 }
 
 function onStatusCheckboxClick(emp, statusName) {
@@ -3543,7 +3571,7 @@ function viewEmployeeInfo(empId) {
   editingEmployeeId = empId;
   populateLaborPoolDropdowns();
   document.getElementById('employeeEditTitle').textContent = 'Edit employee';
-  document.getElementById('employeeEditName').textContent = emp.name;
+  document.getElementById('employeeEditName').value = emp.name || '';
   document.getElementById('employeeEditType').value = emp.type || 'FT';
   document.getElementById('employeeEditLaborPool').value = emp.laborPoolId || (laborPools[0] ? laborPools[0].id : '');
   document.getElementById('employeeEditPref').value = emp.pref || '';
@@ -3574,10 +3602,16 @@ function saveEmployeeEdit() {
   const emp = employees.find(e => e.id === editingEmployeeId);
   if (!emp) return;
   
+  var nameEl = document.getElementById('employeeEditName');
   var typeEl = document.getElementById('employeeEditType');
   var poolEl = document.getElementById('employeeEditLaborPool');
   var prefEl = document.getElementById('employeeEditPref');
   var seniorityEl = document.getElementById('employeeEditSeniority');
+  var newName = (nameEl && nameEl.value) ? nameEl.value.trim() : '';
+  if (!newName) {
+    alert('Name cannot be empty.');
+    return;
+  }
   var poolId = poolEl && poolEl.value ? poolEl.value : emp.laborPoolId;
   if (!poolId) {
     alert('Please select a labor pool to continue.');
@@ -3590,11 +3624,13 @@ function saveEmployeeEdit() {
     return;
   }
   
+  var oldName = emp.name;
   var oldType = emp.type;
   var oldPoolId = emp.laborPoolId;
   var oldPref = emp.pref || '';
   var oldSeniority = getSeniorityForEmployee(emp);
   
+  emp.name = newName;
   emp.type = typeEl.value;
   emp.laborPoolId = poolId;
   if (!emp.seniorityByPool) emp.seniorityByPool = {};
@@ -3603,6 +3639,7 @@ function saveEmployeeEdit() {
   emp.pref = prefEl.value || null;
   
   var changes = [];
+  if (oldName !== emp.name) changes.push('name ' + (oldName || '') + ' → ' + emp.name);
   if (oldType !== emp.type) changes.push('type ' + oldType + ' → ' + emp.type);
   if (oldPoolId !== emp.laborPoolId) changes.push('labor pool → ' + (getLaborPoolById(emp.laborPoolId) ? getLaborPoolById(emp.laborPoolId).name : emp.laborPoolId));
   if (oldPref !== (emp.pref || '')) changes.push('preference ' + (oldPref || 'none') + ' → ' + (emp.pref || 'none'));
@@ -3625,6 +3662,15 @@ function initEmployeeEditModal() {
   document.getElementById('employeeEditModalOverlay').onclick = function(e) {
     if (e.target === this) closeEmployeeEditModal();
   };
+}
+
+function initDayPrefsModal() {
+  var saveBtn = document.getElementById('dayPrefsSaveBtn');
+  var cancelBtn = document.getElementById('dayPrefsCancelBtn');
+  var overlay = document.getElementById('dayPrefsModalOverlay');
+  if (saveBtn) saveBtn.onclick = saveDayPrefsModal;
+  if (cancelBtn) cancelBtn.onclick = closeDayPrefsModal;
+  if (overlay) overlay.onclick = function(e) { if (e.target === overlay) closeDayPrefsModal(); };
 }
 
 /* EVENTS */
@@ -6672,6 +6718,7 @@ function submitSupport(){
 /* INIT */
 try {
   initEmployeeEditModal();
+  initDayPrefsModal();
   updateSeniorityPreFill();
   renderEmployees();
   renderEvents();
