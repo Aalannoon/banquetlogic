@@ -1265,12 +1265,75 @@ body.light-mode .settings-table th { color: #1a1f26; }
 .event-type-helper { margin: 4px 0 0 0; font-size: 12px; color: var(--brand-text-muted); }
 body.light-mode .event-time-label, body.light-mode .event-type-helper { color: #374151; }
 
-/* Events table: hover, numeric alignment, Date/Time grouping */
-.events-table tbody tr:hover { background: var(--brand-bg-elevated); }
-body.light-mode .events-table tbody tr:hover { background: #f3f4f6; }
+/* Events collapsible and form grouping */
+.events-collapsible-section {
+  margin-bottom: 15px;
+  padding: 10px;
+  background: #2e2e3d;
+  border-radius: 8px;
+  border: 1px solid var(--brand-border);
+}
+body.light-mode .events-collapsible-section { background: var(--brand-bg-elevated); }
+.events-collapsible-summary {
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  list-style: none;
+  padding: 4px 0;
+  color: var(--brand-text);
+}
+.events-collapsible-summary::-webkit-details-marker { display: none; }
+.events-collapsible-summary::before {
+  content: '\25B8';
+  display: inline-block;
+  margin-right: 8px;
+  transition: transform 0.2s;
+}
+.events-collapsible-section[open] .events-collapsible-summary::before { transform: rotate(90deg); }
+.events-form-required { border-left: 3px solid var(--brand-primary); padding-left: 12px; margin-bottom: 12px; }
+.events-form-optional { margin-top: 12px; padding: 10px; background: rgba(0,0,0,0.15); border-radius: 6px; }
+body.light-mode .events-form-optional { background: #f3f4f6; }
+.events-form-actions { margin-top: 12px; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.event-pool-reqs-section { margin-top: 12px; padding: 8px 0; border-top: 1px solid var(--brand-border); }
+body.light-mode .event-pool-reqs-section { border-top-color: #9ca3af; }
+
+/* Events table: wrap, sticky header, styling */
+.events-table-wrap { overflow: auto; margin-bottom: 1rem; position: relative; }
+.events-table { width: 100%; border-collapse: collapse; }
+.events-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--brand-bg-elevated);
+  border-bottom: 2px solid var(--brand-border);
+  box-shadow: 0 1px 0 var(--brand-border);
+  padding: 10px 12px;
+  text-align: left;
+}
+body.light-mode .events-table thead th { background: var(--brand-bg-elevated); }
+.events-table th, .events-table td { padding: 10px 12px; border-bottom: 1px solid var(--brand-border); }
 .events-table td:nth-child(4), .events-table th:nth-child(4), .events-table td:nth-child(6), .events-table th:nth-child(6) { text-align: right; }
 .events-table th:nth-child(3), .events-table td:nth-child(3) { border-right: 2px solid var(--brand-border); }
 body.light-mode .events-table th:nth-child(3), body.light-mode .events-table td:nth-child(3) { border-right-color: #9ca3af; }
+.events-table tbody tr:nth-child(even) { background: rgba(255,255,255,0.03); }
+.events-table tbody tr:hover { background: var(--brand-bg-elevated); }
+body.light-mode .events-table tbody tr:nth-child(even) { background: #f9fafb; }
+body.light-mode .events-table tbody tr:hover { background: #f3f4f6; }
+.events-th-sortable { cursor: pointer; user-select: none; }
+.events-th-sortable:hover { background: rgba(78, 154, 241, 0.15); }
+.events-th-sortable[data-order="asc"]::after { content: ' \25B2'; font-size: 10px; opacity: 0.8; }
+.events-th-sortable[data-order="desc"]::after { content: ' \25BC'; font-size: 10px; opacity: 0.8; }
+.events-empty-cell { text-align: center; padding: 1.5rem !important; color: var(--brand-text-muted); }
+.events-empty-cell .events-empty-cta { margin-top: 10px; }
+
+@media (max-width: 768px) {
+  .events-table, .events-table thead, .events-table tbody, .events-table tr, .events-table th, .events-table td { display: block; }
+  .events-table thead tr { display: none; }
+  .events-table tbody tr { margin-bottom: 1rem; padding: 12px; background: var(--brand-bg-elevated); border-radius: 8px; border: 1px solid var(--brand-border); }
+  .events-table td { padding: 6px 0; border: none; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+  .events-table td::before { content: attr(data-label); font-weight: 600; min-width: 90px; color: var(--brand-text-muted); }
+  .events-filter-row { flex-direction: column; align-items: stretch; }
+}
 
 /* Schedule: action button groups and lock helper */
 .schedule-actions {
@@ -1756,39 +1819,84 @@ body.light-mode .email-cell-input { background: #fff; color: #1a1f26; border-col
 <div id="eventsTab" class="tab">
 <h2>Events</h2>
 
-<input type="text" id="eventName" placeholder="Event Name" />
-<input id="eventDate" type="date" />
-<label for="eventStart" class="event-time-label">Start Time</label>
-<input id="eventStart" type="time" placeholder="--:--" onchange="autoRecommendStaff()" aria-label="Start Time" />
-<label for="eventEnd" class="event-time-label">End Time</label>
-<input id="eventEnd" type="time" placeholder="--:--" onchange="autoRecommendStaff()" aria-label="End Time" />
-<input id="eventGuests" type="number" placeholder="Guests" oninput="autoRecommendStaff()" />
+<details id="eventFormSection" class="events-collapsible-section" open>
+  <summary class="events-collapsible-summary" id="eventFormSummary">Add event</summary>
+  <div class="events-form-inner">
+    <p id="eventEditingLabel" class="event-editing-label" style="display: none; margin: 0 0 10px 0; font-size: 13px; color: var(--brand-primary);"></p>
+    <div class="events-form-required">
+      <label for="eventName" style="display: block; margin-bottom: 4px; font-size: 13px;">Event name <span style="color:#e74c3c;">*</span></label>
+      <input type="text" id="eventName" placeholder="Event Name" />
+      <label for="eventDate" style="display: block; margin: 10px 0 4px 0; font-size: 13px;">Date <span style="color:#e74c3c;">*</span></label>
+      <input id="eventDate" type="date" />
+    </div>
+    <div class="events-form-optional">
+      <strong style="font-size: 13px; color: var(--brand-text-muted);">Optional</strong>
+      <label for="eventStart" class="event-time-label">Start Time</label>
+      <input id="eventStart" type="time" placeholder="--:--" onchange="autoRecommendStaff()" aria-label="Start Time" />
+      <label for="eventEnd" class="event-time-label">End Time</label>
+      <input id="eventEnd" type="time" placeholder="--:--" onchange="autoRecommendStaff()" aria-label="End Time" />
+      <input id="eventGuests" type="number" placeholder="Guests" min="0" oninput="autoRecommendStaff()" />
+      <label for="eventService" style="display: block; margin-bottom: 4px; font-size: 13px;">Service type</label>
+      <select id="eventService" onchange="autoRecommendStaff()"></select>
+      <p class="event-type-helper">Affects staffing ratios and scheduling logic</p>
+      <div class="event-pool-reqs-section">
+        <label style="display: block; margin-bottom: 6px; font-size: 13px;">Labor pool requirements</label>
+        <p class="event-type-helper" style="margin: 0 0 8px 0;">Which pools are needed and how many (e.g. 1 Cashier, 2 Housemen).</p>
+        <div id="eventLaborPoolReqsContainer"></div>
+        <button type="button" onclick="addEventPoolReqRow()" style="margin-top: 6px;">Add pool requirement</button>
+      </div>
+      <p style="margin-top: 12px;"><label style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer;"><input type="checkbox" id="eventCashBar" /> Cash Bar</label><br><small class="event-type-helper">When enabled, the schedule will show a non-binding cashier recommendation for this event.</small></p>
+      <details class="events-legacy-staff-wrap" style="margin-top: 8px;">
+        <summary style="font-size: 12px; color: var(--brand-text-muted); cursor: pointer;">Staff (legacy field)</summary>
+        <input id="eventStaff" type="number" placeholder="Only if not using pool requirements above" min="0" style="margin-top: 6px;" />
+      </details>
+    </div>
+    <div class="events-form-actions">
+      <button type="button" id="eventSubmitBtn" class="btn-primary" onclick="addEvent()">Add Event</button>
+      <button type="button" id="eventCancelEditBtn" style="display: none; margin-left: 8px;" onclick="cancelEventEdit()">Cancel</button>
+    </div>
+  </div>
+</details>
 
-<select id="eventService" onchange="autoRecommendStaff()"></select>
-<p class="event-type-helper">Affects staffing ratios and scheduling logic</p>
-
-<div class="event-pool-reqs-section" style="margin-top: 12px;">
-  <label style="display: block; margin-bottom: 6px; font-size: 13px;">Labor pool requirements</label>
-  <p class="event-type-helper" style="margin: 0 0 8px 0;">Which pools are needed and how many (e.g. 1 Cashier, 2 Housemen).</p>
-  <div id="eventLaborPoolReqsContainer"></div>
-  <button type="button" onclick="addEventPoolReqRow()" style="margin-top: 6px;">Add pool requirement</button>
+<div id="eventsSummaryLine" class="events-summary-line" style="margin-bottom: 8px; font-size: 13px; color: var(--brand-text-muted);" aria-live="polite"></div>
+<div id="eventsFilterRow" class="events-filter-row" style="margin-bottom: 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px;">
+  <input type="text" id="eventsSearchInput" placeholder="Search by name or service..." oninput="renderEvents()" style="padding: 8px 12px; width: 220px; border-radius: 6px; border: 1px solid var(--brand-border);" aria-label="Search events" />
+  <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--brand-text-muted);">
+    <span>Date:</span>
+    <select id="eventsDateFilter" onchange="renderEvents()" style="padding: 6px 10px; min-width: 140px;" aria-label="Filter by date range">
+      <option value="all">All dates</option>
+      <option value="week">This week</option>
+      <option value="next">Next week</option>
+    </select>
+  </label>
+  <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--brand-text-muted);">
+    <span>Service:</span>
+    <select id="eventsServiceFilter" onchange="renderEvents()" style="padding: 6px 10px; min-width: 120px;" aria-label="Filter by service type">
+      <option value="">All</option>
+    </select>
+  </label>
 </div>
 
-<p style="margin-top: 12px;"><label style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer;"><input type="checkbox" id="eventCashBar" /> Cash Bar</label><br><small class="event-type-helper">When enabled, the schedule will show a non-binding cashier recommendation for this event.</small></p>
-
-<input id="eventStaff" type="number" placeholder="Staff Needed (legacy)" style="margin-top: 8px;" />
-<button type="button" id="eventSubmitBtn" class="btn-primary" onclick="addEvent()">Add Event</button>
-
-<table class="events-table">
+<div id="eventsTableWrap" class="events-table-wrap">
+<table class="events-table" role="table" aria-label="Events list">
+<caption class="sr-only">List of events with name, date, time, guests, service, staff, and actions</caption>
 <thead>
 <tr>
-  <th>Name</th><th>Date</th><th>Time</th>
-  <th>Guests</th><th>Service</th><th>Staff</th>
-  <th>Edit</th><th>Delete</th>
+  <th scope="col" class="events-th-sortable" data-sort="name" title="Event name">Name</th>
+  <th scope="col" class="events-th-sortable" data-sort="date" title="Event date">Date</th>
+  <th scope="col" class="events-th-sortable" data-sort="time" title="Start–end time">Time</th>
+  <th scope="col" title="Guest count">Guests</th>
+  <th scope="col" title="Service or event type">Service</th>
+  <th scope="col" title="Total staff and per-pool requirements">Staff</th>
+  <th scope="col">Edit</th>
+  <th scope="col">Duplicate</th>
+  <th scope="col">Delete</th>
 </tr>
 </thead>
 <tbody id="eventsTable"></tbody>
 </table>
+</div>
+<div id="eventsLiveRegion" class="sr-only" aria-live="polite" aria-atomic="true"></div>
 </div>
 
 <!-- SCHEDULE -->
@@ -2939,6 +3047,7 @@ function showTab(id){
   if(id==="eventsTab") {
     tabEvBtn.classList.add("active");
     populateEventServiceDropdown();
+    renderEvents();
     setTimeout(function(){ var el = document.getElementById('eventName'); if(el) el.focus(); }, 80);
   }
   if(id==="scheduleTab") { tabSchBtn.classList.add("active"); populatePrintPoolFilter(); renderSchedulePoolSelector(); displaySchedule(); }
@@ -4336,20 +4445,45 @@ function getEventLaborPoolReqsFromForm() {
 }
 
 function addEvent(){
-  if(!eventName.value || !eventDate.value) return;
-  var typeId = eventService.value;
-  var type = getEventTypeById(typeId);
-  var typeName = type ? type.name : (eventService.options[eventService.selectedIndex] ? eventService.options[eventService.selectedIndex].text : '');
+  var eventNameEl = document.getElementById('eventName');
+  var eventDateEl = document.getElementById('eventDate');
+  var eventStartEl = document.getElementById('eventStart');
+  var eventEndEl = document.getElementById('eventEnd');
+  var eventGuestsEl = document.getElementById('eventGuests');
+  var eventStaffEl = document.getElementById('eventStaff');
+  var eventServiceEl = document.getElementById('eventService');
+  if (!eventNameEl || !eventDateEl) return;
+  if (!eventNameEl.value.trim() || !eventDateEl.value) {
+    alert('Event name and date are required.');
+    return;
+  }
+  var startVal = (eventStartEl && eventStartEl.value) ? eventStartEl.value : '09:00';
+  var endVal = (eventEndEl && eventEndEl.value) ? eventEndEl.value : '17:00';
+  if (startVal && endVal && startVal >= endVal) {
+    alert('End time must be after start time.');
+    return;
+  }
+  var guestsVal = eventGuestsEl ? parseInt(eventGuestsEl.value, 10) : 0;
+  if (isNaN(guestsVal) || guestsVal < 0) guestsVal = 0;
   var poolReqs = getEventLaborPoolReqsFromForm();
-  var totalStaff = poolReqs.length ? poolReqs.reduce(function(s, r) { return s + r.quantity; }, 0) : (+eventStaff.value || 1);
+  var legacyStaff = eventStaffEl ? parseInt(eventStaffEl.value, 10) : 0;
+  if (isNaN(legacyStaff) || legacyStaff < 0) legacyStaff = 0;
+  var totalStaff = poolReqs.length ? poolReqs.reduce(function(s, r) { return s + r.quantity; }, 0) : (legacyStaff || 1);
+  if (poolReqs.length === 0 && (!legacyStaff || legacyStaff < 1)) {
+    alert('Add at least one labor pool requirement or enter staff needed (legacy, at least 1).');
+    return;
+  }
+  var typeId = eventServiceEl ? eventServiceEl.value : '';
+  var type = typeId ? getEventTypeById(typeId) : null;
+  var typeName = type ? type.name : (eventServiceEl && eventServiceEl.options[eventServiceEl.selectedIndex] ? eventServiceEl.options[eventServiceEl.selectedIndex].text : '');
   var eventCashBarEl = document.getElementById('eventCashBar');
   const data={
     id: editingEventId || crypto.randomUUID(),
-    name: eventName.value,
-    date: eventDate.value,
-    start: eventStart.value || "09:00",
-    end: eventEnd.value || "17:00",
-    guests: +eventGuests.value || 0,
+    name: eventNameEl.value.trim(),
+    date: eventDateEl.value,
+    start: startVal,
+    end: endVal,
+    guests: guestsVal,
     service: typeName,
     eventTypeId: typeId || undefined,
     eventTypeName: typeName,
@@ -4358,6 +4492,7 @@ function addEvent(){
     cashBarEnabled: !!(eventCashBarEl && eventCashBarEl.checked)
   };
   
+  var wasEditing = !!editingEventId;
   if(editingEventId){
     const oldEvent = events.find(e=>e.id===editingEventId);
     Object.assign(oldEvent, data);
@@ -4370,18 +4505,30 @@ function addEvent(){
     addAuditEntry('Event Created', null, data.date, null, `${data.name} (${data.staff} staff)`);
   }
   
-  eventName.value="";
-  eventDate.value="";
-  eventStart.value="";
-  eventEnd.value="";
-  eventGuests.value="";
-  eventStaff.value="";
+  eventNameEl.value="";
+  eventDateEl.value="";
+  if (eventStartEl) eventStartEl.value="";
+  if (eventEndEl) eventEndEl.value="";
+  if (eventGuestsEl) eventGuestsEl.value="";
+  if (eventStaffEl) eventStaffEl.value="";
   if (eventCashBarEl) eventCashBarEl.checked = false;
   var container = document.getElementById('eventLaborPoolReqsContainer');
   if (container) container.innerHTML = '';
+  cancelEventEdit();
   
   save(); 
   renderEvents();
+  var liveEl = document.getElementById('eventsLiveRegion');
+  if (liveEl) liveEl.textContent = wasEditing ? 'Event ' + data.name + ' updated.' : 'Event ' + data.name + ' added.';
+  setTimeout(function() {
+    var tbl = document.getElementById('eventsTable');
+    var firstRow = tbl ? tbl.querySelector('tr[data-event-id="' + data.id + '"]') : null;
+    if (firstRow) {
+      firstRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      var editBtn = firstRow.querySelector('.edit-btn');
+      if (editBtn) editBtn.focus();
+    }
+  }, 100);
 }
 
 function formatEventPoolReqs(ev) {
@@ -4394,59 +4541,161 @@ function formatEventPoolReqs(ev) {
   return ev.staff != null ? String(ev.staff) : '-';
 }
 
+function populateEventsServiceFilter() {
+  var sel = document.getElementById('eventsServiceFilter');
+  if (!sel) return;
+  var current = sel.value;
+  sel.innerHTML = '<option value="">All</option>';
+  var types = getActiveEventTypes();
+  types.forEach(function(t) {
+    var opt = document.createElement('option');
+    opt.value = t.id;
+    opt.textContent = t.name;
+    sel.appendChild(opt);
+  });
+  if (current && [].slice.call(sel.options).some(function(o) { return o.value === current; })) sel.value = current;
+}
+
+function cancelEventEdit() {
+  editingEventId = null;
+  var summaryEl = document.getElementById('eventFormSummary');
+  if (summaryEl) summaryEl.textContent = 'Add event';
+  var labelEl = document.getElementById('eventEditingLabel');
+  if (labelEl) { labelEl.style.display = 'none'; labelEl.textContent = ''; }
+  var cancelBtn = document.getElementById('eventCancelEditBtn');
+  if (cancelBtn) cancelBtn.style.display = 'none';
+  var submitBtn = document.getElementById('eventSubmitBtn');
+  if (submitBtn) submitBtn.textContent = 'Add Event';
+}
+
 function renderEvents(){
-  eventsTable.innerHTML="";
-  events.forEach(ev=>{
+  var eventsTableEl = document.getElementById('eventsTable');
+  if (!eventsTableEl) return;
+  var searchEl = document.getElementById('eventsSearchInput');
+  var dateFilterEl = document.getElementById('eventsDateFilter');
+  var serviceFilterEl = document.getElementById('eventsServiceFilter');
+  var searchQuery = (searchEl && searchEl.value) ? searchEl.value.trim().toLowerCase() : '';
+  var dateFilter = (dateFilterEl && dateFilterEl.value) ? dateFilterEl.value : 'all';
+  var serviceFilter = (serviceFilterEl && serviceFilterEl.value) ? serviceFilterEl.value : '';
+  var filtered = events.filter(function(ev) {
+    if (searchQuery) {
+      var name = (ev.name || '').toLowerCase();
+      var service = (ev.eventTypeName || ev.service || ev.serviceType || '').toLowerCase();
+      if (name.indexOf(searchQuery) === -1 && service.indexOf(searchQuery) === -1) return false;
+    }
+    if (dateFilter === 'week' || dateFilter === 'next') {
+      var today = new Date();
+      var weekStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      var mondayIndex = getMondayBasedIndex(weekStart);
+      weekStart.setDate(weekStart.getDate() - mondayIndex);
+      if (dateFilter === 'next') weekStart.setDate(weekStart.getDate() + 7);
+      var weekKey = dateToLocalYYYYMMDD(weekStart);
+      var days = getDateStrsForWeek(weekKey);
+      if (days.indexOf(ev.date) === -1) return false;
+    }
+    if (serviceFilter && (ev.eventTypeId || '') !== serviceFilter) return false;
+    return true;
+  });
+  var sortBy = typeof window.eventsSortBy !== 'undefined' ? window.eventsSortBy : 'date';
+  var sortOrder = typeof window.eventsSortOrder !== 'undefined' ? window.eventsSortOrder : 'asc';
+  filtered.sort(function(a, b) {
+    var va, vb;
+    if (sortBy === 'name') { va = (a.name || '').toLowerCase(); vb = (b.name || '').toLowerCase(); return sortOrder === 'asc' ? (va < vb ? -1 : va > vb ? 1 : 0) : (vb < va ? -1 : vb > va ? 1 : 0); }
+    if (sortBy === 'date') { va = a.date || ''; vb = b.date || ''; return sortOrder === 'asc' ? (va < vb ? -1 : va > vb ? 1 : 0) : (vb < va ? -1 : vb > va ? 1 : 0); }
+    if (sortBy === 'time') { va = (a.start || '') + (a.end || ''); vb = (b.start || '') + (b.end || ''); return sortOrder === 'asc' ? (va < vb ? -1 : va > vb ? 1 : 0) : (vb < va ? -1 : vb > va ? 1 : 0); }
+    return 0;
+  });
+  populateEventsServiceFilter();
+  eventsTableEl.innerHTML = "";
+  filtered.forEach(function(ev) {
     const row = document.createElement('tr');
+    row.setAttribute('data-event-id', ev.id);
     var staffDisplay = formatEventPoolReqs(ev);
     if (ev.laborPoolRequirements && ev.laborPoolRequirements.length && ev.staff != null) staffDisplay = ev.staff + ' total (' + staffDisplay + ')';
+    var nameEsc = (ev.name || '').replace(/</g, '&lt;');
     row.innerHTML = `
-      <td>${ev.name}</td>
-      <td>${ev.date}</td>
-      <td>${ev.start}-${ev.end}</td>
-      <td>${ev.guests}</td>
-      <td>${ev.eventTypeName || ev.service || ev.serviceType || ''}</td>
-      <td>${staffDisplay}</td>
-      <td><button type="button" class="edit-btn">Edit</button></td>
-      <td><button type="button" class="delete">Delete</button></td>
+      <td data-label="Name">${nameEsc}</td>
+      <td data-label="Date">${ev.date || ''}</td>
+      <td data-label="Time">${ev.start || ''}-${ev.end || ''}</td>
+      <td data-label="Guests">${ev.guests != null ? ev.guests : ''}</td>
+      <td data-label="Service">${(ev.eventTypeName || ev.service || ev.serviceType || '').replace(/</g, '&lt;')}</td>
+      <td data-label="Staff">${(staffDisplay || '').replace(/</g, '&lt;')}</td>
+      <td data-label="Edit"><button type="button" class="edit-btn">Edit</button></td>
+      <td data-label="Duplicate"><button type="button" class="duplicate-event-btn">Duplicate</button></td>
+      <td data-label="Delete"><button type="button" class="delete">Delete</button></td>
     `;
-    
-    row.querySelector('.edit-btn').onclick = () => editEvent(ev.id);
-    row.querySelector('.delete').onclick = () => deleteEvent(ev.id);
-    
-    eventsTable.appendChild(row);
+    row.querySelector('.edit-btn').onclick = function() { editEvent(ev.id); };
+    row.querySelector('.duplicate-event-btn').onclick = function() { duplicateEvent(ev.id); };
+    row.querySelector('.delete').onclick = function() { deleteEvent(ev.id); };
+    eventsTableEl.appendChild(row);
   });
-  if(events.length === 0){
-    const emptyRow = document.createElement('tr');
-    emptyRow.innerHTML = '<td colspan="8" style="text-align:center;padding:1.5rem;color:#7f8c8d;">No events yet. Add an event above to get started.</td>';
-    eventsTable.appendChild(emptyRow);
+  var summaryEl = document.getElementById('eventsSummaryLine');
+  if (summaryEl) summaryEl.textContent = 'Showing ' + filtered.length + ' of ' + events.length + ' event' + (events.length === 1 ? '' : 's') + '.';
+  if (filtered.length === 0) {
+    var emptyRow = document.createElement('tr');
+    var emptyMsg = events.length === 0 ? 'No events yet. Add an event above to get started.' : 'No matches. Try a different search or filter.';
+    var ctaHtml = events.length === 0 ? ' <button type="button" class="btn-primary events-empty-cta" onclick="document.getElementById(\'eventFormSection\').open=true; document.getElementById(\'eventFormSection\').scrollIntoView({behavior:\'smooth\',block:\'start\'}); var el=document.getElementById(\'eventName\'); if(el) el.focus();">Add event</button>' : '';
+    emptyRow.innerHTML = '<td colspan="9" data-label="" class="events-empty-cell">' + emptyMsg + ctaHtml + '</td>';
+    eventsTableEl.appendChild(emptyRow);
   }
   var eventSubmitBtn = document.getElementById('eventSubmitBtn');
   if (eventSubmitBtn) eventSubmitBtn.textContent = editingEventId ? 'Save Changes' : 'Add Event';
+  var wrap = document.getElementById('eventsTableWrap');
+  if (wrap) {
+    wrap.querySelectorAll('.events-th-sortable').forEach(function(th) {
+      th.removeAttribute('data-order');
+      if (th.getAttribute('data-sort') === sortBy) th.setAttribute('data-order', sortOrder);
+      th.onclick = function() {
+        var key = th.getAttribute('data-sort');
+        if (!key) return;
+        window.eventsSortBy = key;
+        window.eventsSortOrder = (window.eventsSortBy === key && window.eventsSortOrder === 'asc') ? 'desc' : 'asc';
+        renderEvents();
+      };
+    });
+  }
 }
 
 function editEvent(id){
   const e = events.find(x => x.id === id);
+  if (!e) return;
   editingEventId = id;
+  var summaryEl = document.getElementById('eventFormSummary');
+  if (summaryEl) summaryEl.textContent = 'Edit event';
+  var labelEl = document.getElementById('eventEditingLabel');
+  if (labelEl) { labelEl.textContent = 'Editing: ' + (e.name || 'Event'); labelEl.style.display = 'block'; }
+  var cancelBtn = document.getElementById('eventCancelEditBtn');
+  if (cancelBtn) cancelBtn.style.display = 'inline-block';
   document.getElementById('eventSubmitBtn').textContent = 'Save Changes';
-  eventName.value = e.name;
-  eventDate.value = e.date;
-  eventStart.value = e.start || '09:00';
-  eventEnd.value = e.end || '17:00';
-  eventGuests.value = e.guests;
+  var eventFormSection = document.getElementById('eventFormSection');
+  if (eventFormSection) eventFormSection.open = true;
+  var eventNameEl = document.getElementById('eventName');
+  var eventDateEl = document.getElementById('eventDate');
+  var eventStartEl = document.getElementById('eventStart');
+  var eventEndEl = document.getElementById('eventEnd');
+  var eventGuestsEl = document.getElementById('eventGuests');
+  var eventStaffEl = document.getElementById('eventStaff');
+  var eventServiceEl = document.getElementById('eventService');
+  if (eventNameEl) eventNameEl.value = e.name || '';
+  if (eventDateEl) eventDateEl.value = e.date || '';
+  if (eventStartEl) eventStartEl.value = e.start || '09:00';
+  if (eventEndEl) eventEndEl.value = e.end || '17:00';
+  if (eventGuestsEl) eventGuestsEl.value = e.guests != null ? e.guests : '';
+  if (eventStaffEl) eventStaffEl.value = e.staff != null ? e.staff : '';
   var typeId = e.eventTypeId || (getEventTypeByName(e.service) ? getEventTypeByName(e.service).id : '');
   var type = typeId ? getEventTypeById(typeId) : null;
-  if (typeId && type && !type.active) {
-    var hasOpt = [].slice.call(eventService.options).some(function(o) { return o.value === typeId; });
-    if (!hasOpt) {
-      var opt = document.createElement('option');
-      opt.value = typeId;
-      opt.textContent = e.eventTypeName || e.service || type.name || 'Unknown';
-      eventService.appendChild(opt);
+  if (eventServiceEl) {
+    if (typeId && type && !type.active) {
+      var hasOpt = [].slice.call(eventServiceEl.options).some(function(o) { return o.value === typeId; });
+      if (!hasOpt) {
+        var opt = document.createElement('option');
+        opt.value = typeId;
+        opt.textContent = e.eventTypeName || e.service || type.name || 'Unknown';
+        eventServiceEl.appendChild(opt);
+      }
     }
+    eventServiceEl.value = typeId || (eventServiceEl.options.length ? eventServiceEl.options[0].value : '');
   }
-  eventService.value = typeId || (eventService.options.length ? eventService.options[0].value : '');
-  eventStaff.value = e.staff;
   var eventCashBarEl = document.getElementById('eventCashBar');
   if (eventCashBarEl) eventCashBarEl.checked = !!e.cashBarEnabled;
   var container = document.getElementById('eventLaborPoolReqsContainer');
@@ -4459,14 +4708,37 @@ function editEvent(id){
       addEventPoolReqRow(getLaborPoolById(DEFAULT_SERVERS_POOL_ID) ? DEFAULT_SERVERS_POOL_ID : (laborPools[0] ? laborPools[0].id : ''), e.staff);
     }
   }
+  if (eventNameEl) eventNameEl.focus();
+}
+
+function duplicateEvent(id) {
+  var ev = events.find(function(e) { return e.id === id; });
+  if (!ev) return;
+  var copy = JSON.parse(JSON.stringify(ev));
+  copy.id = crypto.randomUUID();
+  copy.name = (ev.name || 'Event') + ' (copy)';
+  events.push(copy);
+  addAuditEntry('Event Duplicated', null, copy.date, ev.name || '', copy.name || '');
+  save();
+  renderEvents();
+  var liveEl = document.getElementById('eventsLiveRegion');
+  if (liveEl) liveEl.textContent = 'Event duplicated as “‘ + (copy.name || '').replace(/"/g, "'") + '”.';
+  setTimeout(function() {
+    var tbl = document.getElementById('eventsTable');
+    var row = tbl ? tbl.querySelector('tr[data-event-id="' + copy.id + '"]') : null;
+    if (row) { row.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); var eb = row.querySelector('.edit-btn'); if (eb) eb.focus(); }
+  }, 100);
 }
 
 function deleteEvent(id){
-  if(!confirm("Delete event?")) return;
   const ev = events.find(e=>e.id===id);
-  events=events.filter(e=>e.id!==id);
+  if (!ev) return;
+  var safeName = (ev.name || 'Unnamed').replace(/"/g, "'");
+  if (!confirm('Delete event "' + safeName + '"?')) return;
+  events = events.filter(e=>e.id!==id);
   addAuditEntry('Event Deleted', null, ev.date, `${ev.name}`, null);
-  save(); 
+  save();
+  if (editingEventId === id) cancelEventEdit();
   renderEvents();
 }
 
