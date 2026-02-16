@@ -290,6 +290,22 @@ body.light-mode .employees-pool-btn:not(.employees-pool-btn-active) .employees-p
   border: 0;
 }
 
+.skip-link {
+  position: absolute;
+  top: -100px;
+  left: 8px;
+  padding: 8px 12px;
+  background: var(--brand-primary);
+  color: #fff;
+  border-radius: 6px;
+  font-size: 14px;
+  z-index: 9999;
+  transition: top 0.2s;
+}
+.skip-link:focus {
+  top: 8px;
+}
+
 @media (max-width: 768px) {
   .employees-table,
   .employees-table thead,
@@ -322,7 +338,7 @@ body.light-mode .employees-pool-btn:not(.employees-pool-btn-active) .employees-p
   }
   .employees-table td.email-cell-td::before { content: 'Email'; }
   #employeesPoolSelector { flex-direction: column; }
-  #employeesTab > div[style*="margin-bottom: 15px"][style*="display: flex"] { flex-direction: column; align-items: stretch; }
+  #employeesFilterRow { flex-direction: column; align-items: stretch; }
 }
 
 /* INPUTS */
@@ -1379,7 +1395,7 @@ body.light-mode .email-cell-input { background: #fff; color: #1a1f26; border-col
 </head>
 
 <body>
-
+<a href="#main-content" class="skip-link">Skip to main content</a>
 <header class="app-header">
   <div class="logo-block">
     <div class="logo-icon-wrap" aria-hidden="true">
@@ -1414,7 +1430,7 @@ body.light-mode .email-cell-input { background: #fff; color: #1a1f26; border-col
   <button type="button" class="print" onclick="printSchedule()">Print / Save PDF</button>
 </span>
 
-<div class="tabs">
+<div id="main-content" class="tabs" tabindex="-1">
   <button type="button" id="tabEmpBtn" onclick="showTab('employeesTab')">Employees</button>
   <button type="button" id="tabEvBtn" onclick="showTab('eventsTab')">Events</button>
   <button type="button" id="tabSchBtn" onclick="showTab('scheduleTab')">Schedule</button>
@@ -1505,7 +1521,7 @@ body.light-mode .email-cell-input { background: #fff; color: #1a1f26; border-col
   </div>
 </div>
 
-<div style="margin-bottom: 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px;">
+<div id="employeesFilterRow" class="employees-filter-row" style="margin-bottom: 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px;">
   <input type="text" id="employeesSearchInput" placeholder="Search by name..." oninput="renderEmployees()" style="padding: 8px 12px; width: 220px; border-radius: 6px; border: 1px solid var(--brand-border);" aria-label="Search employees by name, pool, or type" />
   <label style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px; color: var(--brand-text-muted);">
     <input type="checkbox" id="employeesShowRetired" onchange="renderEmployees()" aria-label="Show retired employees" />
@@ -1515,7 +1531,12 @@ body.light-mode .email-cell-input { background: #fff; color: #1a1f26; border-col
     <span id="employeesBulkCount" style="font-size: 13px; color: var(--brand-text-muted);"></span>
     <button type="button" id="employeesBulkRetire" style="background: #8e44ad; padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; color: #fff;" aria-label="Retire selected employees">Retire selected</button>
     <button type="button" id="employeesBulkPool" style="background: #16a085; padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; color: #fff;" aria-label="Change labor pool for selected employees">Change pool</button>
+    <button type="button" id="employeesBulkDelete" style="background: #c0392b; padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; color: #fff;" aria-label="Delete selected employees permanently">Delete selected</button>
     <button type="button" id="employeesBulkClear" style="background: #7f8c8d; padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; color: #fff;" aria-label="Clear selection">Clear selection</button>
+  </div>
+  <div id="employeesBulkUndo" style="display: none; margin-left: 8px; font-size: 13px;">
+    <span id="employeesBulkUndoText"></span>
+    <button type="button" id="employeesBulkUndoBtn" style="background: #27ae60; padding: 4px 10px; border: none; border-radius: 4px; cursor: pointer; color: #fff; margin-left: 6px;">Undo</button>
   </div>
 </div>
 
@@ -1536,6 +1557,7 @@ body.light-mode .email-cell-input { background: #fff; color: #1a1f26; border-col
   <th scope="col">Vac</th>
   <th scope="col">Unpaid</th>
   <th scope="col">Off</th>
+  <th scope="col">Updated</th>
   <th scope="col">Actions</th>
 </tr>
 </thead>
@@ -1591,6 +1613,20 @@ body.light-mode .email-cell-input { background: #fff; color: #1a1f26; border-col
     <div class="edit-actions">
       <button type="button" class="save-btn btn-primary" id="dayPrefsSaveBtn">Save</button>
       <button type="button" class="cancel-btn" id="dayPrefsCancelBtn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div id="bulkChangePoolModalOverlay" class="employee-edit-overlay" style="display: none;" onclick="if(event.target===this) closeBulkChangePoolModal()">
+  <div id="bulkChangePoolModal" class="employee-edit-modal-inner" style="min-width: 320px;">
+    <h3>Change pool for selected employees</h3>
+    <div class="edit-row">
+      <label for="bulkChangePoolSelect">New labor pool</label>
+      <select id="bulkChangePoolSelect"></select>
+    </div>
+    <div class="edit-actions">
+      <button type="button" class="save-btn btn-primary" id="bulkChangePoolConfirm" onclick="confirmBulkChangePool()">Confirm</button>
+      <button type="button" class="cancel-btn" id="bulkChangePoolCancel" onclick="closeBulkChangePoolModal()">Cancel</button>
     </div>
   </div>
 </div>
@@ -1744,6 +1780,21 @@ body.light-mode .email-cell-input { background: #fff; color: #1a1f26; border-col
   <div>
     <h3 id="settings-info-card-title" class="settings-info-card-title">Need something different?</h3>
     <p class="settings-info-card-body">BanquetLogic is designed to adapt to your operation. Customize employee types, labor pools, and event types to fit your venue - or remove anything you don't use.</p>
+  </div>
+</div>
+
+<div class="settings-section">
+  <h3>Duplicate employee names</h3>
+  <p style="margin: 0 0 8px 0; font-size: 13px; color: var(--brand-text-muted);">When adding or editing an employee, if another employee already has the same name:</p>
+  <div style="display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 16px;">
+    <label style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
+      <input type="radio" name="duplicateNamePolicy" value="warn" />
+      <span>Warn (ask to continue)</span>
+    </label>
+    <label style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
+      <input type="radio" name="duplicateNamePolicy" value="block" />
+      <span>Block (disallow)</span>
+    </label>
   </div>
 </div>
 
@@ -2057,6 +2108,7 @@ function isPaidAbsenceDay(emp, dateStr) {
   return t === 'vacation' || t === 'floating_holiday';
 }
 var REASON_TAG_PRIORITY = ['manual_lock', 'availability', 'seniority', 'no_conflicts', 'rotation_balance', 'within_max_days', 'full_time', 'prefers_shift', 'day_preference', 'preference_overridden'];
+var EMPLOYEES_POOL_ALL = '__ALL__';
 let settings = JSON.parse(localStorage.getItem("settings") || JSON.stringify({
   assignmentStyle: "strict", // Default: Strict Seniority
   ratios: {
@@ -2068,7 +2120,8 @@ let settings = JSON.parse(localStorage.getItem("settings") || JSON.stringify({
   cashierRecommendationRatio: 150,
   housemenRecommendationMode: 'per_guests',
   housemenPerGuests: 100,
-  housemenFlatCount: 2
+  housemenFlatCount: 2,
+  duplicateNamePolicy: 'warn' // 'warn' = confirm to continue, 'block' = disallow
 }));
 
 function getDefaultEventTypes() {
@@ -2122,12 +2175,15 @@ function getHousemenPoolId() {
 }
 function getEmployeesTabSelectedPoolId() {
   var stored = localStorage.getItem('employeesTabSelectedPoolId');
+  if (stored === EMPLOYEES_POOL_ALL) return EMPLOYEES_POOL_ALL;
   if (stored && getLaborPoolById(stored)) return stored;
   if (getLaborPoolById(DEFAULT_SERVERS_POOL_ID)) return DEFAULT_SERVERS_POOL_ID;
   return laborPools.length ? laborPools[0].id : null;
 }
 function setEmployeesTabSelectedPoolId(poolId) {
-  if (!poolId || !getLaborPoolById(poolId)) return;
+  if (!poolId) return;
+  if (poolId === EMPLOYEES_POOL_ALL) { localStorage.setItem('employeesTabSelectedPoolId', poolId); return; }
+  if (!getLaborPoolById(poolId)) return;
   localStorage.setItem('employeesTabSelectedPoolId', poolId);
 }
 function renderEmployeesPoolSelector() {
@@ -2135,9 +2191,24 @@ function renderEmployeesPoolSelector() {
   if (!container) return;
   container.innerHTML = '';
   var selectedId = getEmployeesTabSelectedPoolId();
+  var showRetiredEl = document.getElementById('employeesShowRetired');
+  var showRetired = showRetiredEl ? showRetiredEl.checked : false;
+  var allCount = employees.filter(function(e) { return showRetired || !e.retired; }).length;
+  var allBtn = document.createElement('button');
+  allBtn.type = 'button';
+  allBtn.className = 'employees-pool-btn' + (selectedId === EMPLOYEES_POOL_ALL ? ' employees-pool-btn-active' : '');
+  allBtn.innerHTML = 'All <span class="employees-pool-count">(' + allCount + ')</span>';
+  allBtn.setAttribute('data-pool-id', EMPLOYEES_POOL_ALL);
+  allBtn.onclick = function() {
+    setEmployeesTabSelectedPoolId(EMPLOYEES_POOL_ALL);
+    renderEmployeesPoolSelector();
+    setAddFormToSelectedPool();
+    renderEmployees();
+  };
+  container.appendChild(allBtn);
   var pools = laborPools.length ? laborPools : getDefaultLaborPools();
   pools.forEach(function(p) {
-    var count = employees.filter(function(e) { return e.laborPoolId === p.id; }).length;
+    var count = employees.filter(function(e) { return e.laborPoolId === p.id && (showRetired || !e.retired); }).length;
     var btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'employees-pool-btn' + (p.id === selectedId ? ' employees-pool-btn-active' : '');
@@ -2155,10 +2226,13 @@ function renderEmployeesPoolSelector() {
 function setAddFormToSelectedPool() {
   var sel = document.getElementById('empLaborPool');
   var poolId = getEmployeesTabSelectedPoolId();
-  if (sel && poolId) {
-    if (getLaborPoolById(poolId)) sel.value = poolId;
-    updateSeniorityPreFill();
+  if (!sel) return;
+  if (poolId === EMPLOYEES_POOL_ALL || !getLaborPoolById(poolId)) {
+    if (laborPools.length) sel.value = laborPools[0].id;
+  } else {
+    sel.value = poolId;
   }
+  updateSeniorityPreFill();
 }
 function getCashierRecommendationForDate(dateStr) {
   var cashierPoolId = getCashierPoolId();
@@ -3078,8 +3152,10 @@ function addEmployee(){
   var poolId = empLaborPoolEl.value;
   var newName = (empNameEl.value || '').trim();
   if (!newName) return;
+  var policy = (settings.duplicateNamePolicy === 'block') ? 'block' : 'warn';
   var isDup = employees.some(function(o) { return (o.name || '').trim().toLowerCase() === newName.toLowerCase(); });
-  if (isDup && !confirm('Another employee already has this name. Continue anyway?')) return;
+  if (isDup && policy === 'block') { alert('Another employee already has this name. Choose a different name.'); return; }
+  if (isDup && policy === 'warn' && !confirm('Another employee already has this name. Continue anyway?')) return;
   var suggested = getNextSeniority(poolId);
   var empSeniorityEl = document.getElementById('empSeniority');
   var rawSeniority = (empSeniorityEl && empSeniorityEl.value || '').trim();
@@ -3393,7 +3469,7 @@ function renderEmployees(){
   var searchQuery = (searchEl && searchEl.value) ? searchEl.value.trim().toLowerCase() : '';
   var showRetired = showRetiredEl ? showRetiredEl.checked : false;
   var filtered = employees.filter(function(e) {
-    if (e.laborPoolId !== selectedPoolId) return false;
+    if (selectedPoolId !== EMPLOYEES_POOL_ALL && e.laborPoolId !== selectedPoolId) return false;
     if (!showRetired && e.retired) return false;
     if (searchQuery) {
       var name = (e.name || '').toLowerCase();
@@ -3416,7 +3492,11 @@ function renderEmployees(){
     const maxDays = e.maxDaysPerWeek !== undefined ? e.maxDaysPerWeek : 5;
     var sr = getSeniorityForEmployee(e);
     var poolLabel = (getLaborPoolById(e.laborPoolId) && getLaborPoolById(e.laborPoolId).name) ? getLaborPoolById(e.laborPoolId).name : (e.laborPoolId || '-');
-    
+    var updatedLabel = '-';
+    var updatedTitle = '';
+    if (e.lastModified) {
+      try { var d = new Date(e.lastModified); updatedLabel = d.toLocaleDateString(); updatedTitle = d.toLocaleString(); } catch (err) {}
+    }
     row.innerHTML = `
       <td data-label="Select"><input type="checkbox" class="row-select-cb" data-emp-id="${e.id}" aria-label="Select ${(e.name || '').replace(/"/g, '&quot;')}" ${selectedIds.has(e.id) ? 'checked' : ''} ${e.retired ? 'disabled' : ''}></td>
       <td data-label="Name">${(e.name || '').replace(/</g, '&lt;')}</td>
@@ -3431,6 +3511,7 @@ function renderEmployees(){
       <td data-label="Vac"><input type="checkbox" class="vacation-check" ${e.status === 'vacation' ? "checked" : ""} title="Mark as Vacation until unmarked. Uncheck when available." aria-label="Mark as vacation"></td>
       <td data-label="Unpaid"><input type="checkbox" class="unpaid-vacation-check" ${e.status === 'unpaid_vacation' ? "checked" : ""} title="Mark as Unpaid vacation until unmarked. Uncheck when available." aria-label="Mark as unpaid vacation"></td>
       <td data-label="Off"><input type="checkbox" class="off-check" ${e.status === 'requested_off' ? "checked" : ""} title="Mark as Off until unmarked. Uncheck when available." aria-label="Mark as requested off"></td>
+      <td data-label="Updated" title="${updatedTitle}">${updatedLabel}</td>
       <td data-label="Actions">
         <button type="button" class="info-btn" style="background:#27ae60; padding:4px 8px;" title="View/Edit Info" aria-label="View or edit employee info">Info</button>
         ${e.retired ? "-" : '<button type="button" class="retire" title="Retire this employee" aria-label="Retire this employee">Retire</button>'}
@@ -3449,7 +3530,7 @@ function renderEmployees(){
         wrap.title = display ? 'Click to edit' : 'Click to add email';
         if (val) {
           var a = document.createElement('a');
-          a.href = 'mailto:' + val.replace(/"/g, '&quot;').replace(/</g, '&lt;');
+          a.href = 'mailto:' + val;
           a.textContent = display;
           a.onclick = function(ev) { ev.stopPropagation(); };
           wrap.appendChild(a);
@@ -3542,7 +3623,7 @@ function renderEmployees(){
     var emptyMsg = employees.length === 0
       ? 'No employees yet. Add an employee above to get started.'
       : 'No matches. Try a different search or pool.';
-    emptyRow.innerHTML = '<td colspan="14" data-label="" style="text-align:center;padding:1.5rem;color:#7f8c8d;">' + emptyMsg + '</td>';
+    emptyRow.innerHTML = '<td colspan="15" data-label="" style="text-align:center;padding:1.5rem;color:#7f8c8d;">' + emptyMsg + '</td>';
     tableEl.appendChild(emptyRow);
   }
 
@@ -3578,6 +3659,11 @@ function updateBulkToolbar() {
   if (!toolbar || !countEl) return;
   if (ids.size === 0) {
     toolbar.style.display = 'none';
+    var undoWrap = document.getElementById('employeesBulkUndo');
+    if (undoWrap) {
+      if (window.lastBulkAction) { undoWrap.style.display = 'inline'; var t = document.getElementById('employeesBulkUndoText'); if (t) t.textContent = window.lastBulkAction.count + ' employee(s) ' + (window.lastBulkAction.type === 'retire' ? 'retired' : window.lastBulkAction.type === 'pool' ? 'moved' : 'deleted') + '.'; }
+      else undoWrap.style.display = 'none';
+    }
     return;
   }
   toolbar.style.display = 'flex';
@@ -3590,14 +3676,16 @@ function updateBulkToolbar() {
     retireBtn.onclick = function() {
       var n = ids.size;
       if (!confirm('Retire ' + n + ' selected employee(s)?')) return;
+      var snapshot = [];
       ids.forEach(function(id) {
         var emp = employees.find(function(e) { return e.id === id; });
-        if (emp) { emp.retired = true; emp.lastModified = new Date().toISOString(); }
+        if (emp) { snapshot.push({ id: id, retired: emp.retired }); emp.retired = true; emp.lastModified = new Date().toISOString(); }
       });
       rebalanceSeniority();
       ids.clear();
       addAuditEntry('Bulk Retire', null, null, n + ' employees', 'Retired');
       save();
+      showBulkUndo('retire', n, snapshot);
       renderEmployeesPoolSelector();
       renderEmployees();
       displaySchedule();
@@ -3607,21 +3695,40 @@ function updateBulkToolbar() {
   if (poolBtn && !poolBtn._wired) {
     poolBtn._wired = true;
     poolBtn.onclick = function() {
+      var sel = document.getElementById('bulkChangePoolSelect');
+      var overlay = document.getElementById('bulkChangePoolModalOverlay');
+      if (!sel || !overlay) return;
+      sel.innerHTML = '';
+      laborPools.forEach(function(p) {
+        var opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = p.name || p.id;
+        sel.appendChild(opt);
+      });
+      if (sel.options.length) sel.selectedIndex = 0;
+      overlay.style.display = 'flex';
+      overlay._pendingIds = Array.from(ids);
+    };
+  }
+  var deleteBtn = document.getElementById('employeesBulkDelete');
+  if (deleteBtn && !deleteBtn._wired) {
+    deleteBtn._wired = true;
+    deleteBtn.onclick = function() {
       var n = ids.size;
-      var poolOptions = laborPools.map(function(p) { return p.id + ': ' + (p.name || p.id); }).join('\n');
-      var choice = prompt('Change pool for ' + n + ' employee(s). Enter pool id or name:\n' + poolOptions);
-      if (choice == null || !choice.trim()) return;
-      var choiceTrim = choice.trim();
-      var newPool = laborPools.find(function(p) { return p.id === choiceTrim; }) || laborPools.find(function(p) { return (p.name || '').toLowerCase() === choiceTrim.toLowerCase(); });
-      if (!newPool) { alert('Pool not found.'); return; }
+      if (!confirm('Permanently delete ' + n + ' selected employee(s)? This cannot be undone (except via Undo immediately after).')) return;
+      var snapshot = [];
       ids.forEach(function(id) {
         var emp = employees.find(function(e) { return e.id === id; });
-        if (emp) { emp.laborPoolId = newPool.id; emp.lastModified = new Date().toISOString(); }
+        if (emp) snapshot.push(JSON.parse(JSON.stringify(emp)));
       });
-      rebalanceSeniority();
+      ids.forEach(function(id) {
+        var idx = employees.findIndex(function(e) { return e.id === id; });
+        if (idx !== -1) employees.splice(idx, 1);
+      });
       ids.clear();
-      addAuditEntry('Bulk Change Pool', null, null, n + ' employees', newPool.name);
+      addAuditEntry('Bulk Delete', null, null, n + ' employees', 'Deleted');
       save();
+      showBulkUndo('delete', n, snapshot);
       renderEmployeesPoolSelector();
       renderEmployees();
       displaySchedule();
@@ -3632,6 +3739,102 @@ function updateBulkToolbar() {
     clearBtn._wired = true;
     clearBtn.onclick = function() { ids.clear(); updateBulkToolbar(); renderEmployees(); };
   }
+  var undoEl = document.getElementById('employeesBulkUndo');
+  var undoText = document.getElementById('employeesBulkUndoText');
+  if (undoEl && window.lastBulkAction) {
+    undoEl.style.display = 'inline';
+    if (undoText) undoText.textContent = window.lastBulkAction.count + ' employee(s) ' + (window.lastBulkAction.type === 'retire' ? 'retired' : window.lastBulkAction.type === 'pool' ? 'moved' : 'deleted') + '.';
+  }
+}
+
+function showBulkUndo(type, count, snapshot) {
+  window.lastBulkAction = { type: type, count: count, snapshot: snapshot };
+  var undoWrap = document.getElementById('employeesBulkUndo');
+  var undoText = document.getElementById('employeesBulkUndoText');
+  if (undoWrap) undoWrap.style.display = 'inline';
+  if (undoText) undoText.textContent = count + ' employee(s) ' + (type === 'retire' ? 'retired' : type === 'pool' ? 'moved' : 'deleted') + '.';
+  var undoBtn = document.getElementById('employeesBulkUndoBtn');
+  if (undoBtn && !undoBtn._undoWired) {
+    undoBtn._undoWired = true;
+    undoBtn.onclick = function() {
+      var a = window.lastBulkAction;
+      if (!a || !a.snapshot) return;
+      if (a.type === 'retire') {
+        a.snapshot.forEach(function(s) {
+          var emp = employees.find(function(e) { return e.id === s.id; });
+          if (emp) emp.retired = s.retired;
+        });
+      } else if (a.type === 'pool') {
+        a.snapshot.forEach(function(s) {
+          var emp = employees.find(function(e) { return e.id === s.id; });
+          if (emp) { emp.laborPoolId = s.laborPoolId; emp.lastModified = s.lastModified; }
+        });
+      } else if (a.type === 'delete') {
+        a.snapshot.forEach(function(emp) { employees.push(emp); });
+      }
+      rebalanceSeniority();
+      save();
+      window.lastBulkAction = null;
+      var u = document.getElementById('employeesBulkUndo');
+      if (u) u.style.display = 'none';
+      renderEmployeesPoolSelector();
+      renderEmployees();
+      displaySchedule();
+      updateBulkToolbar();
+    };
+  }
+}
+
+function closeBulkChangePoolModal() {
+  var overlay = document.getElementById('bulkChangePoolModalOverlay');
+  if (overlay) { overlay.style.display = 'none'; overlay._pendingIds = null; }
+}
+function confirmBulkChangePool() {
+  var overlay = document.getElementById('bulkChangePoolModalOverlay');
+  var sel = document.getElementById('bulkChangePoolSelect');
+  var ids = overlay._pendingIds;
+  if (!sel || !ids || !ids.length) { closeBulkChangePoolModal(); return; }
+  var newPoolId = sel.value;
+  var newPool = getLaborPoolById(newPoolId);
+  if (!newPool) { closeBulkChangePoolModal(); return; }
+  var snapshot = [];
+  ids.forEach(function(id) {
+    var emp = employees.find(function(e) { return e.id === id; });
+    if (emp) { snapshot.push({ id: id, laborPoolId: emp.laborPoolId, lastModified: emp.lastModified }); emp.laborPoolId = newPool.id; emp.lastModified = new Date().toISOString(); }
+  });
+  rebalanceSeniority();
+  if (typeof window.employeesSelectedIds !== 'undefined') ids.forEach(function(id) { window.employeesSelectedIds.delete(id); });
+  addAuditEntry('Bulk Change Pool', null, null, ids.length + ' employees', newPool.name);
+  save();
+  showBulkUndo('pool', ids.length, snapshot);
+  closeBulkChangePoolModal();
+  renderEmployeesPoolSelector();
+  renderEmployees();
+  displaySchedule();
+  updateBulkToolbar();
+}
+
+function setupModalFocusTrap(overlay, container) {
+  var focusableSelector = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+  overlay._previousActiveElement = document.activeElement;
+  function onKey(e) {
+    if (e.key !== 'Tab') return;
+    var focusable = container.querySelectorAll(focusableSelector);
+    var list = [].filter.call(focusable, function(el) { return el.offsetParent !== null && !el.disabled; });
+    if (list.length === 0) return;
+    var first = list[0], last = list[list.length - 1];
+    if (e.shiftKey) {
+      if (document.activeElement === first) { last.focus(); e.preventDefault(); }
+    } else {
+      if (document.activeElement === last) { first.focus(); e.preventDefault(); }
+    }
+  }
+  overlay._focusTrapRemove = function() {
+    overlay.removeEventListener('keydown', onKey);
+    if (overlay._previousActiveElement && typeof overlay._previousActiveElement.focus === 'function')
+      overlay._previousActiveElement.focus();
+  };
+  overlay.addEventListener('keydown', onKey);
 }
 
 var dayPrefsEmployeeId = null;
@@ -3657,12 +3860,17 @@ function openDayPreferences(empId) {
     var sel = document.getElementById('dayPrefSelect' + i);
     if (sel) sel.value = value;
   }
-  document.getElementById('dayPrefsModalOverlay').classList.add('day-prefs-visible');
+  var overlay = document.getElementById('dayPrefsModalOverlay');
+  overlay.classList.add('day-prefs-visible');
+  var container = document.getElementById('dayPrefsModal');
+  if (container) setupModalFocusTrap(overlay, container);
 }
 
 function closeDayPrefsModal() {
   dayPrefsEmployeeId = null;
-  document.getElementById('dayPrefsModalOverlay').classList.remove('day-prefs-visible');
+  var overlay = document.getElementById('dayPrefsModalOverlay');
+  if (overlay._focusTrapRemove) overlay._focusTrapRemove();
+  overlay.classList.remove('day-prefs-visible');
 }
 
 function saveDayPrefsModal() {
@@ -3770,6 +3978,8 @@ function viewEmployeeInfo(empId) {
     } else { lastModEl.textContent = ''; lastModEl.style.display = 'none'; }
   }
   var overlay = document.getElementById('employeeEditModalOverlay');
+  var container = document.getElementById('employeeEditModal');
+  if (container) setupModalFocusTrap(overlay, container);
   overlay.classList.add('employee-edit-visible');
   setTimeout(function(){ var el = document.getElementById('employeeEditType'); if(el) el.focus(); }, 50);
   function onEditKey(e) {
@@ -3778,6 +3988,7 @@ function viewEmployeeInfo(empId) {
   }
   function remove() {
     document.removeEventListener('keydown', onEditKey);
+    if (overlay._focusTrapRemove) overlay._focusTrapRemove();
   }
   document.addEventListener('keydown', onEditKey);
   overlay._modalCleanup = remove;
@@ -3785,6 +3996,7 @@ function viewEmployeeInfo(empId) {
 
 function closeEmployeeEditModal() {
   var overlay = document.getElementById('employeeEditModalOverlay');
+  if (overlay._focusTrapRemove) overlay._focusTrapRemove();
   if (overlay._modalCleanup) overlay._modalCleanup();
   editingEmployeeId = null;
   overlay.classList.remove('employee-edit-visible');
@@ -3805,8 +4017,10 @@ function saveEmployeeEdit() {
     alert('Name cannot be empty.');
     return;
   }
+  var policy = (settings.duplicateNamePolicy === 'block') ? 'block' : 'warn';
   var isDup = employees.some(function(o) { return o.id !== editingEmployeeId && (o.name || '').trim().toLowerCase() === newName.toLowerCase(); });
-  if (isDup && !confirm('Another employee already has this name. Continue anyway?')) return;
+  if (isDup && policy === 'block') { alert('Another employee already has this name. Choose a different name.'); return; }
+  if (isDup && policy === 'warn' && !confirm('Another employee already has this name. Continue anyway?')) return;
   var poolId = poolEl && poolEl.value ? poolEl.value : emp.laborPoolId;
   if (!poolId) {
     alert('Please select a labor pool to continue.');
@@ -6565,6 +6779,9 @@ function clearAuditFilter(){
 
 /* SETTINGS */
 function loadSettings(){
+  var dupPolicy = (settings.duplicateNamePolicy === 'block') ? 'block' : 'warn';
+  var dupRadios = document.querySelectorAll('input[name="duplicateNamePolicy"]');
+  if (dupRadios.length) dupRadios.forEach(function(r) { r.checked = (r.value === dupPolicy); });
   const assignmentStyle = settings.assignmentStyle || 'strict';
   const radioButtons = document.querySelectorAll('input[name="assignmentStyle"]');
   radioButtons.forEach(radio => {
@@ -6802,6 +7019,8 @@ function deleteEventType(id){
 }
 
 function saveSettings(){
+  var dupRadio = document.querySelector('input[name="duplicateNamePolicy"]:checked');
+  if (dupRadio) settings.duplicateNamePolicy = dupRadio.value === 'block' ? 'block' : 'warn';
   // Save assignment style
   const selectedStyle = document.querySelector('input[name="assignmentStyle"]:checked');
   if(selectedStyle) {
@@ -6856,7 +7075,8 @@ function clearAllData() {
       'Buffet Service': 30,
       'Reception': 40,
       'Coffee Break': 50
-    }
+    },
+    duplicateNamePolicy: 'warn'
   };
   eventTypes = getDefaultEventTypes();
   laborPools = getDefaultLaborPools();
