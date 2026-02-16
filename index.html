@@ -1296,6 +1296,10 @@ body.light-mode .events-form-optional { background: #f3f4f6; }
 .events-form-actions { margin-top: 12px; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .event-pool-reqs-section { margin-top: 12px; padding: 8px 0; border-top: 1px solid var(--brand-border); }
 body.light-mode .event-pool-reqs-section { border-top-color: #9ca3af; }
+.events-recur-day { display: inline-block; margin-right: 10px; font-size: 12px; white-space: nowrap; }
+.events-conflict-banner { color: var(--brand-text); }
+.schedule-add-event-day { font-size: 11px; padding: 2px 6px; margin-top: 2px; cursor: pointer; background: var(--brand-bg-elevated); border: 1px solid var(--brand-border); border-radius: 4px; }
+.schedule-add-event-day:hover { background: var(--brand-primary); color: #fff; border-color: var(--brand-primary); }
 
 /* Events table: wrap, sticky header, styling */
 .events-table-wrap { overflow: auto; margin-bottom: 1rem; position: relative; }
@@ -1850,6 +1854,40 @@ body.light-mode .email-cell-input { background: #fff; color: #1a1f26; border-col
         <summary style="font-size: 12px; color: var(--brand-text-muted); cursor: pointer;">Staff (legacy field)</summary>
         <input id="eventStaff" type="number" placeholder="Only if not using pool requirements above" min="0" style="margin-top: 6px;" />
       </details>
+      <div id="eventRecurrenceSection" class="events-recurrence-section" style="margin-top: 12px; padding: 8px 0; border-top: 1px solid var(--brand-border);">
+        <label style="display: block; margin-bottom: 6px; font-size: 13px;">Repeat (when adding)</label>
+        <select id="eventRecurrenceType" onchange="updateRecurrenceUI()" style="margin-bottom: 6px;">
+          <option value="none">No repeat</option>
+          <option value="weekly">Weekly</option>
+        </select>
+        <div id="eventRecurrenceWeeklyOptions" style="display: none; margin: 8px 0;">
+          <span style="font-size: 12px; margin-right: 8px;">On days:</span>
+          <label class="events-recur-day"><input type="checkbox" id="recMon" value="1" /> Mon</label>
+          <label class="events-recur-day"><input type="checkbox" id="recTue" value="2" /> Tue</label>
+          <label class="events-recur-day"><input type="checkbox" id="recWed" value="3" /> Wed</label>
+          <label class="events-recur-day"><input type="checkbox" id="recThu" value="4" /> Thu</label>
+          <label class="events-recur-day"><input type="checkbox" id="recFri" value="5" /> Fri</label>
+          <label class="events-recur-day"><input type="checkbox" id="recSat" value="6" /> Sat</label>
+          <label class="events-recur-day"><input type="checkbox" id="recSun" value="0" /> Sun</label>
+        </div>
+        <div id="eventRecurrenceEndOptions" style="display: none; margin-top: 8px;">
+          <label style="font-size: 12px;">End: </label>
+          <select id="eventRecurrenceEndType" onchange="updateRecurrenceEndUI()" style="margin-right: 8px;">
+            <option value="until">Until date</option>
+            <option value="count">Number of times</option>
+          </select>
+          <input type="date" id="eventRecurrenceUntil" style="margin-right: 8px;" />
+          <input type="number" id="eventRecurrenceCount" min="2" max="52" value="4" placeholder="4" style="width: 60px; display: none;" />
+        </div>
+      </div>
+      <div class="events-templates-section" style="margin-top: 12px; padding: 8px 0; border-top: 1px solid var(--brand-border);">
+        <label style="display: block; margin-bottom: 6px; font-size: 13px;">Templates</label>
+        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px;">
+          <select id="eventTemplateSelect" style="min-width: 160px;"><option value="">-- Choose template --</option></select>
+          <button type="button" id="eventTemplateUseBtn" onclick="useEventTemplate()" style="padding: 6px 12px;">Use template</button>
+          <button type="button" id="eventTemplateSaveBtn" onclick="saveAsEventTemplate()" style="padding: 6px 12px; background: #16a085;">Save as template</button>
+        </div>
+      </div>
     </div>
     <div class="events-form-actions">
       <button type="button" id="eventSubmitBtn" class="btn-primary" onclick="addEvent()">Add Event</button>
@@ -1858,7 +1896,25 @@ body.light-mode .email-cell-input { background: #fff; color: #1a1f26; border-col
   </div>
 </details>
 
+<div id="eventsConflictBanner" class="events-conflict-banner" style="display: none; margin-bottom: 10px; padding: 10px 12px; background: rgba(231, 76, 60, 0.2); border-left: 4px solid #e74c3c; border-radius: 4px; font-size: 13px;"></div>
+
+<div id="eventsViewToggle" style="margin-bottom: 8px;">
+  <label style="display: inline-flex; align-items: center; gap: 8px; font-size: 13px;">
+    <span>View:</span>
+    <select id="eventsViewMode" onchange="toggleEventsView()" style="padding: 6px 10px;">
+      <option value="list">List</option>
+      <option value="week">Week</option>
+    </select>
+  </label>
+  <span id="eventsWeekNav" style="display: none; margin-left: 16px;">
+    <button type="button" onclick="changeEventsWeek(-1)">&#9664; Prev</button>
+    <span id="eventsWeekRange" style="margin: 0 8px;"></span>
+    <button type="button" onclick="changeEventsWeek(1)">Next &#9654;</button>
+  </span>
+</div>
+
 <div id="eventsSummaryLine" class="events-summary-line" style="margin-bottom: 8px; font-size: 13px; color: var(--brand-text-muted);" aria-live="polite"></div>
+<div id="eventsListContentView" class="events-list-content">
 <div id="eventsFilterRow" class="events-filter-row" style="margin-bottom: 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px;">
   <input type="text" id="eventsSearchInput" placeholder="Search by name or service..." oninput="renderEvents()" style="padding: 8px 12px; width: 220px; border-radius: 6px; border: 1px solid var(--brand-border);" aria-label="Search events" />
   <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--brand-text-muted);">
@@ -1896,6 +1952,8 @@ body.light-mode .email-cell-input { background: #fff; color: #1a1f26; border-col
 <tbody id="eventsTable"></tbody>
 </table>
 </div>
+</div>
+<div id="eventsWeekContentView" class="events-week-content" style="display: none;"></div>
 <div id="eventsLiveRegion" class="sr-only" aria-live="polite" aria-atomic="true"></div>
 </div>
 
@@ -2262,6 +2320,8 @@ body.light-mode .email-cell-input { background: #fff; color: #1a1f26; border-col
   <script>
 let employees = JSON.parse(localStorage.getItem("employees") || "[]");
 let events = JSON.parse(localStorage.getItem("events") || "[]");
+let eventTemplates = JSON.parse(localStorage.getItem("eventTemplates") || "[]");
+var eventsWeekOffset = 0;
 let manualEdits = JSON.parse(localStorage.getItem("manualEdits") || "{}");
 let lockedCells = JSON.parse(localStorage.getItem("lockedCells") || "{}");
 let lockedRows = JSON.parse(localStorage.getItem("lockedRows") || "{}");
@@ -2619,6 +2679,7 @@ function save(){
   localStorage.setItem("laborPools", JSON.stringify(laborPools));
   localStorage.setItem("scheduleGeneratedWeeks", JSON.stringify(scheduleGeneratedWeeks));
   localStorage.setItem("weeklySchedules", JSON.stringify(weeklySchedules));
+  localStorage.setItem("eventTemplates", JSON.stringify(eventTemplates));
   scheduleAutoBackup();
 }
 
@@ -3047,7 +3108,10 @@ function showTab(id){
   if(id==="eventsTab") {
     tabEvBtn.classList.add("active");
     populateEventServiceDropdown();
-    renderEvents();
+    populateEventTemplateSelect();
+    updateRecurrenceUI();
+    var viewMode = document.getElementById('eventsViewMode');
+    if (viewMode && viewMode.value === 'week') toggleEventsView(); else renderEvents();
     setTimeout(function(){ var el = document.getElementById('eventName'); if(el) el.focus(); }, 80);
   }
   if(id==="scheduleTab") { tabSchBtn.classList.add("active"); populatePrintPoolFilter(); renderSchedulePoolSelector(); displaySchedule(); }
@@ -4374,6 +4438,217 @@ function initDayPrefsModal() {
 }
 
 /* EVENTS */
+function updateRecurrenceUI() {
+  var recurType = document.getElementById('eventRecurrenceType');
+  var weeklyOpts = document.getElementById('eventRecurrenceWeeklyOptions');
+  var endOpts = document.getElementById('eventRecurrenceEndOptions');
+  var endType = document.getElementById('eventRecurrenceEndType');
+  var untilEl = document.getElementById('eventRecurrenceUntil');
+  var countEl = document.getElementById('eventRecurrenceCount');
+  var isWeekly = recurType && recurType.value === 'weekly';
+  if (weeklyOpts) weeklyOpts.style.display = isWeekly ? 'block' : 'none';
+  if (endOpts) endOpts.style.display = isWeekly ? 'block' : 'none';
+  if (endType && untilEl && countEl) {
+    var useCount = endType.value === 'count';
+    untilEl.style.display = useCount ? 'none' : 'inline-block';
+    countEl.style.display = useCount ? 'inline-block' : 'none';
+  }
+}
+function updateRecurrenceEndUI() {
+  var endType = document.getElementById('eventRecurrenceEndType');
+  var untilEl = document.getElementById('eventRecurrenceUntil');
+  var countEl = document.getElementById('eventRecurrenceCount');
+  if (!endType || !untilEl || !countEl) return;
+  var useCount = endType.value === 'count';
+  untilEl.style.display = useCount ? 'none' : 'inline-block';
+  countEl.style.display = useCount ? 'inline-block' : 'none';
+}
+function populateEventTemplateSelect() {
+  var sel = document.getElementById('eventTemplateSelect');
+  if (!sel) return;
+  var cur = sel.value;
+  sel.innerHTML = '<option value="">-- Choose template --</option>';
+  eventTemplates.forEach(function(t, i) {
+    var opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = t.name || ('Template ' + (i + 1));
+    sel.appendChild(opt);
+  });
+  if (cur !== '' && eventTemplates[parseInt(cur, 10)]) sel.value = cur;
+}
+function useEventTemplate() {
+  var sel = document.getElementById('eventTemplateSelect');
+  if (!sel || sel.value === '') return;
+  var t = eventTemplates[parseInt(sel.value, 10)];
+  if (!t) return;
+  var eventServiceEl = document.getElementById('eventService');
+  if (eventServiceEl && t.eventTypeId) eventServiceEl.value = t.eventTypeId;
+  var container = document.getElementById('eventLaborPoolReqsContainer');
+  if (container) {
+    container.innerHTML = '';
+    if (t.laborPoolRequirements && t.laborPoolRequirements.length)
+      t.laborPoolRequirements.forEach(function(r) { addEventPoolReqRow(r.laborPoolId, r.quantity); });
+  }
+  var eventCashBarEl = document.getElementById('eventCashBar');
+  if (eventCashBarEl) eventCashBarEl.checked = !!t.cashBarEnabled;
+  if (t.defaultStart) { var es = document.getElementById('eventStart'); if (es) es.value = t.defaultStart; }
+  if (t.defaultEnd) { var ee = document.getElementById('eventEnd'); if (ee) ee.value = t.defaultEnd; }
+}
+function saveAsEventTemplate() {
+  var name = prompt('Template name:');
+  if (!name || !name.trim()) return;
+  var eventServiceEl = document.getElementById('eventService');
+  var typeId = eventServiceEl ? eventServiceEl.value : '';
+  var poolReqs = getEventLaborPoolReqsFromForm();
+  var eventCashBarEl = document.getElementById('eventCashBar');
+  var eventStartEl = document.getElementById('eventStart');
+  var eventEndEl = document.getElementById('eventEnd');
+  var t = {
+    name: name.trim(),
+    eventTypeId: typeId || undefined,
+    laborPoolRequirements: poolReqs.length ? poolReqs : undefined,
+    cashBarEnabled: !!(eventCashBarEl && eventCashBarEl.checked),
+    defaultStart: (eventStartEl && eventStartEl.value) ? eventStartEl.value : undefined,
+    defaultEnd: (eventEndEl && eventEndEl.value) ? eventEndEl.value : undefined
+  };
+  eventTemplates.push(t);
+  save();
+  populateEventTemplateSelect();
+}
+function openAddEventForDate(dateStr) {
+  if (typeof showTab === 'function') showTab('eventsTab');
+  var eventDateEl = document.getElementById('eventDate');
+  if (eventDateEl) eventDateEl.value = dateStr;
+  var eventFormSection = document.getElementById('eventFormSection');
+  if (eventFormSection) { eventFormSection.open = true; eventFormSection.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+  setTimeout(function() {
+    var el = document.getElementById('eventName') || document.getElementById('eventStart');
+    if (el) el.focus();
+  }, 120);
+}
+function getEventOverlaps() {
+  var byDate = {};
+  events.forEach(function(ev) {
+    if (!ev.date) return;
+    if (!byDate[ev.date]) byDate[ev.date] = [];
+    byDate[ev.date].push(ev);
+  });
+  var result = [];
+  for (var date in byDate) {
+    var list = byDate[date];
+    var pairs = [];
+    for (var i = 0; i < list.length; i++)
+      for (var j = i + 1; j < list.length; j++) {
+        var a = list[i], b = list[j];
+        var aS = (a.start || '').trim(), aE = (a.end || '').trim(), bS = (b.start || '').trim(), bE = (b.end || '').trim();
+        if (aS && aE && bS && bE && aS < bE && bS < aE) pairs.push([a, b]);
+      }
+    if (pairs.length) result.push({ date: date, pairs: pairs });
+  }
+  return result;
+}
+function toggleEventsView() {
+  var mode = document.getElementById('eventsViewMode');
+  var listView = document.getElementById('eventsListContentView');
+  var weekView = document.getElementById('eventsWeekContentView');
+  var weekNav = document.getElementById('eventsWeekNav');
+  if (!mode || !listView || !weekView) return;
+  var isWeek = mode.value === 'week';
+  listView.style.display = isWeek ? 'none' : 'block';
+  weekView.style.display = isWeek ? 'block' : 'none';
+  if (weekNav) weekNav.style.display = isWeek ? 'inline' : 'none';
+  if (isWeek) {
+    renderEventsWeekView();
+    var rangeEl = document.getElementById('eventsWeekRange');
+    if (rangeEl) {
+      var start = getEventsWeekStart();
+      var end = new Date(start);
+      end.setDate(end.getDate() + 6);
+      rangeEl.textContent = start.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) + ' – ' + end.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+  } else {
+    renderEvents();
+  }
+}
+function getEventsWeekStart() {
+  var d = new Date();
+  d.setDate(d.getDate() + eventsWeekOffset * 7);
+  var mondayIndex = getMondayBasedIndex(d);
+  d.setDate(d.getDate() - mondayIndex);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+function changeEventsWeek(delta) {
+  eventsWeekOffset += delta;
+  renderEventsWeekView();
+  var rangeEl = document.getElementById('eventsWeekRange');
+  if (rangeEl) {
+    var start = getEventsWeekStart();
+    var end = new Date(start);
+    end.setDate(end.getDate() + 6);
+    rangeEl.textContent = start.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) + ' – ' + end.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+}
+function renderEventsWeekView() {
+  var wrap = document.getElementById('eventsWeekContentView');
+  if (!wrap) return;
+  var start = getEventsWeekStart();
+  var weekKey = getWeekKey(start);
+  var days = getDateStrsForWeek(weekKey);
+  var tbl = document.createElement('table');
+  tbl.className = 'events-week-table';
+  tbl.setAttribute('role', 'table');
+  tbl.style.cssText = 'width: 100%; border-collapse: collapse; margin-top: 8px;';
+  var thead = document.createElement('thead');
+  var headerRow = document.createElement('tr');
+  days.forEach(function(dateStr) {
+    var d = new Date(dateStr + 'T12:00:00');
+    var th = document.createElement('th');
+    th.style.cssText = 'padding: 8px; border: 1px solid var(--brand-border); text-align: left;';
+    th.textContent = d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+    headerRow.appendChild(th);
+  });
+  thead.appendChild(headerRow);
+  tbl.appendChild(thead);
+  var tbody = document.createElement('tbody');
+  var maxRows = 0;
+  days.forEach(function(dateStr) {
+    var dayEvents = events.filter(function(e) { return e.date === dateStr; });
+    dayEvents.sort(function(a, b) { return (a.start || '').localeCompare(b.start || ''); });
+    if (dayEvents.length > maxRows) maxRows = dayEvents.length;
+  });
+  for (var r = 0; r < Math.max(maxRows, 1); r++) {
+    var row = document.createElement('tr');
+    days.forEach(function(dateStr) {
+      var dayEvents = events.filter(function(e) { return e.date === dateStr; });
+      dayEvents.sort(function(a, b) { return (a.start || '').localeCompare(b.start || ''); });
+      var ev = dayEvents[r];
+      var td = document.createElement('td');
+      td.style.cssText = 'padding: 8px; border: 1px solid var(--brand-border); vertical-align: top;';
+      if (ev) {
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'events-week-event-btn';
+        btn.style.cssText = 'display: block; width: 100%; text-align: left; padding: 6px 8px; background: var(--brand-bg-elevated); border: 1px solid var(--brand-border); border-radius: 4px; cursor: pointer; font-size: 12px;';
+        btn.textContent = (ev.name || 'Event') + ' ' + (ev.start || '') + '-' + (ev.end || '');
+        (function(e) { btn.onclick = function() { editEvent(e.id); }; })(ev);
+        td.appendChild(btn);
+      } else {
+        var addBtn = document.createElement('button');
+        addBtn.type = 'button';
+        addBtn.textContent = '+ Event';
+        addBtn.style.cssText = 'font-size: 12px; padding: 4px 8px;';
+        (function(ds) { addBtn.onclick = function() { openAddEventForDate(ds); }; })(dateStr);
+        td.appendChild(addBtn);
+      }
+      row.appendChild(td);
+    });
+    tbody.appendChild(row);
+  }
+  tbl.appendChild(tbody);
+  wrap.innerHTML = '';
+  wrap.appendChild(tbl);
+}
 function populateEventServiceDropdown(){
   var sel = document.getElementById('eventService');
   if (!sel) return;
@@ -4490,32 +4765,82 @@ function addEvent(){
   var typeName = type ? type.name : (eventServiceEl.options[eventServiceEl.selectedIndex] ? eventServiceEl.options[eventServiceEl.selectedIndex].text : '');
   var eventCashBarEl = document.getElementById('eventCashBar');
   var eventName = (eventNameEl && eventNameEl.value) ? eventNameEl.value.trim() : '';
-  const data={
-    id: editingEventId || crypto.randomUUID(),
-    name: eventName || 'Event',
-    date: eventDateEl.value,
-    start: startVal,
-    end: endVal,
-    guests: guestsVal,
-    service: typeName,
-    eventTypeId: typeId || undefined,
-    eventTypeName: typeName,
-    staff: totalStaff,
-    laborPoolRequirements: poolReqs,
-    cashBarEnabled: !!(eventCashBarEl && eventCashBarEl.checked)
-  };
-  
   var wasEditing = !!editingEventId;
-  if(editingEventId){
-    const oldEvent = events.find(e=>e.id===editingEventId);
+  if (editingEventId) {
+    const data = {
+      id: editingEventId,
+      name: eventName || 'Event',
+      date: eventDateEl.value,
+      start: startVal,
+      end: endVal,
+      guests: guestsVal,
+      service: typeName,
+      eventTypeId: typeId || undefined,
+      eventTypeName: typeName,
+      staff: totalStaff,
+      laborPoolRequirements: poolReqs.slice ? poolReqs.slice() : poolReqs,
+      cashBarEnabled: !!(eventCashBarEl && eventCashBarEl.checked)
+    };
+    const oldEvent = events.find(function(e) { return e.id === editingEventId; });
     Object.assign(oldEvent, data);
-    addAuditEntry('Event Modified', null, data.date, 
-      `${oldEvent.name} (${oldEvent.staff} staff)`,
-      `${data.name} (${data.staff} staff)`);
-    editingEventId=null;
+    addAuditEntry('Event Modified', null, data.date, (oldEvent.name || '') + ' (' + (oldEvent.staff || 0) + ' staff)', (data.name || '') + ' (' + (data.staff || 0) + ' staff)');
+    editingEventId = null;
   } else {
-    events.push(data);
-    addAuditEntry('Event Created', null, data.date, null, `${data.name} (${data.staff} staff)`);
+    var recurrenceTypeEl = document.getElementById('eventRecurrenceType');
+    var isWeekly = recurrenceTypeEl && recurrenceTypeEl.value === 'weekly';
+    var occurrenceDates = [];
+    if (isWeekly) {
+      var dayIds = ['recSun', 'recMon', 'recTue', 'recWed', 'recThu', 'recFri', 'recSat'];
+      var selectedDays = [];
+      dayIds.forEach(function(id) {
+        var cb = document.getElementById(id);
+        if (cb && cb.checked && cb.value !== '') selectedDays.push(parseInt(cb.value, 10));
+      });
+      if (selectedDays.length === 0) selectedDays = [new Date(eventDateEl.value + 'T12:00:00').getDay()];
+      var firstDate = new Date(eventDateEl.value + 'T12:00:00');
+      if (isNaN(firstDate.getTime())) { occurrenceDates = [eventDateEl.value]; } else {
+        var endTypeEl = document.getElementById('eventRecurrenceEndType');
+        var untilEl = document.getElementById('eventRecurrenceUntil');
+        var countEl = document.getElementById('eventRecurrenceCount');
+        var useCount = endTypeEl && endTypeEl.value === 'count';
+        var maxCount = useCount && countEl ? (parseInt(countEl.value, 10) || 4) : 999;
+        var untilDate = null;
+        if (!useCount && untilEl && untilEl.value) untilDate = new Date(untilEl.value + 'T23:59:59');
+        var d = new Date(firstDate.getTime());
+        while (occurrenceDates.length < maxCount) {
+          if (untilDate && d > untilDate) break;
+          if (selectedDays.indexOf(d.getDay()) !== -1) occurrenceDates.push(dateToLocalYYYYMMDD(d));
+          d.setDate(d.getDate() + 1);
+        }
+      }
+    }
+    if (occurrenceDates.length === 0) occurrenceDates = [eventDateEl.value];
+    var groupId = crypto.randomUUID();
+    occurrenceDates.forEach(function(dateStr, idx) {
+      var ev = {
+        id: crypto.randomUUID(),
+        name: eventName || 'Event',
+        date: dateStr,
+        start: startVal,
+        end: endVal,
+        guests: guestsVal,
+        service: typeName,
+        eventTypeId: typeId || undefined,
+        eventTypeName: typeName,
+        staff: totalStaff,
+        laborPoolRequirements: poolReqs.slice ? poolReqs.slice() : poolReqs,
+        cashBarEnabled: !!(eventCashBarEl && eventCashBarEl.checked),
+        recurrenceGroupId: occurrenceDates.length > 1 ? groupId : undefined
+      };
+      events.push(ev);
+      addAuditEntry('Event Created', null, dateStr, null, (ev.name || 'Event') + ' (' + (ev.staff || 0) + ' staff)');
+    });
+    var recurTypeEl = document.getElementById('eventRecurrenceType');
+    if (recurTypeEl) recurTypeEl.value = 'none';
+    var untilInput = document.getElementById('eventRecurrenceUntil');
+    var countInput = document.getElementById('eventRecurrenceCount');
+    if (countInput) countInput.value = '4';
+    updateRecurrenceUI();
   }
   
   if (eventNameEl) eventNameEl.value="";
@@ -4579,6 +4904,8 @@ function cancelEventEdit() {
   if (cancelBtn) cancelBtn.style.display = 'none';
   var submitBtn = document.getElementById('eventSubmitBtn');
   if (submitBtn) submitBtn.textContent = 'Add Event';
+  var recurSection = document.getElementById('eventRecurrenceSection');
+  if (recurSection) recurSection.style.display = '';
 }
 
 function renderEvents(){
@@ -4667,6 +4994,21 @@ function renderEvents(){
       };
     });
   }
+  var overlaps = getEventOverlaps();
+  var conflictBanner = document.getElementById('eventsConflictBanner');
+  if (conflictBanner) {
+    if (overlaps.length === 0) {
+      conflictBanner.style.display = 'none';
+      conflictBanner.textContent = '';
+    } else {
+      var msg = overlaps.slice(0, 3).map(function(o) {
+        return o.pairs.map(function(p) { return (p[0].name || 'Event') + ' & ' + (p[1].name || 'Event') + ' on ' + o.date; }).join('; ');
+      }).join('. ');
+      if (overlaps.length > 3) msg += ' (and more).';
+      conflictBanner.textContent = 'Overlap: ' + msg;
+      conflictBanner.style.display = 'block';
+    }
+  }
 }
 
 function editEvent(id){
@@ -4721,6 +5063,8 @@ function editEvent(id){
       addEventPoolReqRow(getLaborPoolById(DEFAULT_SERVERS_POOL_ID) ? DEFAULT_SERVERS_POOL_ID : (laborPools[0] ? laborPools[0].id : ''), e.staff);
     }
   }
+  var recurSection = document.getElementById('eventRecurrenceSection');
+  if (recurSection) recurSection.style.display = 'none';
   if (eventNameEl) eventNameEl.focus();
 }
 
@@ -5953,10 +6297,20 @@ function displaySchedule(){
   headerRow.innerHTML = '<th>🔒</th><th>Employee</th>';
   days.forEach(d=>{
     const th = document.createElement('th');
-    th.textContent = d.toLocaleDateString(undefined,{weekday:"short",day:"numeric"});
+    var dateStr = iso(d);
+    th.innerHTML = '<span>' + d.toLocaleDateString(undefined,{weekday:"short",day:"numeric"}) + '</span><br><button type="button" class="schedule-add-event-day" data-date="' + dateStr + '" title="Add event on this day">+ Event</button>';
     headerRow.appendChild(th);
   });
-  headerRow.innerHTML += '<th>Total<br><small class="schedule-th-helper">Total scheduled hours</small></th><th>Days<br><small class="schedule-th-helper">Days worked this week</small></th>';
+  headerRow.querySelectorAll('.schedule-add-event-day').forEach(function(btn) {
+    var d = btn.getAttribute('data-date');
+    if (d) btn.onclick = function() { openAddEventForDate(d); };
+  });
+  var totalTh = document.createElement('th');
+  totalTh.innerHTML = 'Total<br><small class="schedule-th-helper">Total scheduled hours</small>';
+  var daysTh = document.createElement('th');
+  daysTh.innerHTML = 'Days<br><small class="schedule-th-helper">Days worked this week</small>';
+  headerRow.appendChild(totalTh);
+  headerRow.appendChild(daysTh);
 
   var selectedPoolId = getScheduleTabSelectedPoolId();
 
