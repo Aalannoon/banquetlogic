@@ -1824,21 +1824,21 @@ body.light-mode .email-cell-input { background: #fff; color: #1a1f26; border-col
   <div class="events-form-inner">
     <p id="eventEditingLabel" class="event-editing-label" style="display: none; margin: 0 0 10px 0; font-size: 13px; color: var(--brand-primary);"></p>
     <div class="events-form-required">
-      <label for="eventName" style="display: block; margin-bottom: 4px; font-size: 13px;">Event name <span style="color:#e74c3c;">*</span></label>
-      <input type="text" id="eventName" placeholder="Event Name" />
-      <label for="eventDate" style="display: block; margin: 10px 0 4px 0; font-size: 13px;">Date <span style="color:#e74c3c;">*</span></label>
+      <label for="eventDate" style="display: block; margin-bottom: 4px; font-size: 13px;">Date <span style="color:#e74c3c;">*</span></label>
       <input id="eventDate" type="date" />
+      <label for="eventStart" class="event-time-label">Start Time <span style="color:#e74c3c;">*</span></label>
+      <input id="eventStart" type="time" placeholder="--:--" onchange="autoRecommendStaff()" aria-label="Start Time" required />
+      <label for="eventEnd" class="event-time-label">End Time <span style="color:#e74c3c;">*</span></label>
+      <input id="eventEnd" type="time" placeholder="--:--" onchange="autoRecommendStaff()" aria-label="End Time" required />
+      <label for="eventService" style="display: block; margin: 10px 0 4px 0; font-size: 13px;">Service type <span style="color:#e74c3c;">*</span></label>
+      <select id="eventService" onchange="autoRecommendStaff()" required></select>
+      <p class="event-type-helper">Affects staffing ratios and scheduling logic</p>
     </div>
     <div class="events-form-optional">
       <strong style="font-size: 13px; color: var(--brand-text-muted);">Optional</strong>
-      <label for="eventStart" class="event-time-label">Start Time</label>
-      <input id="eventStart" type="time" placeholder="--:--" onchange="autoRecommendStaff()" aria-label="Start Time" />
-      <label for="eventEnd" class="event-time-label">End Time</label>
-      <input id="eventEnd" type="time" placeholder="--:--" onchange="autoRecommendStaff()" aria-label="End Time" />
+      <label for="eventName" style="display: block; margin-bottom: 4px; font-size: 13px;">Event name</label>
+      <input type="text" id="eventName" placeholder="Event name (optional)" />
       <input id="eventGuests" type="number" placeholder="Guests" min="0" oninput="autoRecommendStaff()" />
-      <label for="eventService" style="display: block; margin-bottom: 4px; font-size: 13px;">Service type</label>
-      <select id="eventService" onchange="autoRecommendStaff()"></select>
-      <p class="event-type-helper">Affects staffing ratios and scheduling logic</p>
       <div class="event-pool-reqs-section">
         <label style="display: block; margin-bottom: 6px; font-size: 13px;">Labor pool requirements</label>
         <p class="event-type-helper" style="margin: 0 0 8px 0;">Which pools are needed and how many (e.g. 1 Cashier, 2 Housemen).</p>
@@ -4452,15 +4452,24 @@ function addEvent(){
   var eventGuestsEl = document.getElementById('eventGuests');
   var eventStaffEl = document.getElementById('eventStaff');
   var eventServiceEl = document.getElementById('eventService');
-  if (!eventNameEl || !eventDateEl) return;
-  if (!eventNameEl.value.trim() || !eventDateEl.value) {
-    alert('Event name and date are required.');
+  if (!eventDateEl || !eventStartEl || !eventEndEl || !eventServiceEl) return;
+  if (!eventDateEl.value) {
+    alert('Date is required.');
     return;
   }
-  var startVal = (eventStartEl && eventStartEl.value) ? eventStartEl.value : '09:00';
-  var endVal = (eventEndEl && eventEndEl.value) ? eventEndEl.value : '17:00';
-  if (startVal && endVal && startVal >= endVal) {
+  var startVal = (eventStartEl.value || '').trim();
+  var endVal = (eventEndEl.value || '').trim();
+  if (!startVal || !endVal) {
+    alert('Start time and end time are required.');
+    return;
+  }
+  if (startVal >= endVal) {
     alert('End time must be after start time.');
+    return;
+  }
+  var typeId = eventServiceEl.value ? eventServiceEl.value.trim() : '';
+  if (!typeId) {
+    alert('Service type is required.');
     return;
   }
   var guestsVal = eventGuestsEl ? parseInt(eventGuestsEl.value, 10) : 0;
@@ -4473,13 +4482,13 @@ function addEvent(){
     alert('Add at least one labor pool requirement or enter staff needed (legacy, at least 1).');
     return;
   }
-  var typeId = eventServiceEl ? eventServiceEl.value : '';
-  var type = typeId ? getEventTypeById(typeId) : null;
-  var typeName = type ? type.name : (eventServiceEl && eventServiceEl.options[eventServiceEl.selectedIndex] ? eventServiceEl.options[eventServiceEl.selectedIndex].text : '');
+  var type = getEventTypeById(typeId);
+  var typeName = type ? type.name : (eventServiceEl.options[eventServiceEl.selectedIndex] ? eventServiceEl.options[eventServiceEl.selectedIndex].text : '');
   var eventCashBarEl = document.getElementById('eventCashBar');
+  var eventName = (eventNameEl && eventNameEl.value) ? eventNameEl.value.trim() : '';
   const data={
     id: editingEventId || crypto.randomUUID(),
-    name: eventNameEl.value.trim(),
+    name: eventName || 'Event',
     date: eventDateEl.value,
     start: startVal,
     end: endVal,
