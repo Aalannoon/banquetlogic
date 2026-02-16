@@ -278,6 +278,90 @@ body.light-mode .employees-pool-btn:not(.employees-pool-btn-active) .employees-p
   color: #374151;
 }
 
+.employees-collapsible-section {
+  margin-bottom: 15px;
+  padding: 10px;
+  background: #2e2e3d;
+  border-radius: 8px;
+  border: 1px solid var(--brand-border);
+}
+body.light-mode .employees-collapsible-section {
+  background: var(--brand-bg-elevated);
+}
+.employees-collapsible-summary {
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  list-style: none;
+  padding: 4px 0;
+  color: var(--brand-text);
+}
+.employees-collapsible-summary::-webkit-details-marker { display: none; }
+.employees-collapsible-summary::before {
+  content: '\25B8';
+  display: inline-block;
+  margin-right: 8px;
+  transition: transform 0.2s;
+}
+.employees-collapsible-section[open] .employees-collapsible-summary::before {
+  transform: rotate(90deg);
+}
+
+.employees-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--brand-bg-elevated);
+  border-bottom: 2px solid var(--brand-border);
+  box-shadow: 0 1px 0 var(--brand-border);
+}
+body.light-mode .employees-table thead th {
+  background: var(--brand-bg-elevated);
+}
+
+.employees-table-wrap {
+  overflow: auto;
+  margin-bottom: 1rem;
+  position: relative;
+}
+.employees-table-wrap.employees-loading::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.2);
+  pointer-events: none;
+  border-radius: 8px;
+}
+body.light-mode .employees-table-wrap.employees-loading::after {
+  background: rgba(255,255,255,0.5);
+}
+@media (min-width: 769px) {
+  .employees-table { width: 100%; border-collapse: collapse; }
+  .employees-table th, .employees-table td {
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--brand-border);
+  }
+  .employees-table tbody tr:nth-child(even) { background: rgba(255,255,255,0.03); }
+  .employees-table tbody tr:hover { background: var(--brand-bg-elevated); }
+  body.light-mode .employees-table tbody tr:nth-child(even) { background: #f9fafb; }
+  body.light-mode .employees-table tbody tr:hover { background: #f3f4f6; }
+}
+.employees-empty-cell { text-align: center; padding: 1.5rem !important; color: var(--brand-text-muted); }
+.employees-empty-cell .employees-empty-cta { margin-top: 10px; }
+
+.employees-pool-selector {
+  border-bottom: 1px solid var(--brand-border);
+  padding-bottom: 12px;
+  margin-bottom: 12px !important;
+}
+body.light-mode .employees-pool-selector {
+  border-bottom-color: var(--brand-border);
+}
+
+.employees-add-form-block { border-left: 3px solid var(--brand-primary); padding-left: 12px; }
+body.light-mode .employees-add-form-block { border-left-color: var(--brand-primary); }
+
 .sr-only {
   position: absolute;
   width: 1px;
@@ -1445,9 +1529,9 @@ body.light-mode .email-cell-input { background: #fff; color: #1a1f26; border-col
 
 <div id="employeesPoolSelector" class="employees-pool-selector" style="margin-bottom: 16px; display: flex; gap: 4px; flex-wrap: wrap;"></div>
 
-<div style="margin-bottom: 15px; padding: 10px; background: #2e2e3d; border-radius: 8px;">
-  <h3 style="margin-top: 0;">Add Employee Manually</h3>
-  <div style="margin-bottom: 10px; display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px;">
+<details id="addEmployeeSection" class="employees-collapsible-section" open>
+  <summary class="employees-collapsible-summary">Add Employee Manually</summary>
+  <div id="addEmployeeFormBlock" class="employees-add-form-block" style="margin-bottom: 10px; display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px;">
     <input type="text" id="empName" placeholder="Name" />
     <div>
       <label for="empLaborPool" style="display: block; margin-bottom: 2px; font-size: 13px;">Labor Pool <span style="color:#e74c3c;">*</span></label>
@@ -1488,10 +1572,11 @@ body.light-mode .email-cell-input { background: #fff; color: #1a1f26; border-col
   </div>
   
   <button type="button" class="btn-primary" onclick="addEmployee()" style="margin-top: 10px;">Add Employee</button>
-</div>
+</details>
 
-<div style="margin-bottom: 15px; padding: 10px; background: #2e2e3d; border-radius: 8px;">
-  <h3 style="margin-top: 0;">Import Seniority List</h3>
+<details id="importSenioritySection" class="employees-collapsible-section">
+  <summary class="employees-collapsible-summary">Import Seniority List</summary>
+  <div class="employees-import-block">
   <p style="margin: 5px 0; font-size: 13px; color: #95a5a6;">
     Upload a CSV file or paste text with employee data
   </p>
@@ -1519,27 +1604,45 @@ body.light-mode .email-cell-input { background: #fff; color: #1a1f26; border-col
       &#8505; Format Help
     </button>
   </div>
-</div>
+  </div>
+</details>
 
-<div id="employeesFilterRow" class="employees-filter-row" style="margin-bottom: 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px;">
-  <input type="text" id="employeesSearchInput" placeholder="Search by name..." oninput="renderEmployees()" style="padding: 8px 12px; width: 220px; border-radius: 6px; border: 1px solid var(--brand-border);" aria-label="Search employees by name, pool, or type" />
-  <label style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px; color: var(--brand-text-muted);">
-    <input type="checkbox" id="employeesShowRetired" onchange="renderEmployees()" aria-label="Show retired employees" />
-    Show retired
-  </label>
-  <div id="employeesBulkToolbar" style="display: none; align-items: center; gap: 8px;">
-    <span id="employeesBulkCount" style="font-size: 13px; color: var(--brand-text-muted);"></span>
+<div id="employeesSummaryLine" class="employees-summary-line" style="margin-bottom: 8px; font-size: 13px; color: var(--brand-text-muted);" aria-live="polite"></div>
+
+<div id="employeesBulkBar" class="employees-bulk-bar" style="display: none; margin-bottom: 10px; padding: 10px 12px; background: var(--brand-bg-elevated); border: 1px solid var(--brand-primary); border-radius: 8px; align-items: center; gap: 12px; flex-wrap: wrap;">
+  <div id="employeesBulkToolbar" style="display: flex; align-items: center; gap: 8px;">
+    <span id="employeesBulkCount" style="font-size: 13px; font-weight: 600; color: var(--brand-text);"></span>
     <button type="button" id="employeesBulkRetire" style="background: #8e44ad; padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; color: #fff;" aria-label="Retire selected employees">Retire selected</button>
     <button type="button" id="employeesBulkPool" style="background: #16a085; padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; color: #fff;" aria-label="Change labor pool for selected employees">Change pool</button>
     <button type="button" id="employeesBulkDelete" style="background: #c0392b; padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; color: #fff;" aria-label="Delete selected employees permanently">Delete selected</button>
     <button type="button" id="employeesBulkClear" style="background: #7f8c8d; padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; color: #fff;" aria-label="Clear selection">Clear selection</button>
   </div>
-  <div id="employeesBulkUndo" style="display: none; margin-left: 8px; font-size: 13px;">
-    <span id="employeesBulkUndoText"></span>
+  <div id="employeesBulkUndo" style="display: none; margin-left: auto;">
+    <span id="employeesBulkUndoText" style="font-size: 13px; color: var(--brand-text-muted);"></span>
     <button type="button" id="employeesBulkUndoBtn" style="background: #27ae60; padding: 4px 10px; border: none; border-radius: 4px; cursor: pointer; color: #fff; margin-left: 6px;">Undo</button>
   </div>
 </div>
 
+<div id="employeesFilterRow" class="employees-filter-row" style="margin-bottom: 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px;">
+  <input type="text" id="employeesSearchInput" placeholder="Search by name, email, pool, or type" oninput="renderEmployees()" style="padding: 8px 12px; width: 260px; border-radius: 6px; border: 1px solid var(--brand-border);" aria-label="Search employees by name, email, pool, or type" />
+  <label style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px; color: var(--brand-text-muted);">
+    <input type="checkbox" id="employeesShowRetired" onchange="renderEmployees()" aria-label="Show retired employees" />
+    Show retired
+  </label>
+  <label style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px; color: var(--brand-text-muted);">
+    <span>Status:</span>
+    <select id="employeesStatusFilter" onchange="renderEmployees()" style="padding: 6px 10px; min-width: 120px;" aria-label="Filter by availability status">
+      <option value="">All</option>
+      <option value="available">Available</option>
+      <option value="sick">Sick</option>
+      <option value="vacation">Vacation</option>
+      <option value="unpaid_vacation">Unpaid</option>
+      <option value="requested_off">Off</option>
+    </select>
+  </label>
+</div>
+
+<div id="employeesTableWrap" class="employees-table-wrap">
 <table class="employees-table" role="table" aria-label="Employees list">
 <caption class="sr-only">List of employees with name, pool, seniority, type, email, preferences, and actions</caption>
 <thead>
@@ -1547,11 +1650,11 @@ body.light-mode .email-cell-input { background: #fff; color: #1a1f26; border-col
   <th scope="col" style="width: 36px;"><input type="checkbox" id="employeesSelectAll" aria-label="Select all employees in this list" title="Select all" /></th>
   <th scope="col">Name</th>
   <th scope="col">Pool</th>
-  <th scope="col">Sr</th>
+  <th scope="col" title="Seniority within pool (1 = highest)">Sr</th>
   <th scope="col">Type</th>
   <th scope="col">Email</th>
-  <th scope="col">Pref</th>
-  <th scope="col">Max Days/Wk</th>
+  <th scope="col" title="AM/PM shift preference">Pref</th>
+  <th scope="col" title="Maximum days per week this employee can be scheduled">Max Days/Wk</th>
   <th scope="col">Day Prefs</th>
   <th scope="col">Sick</th>
   <th scope="col">Vac</th>
@@ -1563,6 +1666,8 @@ body.light-mode .email-cell-input { background: #fff; color: #1a1f26; border-col
 </thead>
 <tbody id="employeesTable"></tbody>
 </table>
+</div>
+<div id="employeesLiveRegion" class="sr-only" aria-live="polite" aria-atomic="true"></div>
 </div>
 
 <div id="employeeEditModalOverlay" class="employee-edit-overlay">
@@ -1595,6 +1700,22 @@ body.light-mode .email-cell-input { background: #fff; color: #1a1f26; border-col
       <label for="employeeEditSeniority">Seniority (within pool, 1 = highest)</label>
       <input type="number" id="employeeEditSeniority" min="1" style="width: 80px;" />
       <small class="edit-helper">Override will be logged in the audit log.</small>
+    </div>
+    <div class="edit-row">
+      <label for="employeeEditEmail">Email (for schedule send)</label>
+      <input type="email" id="employeeEditEmail" placeholder="email@example.com" style="width: 100%; padding: 8px; margin: 0; font-size: 14px;" />
+    </div>
+    <div class="edit-row">
+      <label for="employeeEditEmployeeId">Employee ID (optional)</label>
+      <input type="text" id="employeeEditEmployeeId" placeholder="Employee ID" style="width: 100%; padding: 8px; margin: 0; font-size: 14px;" />
+    </div>
+    <div class="edit-row">
+      <label for="employeeEditHireDate">Hire Date (optional)</label>
+      <input type="date" id="employeeEditHireDate" style="padding: 8px; font-size: 14px;" title="Hire Date" />
+    </div>
+    <div class="edit-row">
+      <label for="employeeEditBirthdate">Birthday (optional)</label>
+      <input type="date" id="employeeEditBirthdate" style="padding: 8px; font-size: 14px;" title="Birthday" />
     </div>
     <p id="employeeEditLastModified" style="font-size: 12px; color: #95a5a6; margin: 8px 0 0 0;"></p>
     <p style="font-size: 12px; color: #95a5a6; margin: 12px 0 0 0;">Check Sick, Vac, Unpaid, or Off to mark an employee as that absence type until you uncheck it; they won't be scheduled. <strong>Uncheck when the employee is available again.</strong></p>
@@ -3201,7 +3322,19 @@ function addEmployee(){
   save(); 
   renderEmployeesPoolSelector();
   renderEmployees();
-  setTimeout(function() { var el = document.getElementById('empName'); if (el) el.focus(); }, 50);
+  var liveEl = document.getElementById('employeesLiveRegion');
+  if (liveEl) { liveEl.textContent = 'Employee ' + newEmp.name + ' added.'; }
+  setTimeout(function() {
+    var tbl = document.getElementById('employeesTable');
+    var cb = tbl ? tbl.querySelector('.row-select-cb[data-emp-id="' + newEmp.id + '"]') : null;
+    if (cb && cb.closest('tr')) {
+      cb.closest('tr').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      cb.focus();
+    } else {
+      var el = document.getElementById('empName');
+      if (el) el.focus();
+    }
+  }, 100);
 }
 
 /* IMPORT FUNCTIONS */
@@ -3461,21 +3594,30 @@ function retireEmployee(id){
 
 function renderEmployees(){
   var tableEl = document.getElementById('employeesTable');
+  var wrapEl = document.getElementById('employeesTableWrap');
   if (!tableEl) return;
+  if (wrapEl) wrapEl.classList.add('employees-loading');
   tableEl.innerHTML = "";
   var selectedPoolId = getEmployeesTabSelectedPoolId();
   var searchEl = document.getElementById('employeesSearchInput');
   var showRetiredEl = document.getElementById('employeesShowRetired');
+  var statusFilterEl = document.getElementById('employeesStatusFilter');
   var searchQuery = (searchEl && searchEl.value) ? searchEl.value.trim().toLowerCase() : '';
   var showRetired = showRetiredEl ? showRetiredEl.checked : false;
+  var statusFilter = (statusFilterEl && statusFilterEl.value) ? statusFilterEl.value : '';
   var filtered = employees.filter(function(e) {
     if (selectedPoolId !== EMPLOYEES_POOL_ALL && e.laborPoolId !== selectedPoolId) return false;
     if (!showRetired && e.retired) return false;
+    if (statusFilter === 'available') {
+      if (e.status && e.status !== '') return false;
+    } else if (statusFilter && e.status !== statusFilter) return false;
     if (searchQuery) {
       var name = (e.name || '').toLowerCase();
       var poolName = (getLaborPoolById(e.laborPoolId) && getLaborPoolById(e.laborPoolId).name) ? getLaborPoolById(e.laborPoolId).name.toLowerCase() : '';
       var type = (e.type || '').toLowerCase();
-      if (name.indexOf(searchQuery) === -1 && poolName.indexOf(searchQuery) === -1 && type.indexOf(searchQuery) === -1) return false;
+      var email = (e.email || '').toLowerCase();
+      var employeeId = (e.employeeId || '').toLowerCase();
+      if (name.indexOf(searchQuery) === -1 && poolName.indexOf(searchQuery) === -1 && type.indexOf(searchQuery) === -1 && email.indexOf(searchQuery) === -1 && employeeId.indexOf(searchQuery) === -1) return false;
     }
     return true;
   });
@@ -3513,7 +3655,7 @@ function renderEmployees(){
       <td data-label="Off"><input type="checkbox" class="off-check" ${e.status === 'requested_off' ? "checked" : ""} title="Mark as Off until unmarked. Uncheck when available." aria-label="Mark as requested off"></td>
       <td data-label="Updated" title="${updatedTitle}">${updatedLabel}</td>
       <td data-label="Actions">
-        <button type="button" class="info-btn" style="background:#27ae60; padding:4px 8px;" title="View/Edit Info" aria-label="View or edit employee info">Info</button>
+        <button type="button" class="info-btn employee-edit-btn" style="background:#27ae60; padding:4px 8px;" title="Edit employee" aria-label="Edit employee">Edit</button>
         ${e.retired ? "-" : '<button type="button" class="retire" title="Retire this employee" aria-label="Retire this employee">Retire</button>'}
       </td>
     `;
@@ -3618,12 +3760,25 @@ function renderEmployees(){
     
     tableEl.appendChild(row);
   });
+  var summaryEl = document.getElementById('employeesSummaryLine');
+  if (summaryEl) {
+    var totalInScope = employees.filter(function(e) {
+      if (selectedPoolId !== EMPLOYEES_POOL_ALL && e.laborPoolId !== selectedPoolId) return false;
+      if (!showRetired && e.retired) return false;
+      return true;
+    }).length;
+    var poolLabel = selectedPoolId === EMPLOYEES_POOL_ALL ? '' : (getLaborPoolById(selectedPoolId) ? getLaborPoolById(selectedPoolId).name : selectedPoolId);
+    summaryEl.textContent = 'Showing ' + filtered.length + ' of ' + totalInScope + ' employee' + (totalInScope === 1 ? '' : 's') + (poolLabel ? ' in ' + poolLabel : '') + '.';
+  }
   if (filtered.length === 0) {
     const emptyRow = document.createElement('tr');
     var emptyMsg = employees.length === 0
       ? 'No employees yet. Add an employee above to get started.'
-      : 'No matches. Try a different search or pool.';
-    emptyRow.innerHTML = '<td colspan="15" data-label="" style="text-align:center;padding:1.5rem;color:#7f8c8d;">' + emptyMsg + '</td>';
+      : 'No matches. Try a different search, pool, or status.';
+    var ctaHtml = employees.length === 0
+      ? ' <button type="button" class="btn-primary employees-empty-cta" onclick="document.getElementById(\'addEmployeeSection\').open=true; document.getElementById(\'addEmployeeSection\').scrollIntoView({behavior:\'smooth\',block:\'start\'}); var el=document.getElementById(\'empName\'); if(el){el.focus();}">Add employee</button>'
+      : '';
+    emptyRow.innerHTML = '<td colspan="15" data-label="" class="employees-empty-cell">' + emptyMsg + ctaHtml + '</td>';
     tableEl.appendChild(emptyRow);
   }
 
@@ -3650,24 +3805,34 @@ function renderEmployees(){
     };
   });
   updateBulkToolbar();
+  if (wrapEl) wrapEl.classList.remove('employees-loading');
 }
 
 function updateBulkToolbar() {
   var ids = typeof window.employeesSelectedIds !== 'undefined' ? window.employeesSelectedIds : new Set();
+  var bulkBar = document.getElementById('employeesBulkBar');
   var toolbar = document.getElementById('employeesBulkToolbar');
   var countEl = document.getElementById('employeesBulkCount');
-  if (!toolbar || !countEl) return;
+  if (!bulkBar || !countEl) return;
   if (ids.size === 0) {
-    toolbar.style.display = 'none';
     var undoWrap = document.getElementById('employeesBulkUndo');
-    if (undoWrap) {
-      if (window.lastBulkAction) { undoWrap.style.display = 'inline'; var t = document.getElementById('employeesBulkUndoText'); if (t) t.textContent = window.lastBulkAction.count + ' employee(s) ' + (window.lastBulkAction.type === 'retire' ? 'retired' : window.lastBulkAction.type === 'pool' ? 'moved' : 'deleted') + '.'; }
-      else undoWrap.style.display = 'none';
+    if (window.lastBulkAction && undoWrap) {
+      bulkBar.style.display = 'flex';
+      toolbar.style.display = 'none';
+      undoWrap.style.display = 'inline';
+      var t = document.getElementById('employeesBulkUndoText');
+      if (t) t.textContent = window.lastBulkAction.count + ' employee(s) ' + (window.lastBulkAction.type === 'retire' ? 'retired' : window.lastBulkAction.type === 'pool' ? 'moved' : 'deleted') + '.';
+    } else {
+      bulkBar.style.display = 'none';
+      if (undoWrap) undoWrap.style.display = 'none';
     }
     return;
   }
+  bulkBar.style.display = 'flex';
   toolbar.style.display = 'flex';
   countEl.textContent = ids.size + ' selected';
+  var undoWrap2 = document.getElementById('employeesBulkUndo');
+  if (undoWrap2) undoWrap2.style.display = 'none';
   var retireBtn = document.getElementById('employeesBulkRetire');
   var poolBtn = document.getElementById('employeesBulkPool');
   var clearBtn = document.getElementById('employeesBulkClear');
@@ -3967,6 +4132,14 @@ function viewEmployeeInfo(empId) {
   document.getElementById('employeeEditLaborPool').value = emp.laborPoolId || (laborPools[0] ? laborPools[0].id : '');
   document.getElementById('employeeEditPref').value = emp.pref || '';
   document.getElementById('employeeEditSeniority').value = getSeniorityForEmployee(emp) != null ? getSeniorityForEmployee(emp) : '';
+  var emailEl = document.getElementById('employeeEditEmail');
+  if (emailEl) emailEl.value = emp.email || '';
+  var empIdEl = document.getElementById('employeeEditEmployeeId');
+  if (empIdEl) empIdEl.value = emp.employeeId || '';
+  var hireEl = document.getElementById('employeeEditHireDate');
+  if (hireEl) hireEl.value = emp.hireDate || '';
+  var birthEl = document.getElementById('employeeEditBirthdate');
+  if (birthEl) birthEl.value = emp.birthdate || '';
   var lastModEl = document.getElementById('employeeEditLastModified');
   if (lastModEl) {
     if (emp.lastModified) {
@@ -3981,7 +4154,7 @@ function viewEmployeeInfo(empId) {
   var container = document.getElementById('employeeEditModal');
   if (container) setupModalFocusTrap(overlay, container);
   overlay.classList.add('employee-edit-visible');
-  setTimeout(function(){ var el = document.getElementById('employeeEditType'); if(el) el.focus(); }, 50);
+  setTimeout(function(){ var el = document.getElementById('employeeEditName'); if(el) el.focus(); }, 50);
   function onEditKey(e) {
     if (e.key === 'Escape') { closeEmployeeEditModal(); remove(); }
     if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') { e.preventDefault(); saveEmployeeEdit(); }
@@ -4012,6 +4185,10 @@ function saveEmployeeEdit() {
   var poolEl = document.getElementById('employeeEditLaborPool');
   var prefEl = document.getElementById('employeeEditPref');
   var seniorityEl = document.getElementById('employeeEditSeniority');
+  var emailEl = document.getElementById('employeeEditEmail');
+  var employeeIdEl = document.getElementById('employeeEditEmployeeId');
+  var hireDateEl = document.getElementById('employeeEditHireDate');
+  var birthdateEl = document.getElementById('employeeEditBirthdate');
   var newName = (nameEl && nameEl.value) ? nameEl.value.trim() : '';
   if (!newName) {
     alert('Name cannot be empty.');
@@ -4046,6 +4223,10 @@ function saveEmployeeEdit() {
   emp.seniorityByPool[poolId] = check.value;
   emp.seniority = check.value;
   emp.pref = prefEl.value || null;
+  emp.email = (emailEl && emailEl.value) ? emailEl.value.trim() || null : emp.email;
+  emp.employeeId = (employeeIdEl && employeeIdEl.value) ? employeeIdEl.value.trim() || null : emp.employeeId;
+  emp.hireDate = (hireDateEl && hireDateEl.value) ? hireDateEl.value.trim() || null : emp.hireDate;
+  emp.birthdate = (birthdateEl && birthdateEl.value) ? birthdateEl.value.trim() || null : emp.birthdate;
   emp.lastModified = new Date().toISOString();
   
   var changes = [];
