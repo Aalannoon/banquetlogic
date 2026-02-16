@@ -4388,12 +4388,16 @@ function populateEventServiceDropdown(){
 }
 
 function autoRecommendStaff(){
-  const guests = +eventGuests.value;
+  var eventGuestsEl = document.getElementById('eventGuests');
+  var eventServiceEl = document.getElementById('eventService');
+  var eventStaffEl = document.getElementById('eventStaff');
+  if (!eventGuestsEl || !eventServiceEl || !eventStaffEl) return;
+  var guests = parseInt(eventGuestsEl.value, 10) || 0;
   if (!guests) return;
-  const typeId = eventService.value;
-  const t = getEventTypeById(typeId);
-  const ratio = t ? t.guestsPerServer : 30;
-  eventStaff.value = Math.ceil(guests / ratio);
+  var typeId = eventServiceEl.value;
+  var t = getEventTypeById(typeId);
+  var ratio = t ? t.guestsPerServer : 30;
+  eventStaffEl.value = Math.ceil(guests / ratio);
 }
 
 function addEventPoolReqRow(poolId, quantity) {
@@ -4514,7 +4518,7 @@ function addEvent(){
     addAuditEntry('Event Created', null, data.date, null, `${data.name} (${data.staff} staff)`);
   }
   
-  eventNameEl.value="";
+  if (eventNameEl) eventNameEl.value="";
   eventDateEl.value="";
   if (eventStartEl) eventStartEl.value="";
   if (eventEndEl) eventEndEl.value="";
