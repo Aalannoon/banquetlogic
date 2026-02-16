@@ -1849,7 +1849,13 @@ body.light-mode .email-cell-input { background: #fff; color: #1a1f26; border-col
         <div id="eventLaborPoolReqsContainer"></div>
         <button type="button" onclick="addEventPoolReqRow()" style="margin-top: 6px;">Add pool requirement</button>
       </div>
-      <p style="margin-top: 12px;"><label style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer;"><input type="checkbox" id="eventCashBar" /> Cash Bar</label><br><small class="event-type-helper">When enabled, the schedule will show a non-binding cashier recommendation for this event.</small></p>
+      <p style="margin-top: 12px;"><label style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer;"><input type="checkbox" id="eventCashBar" onchange="toggleCashBarTimeFields()" /> Cash Bar</label><br><small class="event-type-helper">When enabled, the schedule will show a non-binding cashier recommendation for this event. Cashier shifts use the cash bar times below and are always at least 4 hours.</small></p>
+      <div id="eventCashBarTimeWrap" style="display: none; margin-top: 8px; margin-left: 24px;">
+        <label style="font-size: 13px;">Cash bar start</label>
+        <input type="time" id="eventCashBarStart" style="margin: 0 8px 0 6px; padding: 4px 8px;" aria-label="Cash bar start time" />
+        <label style="font-size: 13px; margin-left: 8px;">Cash bar end</label>
+        <input type="time" id="eventCashBarEnd" style="margin: 0 0 0 6px; padding: 4px 8px;" aria-label="Cash bar end time" />
+      </div>
       <details class="events-legacy-staff-wrap" style="margin-top: 8px;">
         <summary style="font-size: 12px; color: var(--brand-text-muted); cursor: pointer;">Staff (legacy field)</summary>
         <input id="eventStaff" type="number" placeholder="Only if not using pool requirements above" min="0" style="margin-top: 6px;" />
@@ -4454,6 +4460,20 @@ function updateRecurrenceUI() {
     countEl.style.display = useCount ? 'inline-block' : 'none';
   }
 }
+function toggleCashBarTimeFields() {
+  var cb = document.getElementById('eventCashBar');
+  var wrap = document.getElementById('eventCashBarTimeWrap');
+  if (!wrap) return;
+  wrap.style.display = (cb && cb.checked) ? 'block' : 'none';
+  if (cb && cb.checked) {
+    var startEl = document.getElementById('eventCashBarStart');
+    var endEl = document.getElementById('eventCashBarEnd');
+    var evStart = document.getElementById('eventStart');
+    var evEnd = document.getElementById('eventEnd');
+    if (startEl && !startEl.value && evStart && evStart.value) startEl.value = evStart.value;
+    if (endEl && !endEl.value && evEnd && evEnd.value) endEl.value = evEnd.value;
+  }
+}
 function updateRecurrenceEndUI() {
   var endType = document.getElementById('eventRecurrenceEndType');
   var untilEl = document.getElementById('eventRecurrenceUntil');
@@ -4491,6 +4511,9 @@ function useEventTemplate() {
   }
   var eventCashBarEl = document.getElementById('eventCashBar');
   if (eventCashBarEl) eventCashBarEl.checked = !!t.cashBarEnabled;
+  if (t.cashBarStart) { var cbs = document.getElementById('eventCashBarStart'); if (cbs) cbs.value = t.cashBarStart.substring(0, 5); }
+  if (t.cashBarEnd) { var cbe = document.getElementById('eventCashBarEnd'); if (cbe) cbe.value = t.cashBarEnd.substring(0, 5); }
+  toggleCashBarTimeFields();
   if (t.defaultStart) { var es = document.getElementById('eventStart'); if (es) es.value = t.defaultStart; }
   if (t.defaultEnd) { var ee = document.getElementById('eventEnd'); if (ee) ee.value = t.defaultEnd; }
 }
@@ -4503,11 +4526,15 @@ function saveAsEventTemplate() {
   var eventCashBarEl = document.getElementById('eventCashBar');
   var eventStartEl = document.getElementById('eventStart');
   var eventEndEl = document.getElementById('eventEnd');
+  var eventCashBarStartEl = document.getElementById('eventCashBarStart');
+  var eventCashBarEndEl = document.getElementById('eventCashBarEnd');
   var t = {
     name: name.trim(),
     eventTypeId: typeId || undefined,
     laborPoolRequirements: poolReqs.length ? poolReqs : undefined,
     cashBarEnabled: !!(eventCashBarEl && eventCashBarEl.checked),
+    cashBarStart: (eventCashBarStartEl && eventCashBarStartEl.value) ? eventCashBarStartEl.value : undefined,
+    cashBarEnd: (eventCashBarEndEl && eventCashBarEndEl.value) ? eventCashBarEndEl.value : undefined,
     defaultStart: (eventStartEl && eventStartEl.value) ? eventStartEl.value : undefined,
     defaultEnd: (eventEndEl && eventEndEl.value) ? eventEndEl.value : undefined
   };
@@ -4764,6 +4791,19 @@ function addEvent(){
   var type = getEventTypeById(typeId);
   var typeName = type ? type.name : (eventServiceEl.options[eventServiceEl.selectedIndex] ? eventServiceEl.options[eventServiceEl.selectedIndex].text : '');
   var eventCashBarEl = document.getElementById('eventCashBar');
+  var eventCashBarStartEl = document.getElementById('eventCashBarStart');
+  var eventCashBarEndEl = document.getElementById('eventCashBarEnd');
+  var cashBarOn = !!(eventCashBarEl && eventCashBarEl.checked);
+  var cashBarStartVal = (cashBarOn && eventCashBarStartEl && eventCashBarStartEl.value) ? eventCashBarStartEl.value.trim() : '';
+  var cashBarEndVal = (cashBarOn && eventCashBarEndEl && eventCashBarEndEl.value) ? eventCashBarEndEl.value.trim() : '';
+  if (cashBarOn && (!cashBarStartVal || !cashBarEndVal)) {
+    alert('Please set Cash bar start and end time when Cash Bar is enabled.');
+    return;
+  }
+  if (cashBarOn && cashBarStartVal && cashBarEndVal && cashBarStartVal >= cashBarEndVal) {
+    alert('Cash bar end time must be after start time.');
+    return;
+  }
   var eventName = (eventNameEl && eventNameEl.value) ? eventNameEl.value.trim() : '';
   var wasEditing = !!editingEventId;
   if (editingEventId) {
@@ -4779,7 +4819,9 @@ function addEvent(){
       eventTypeName: typeName,
       staff: totalStaff,
       laborPoolRequirements: poolReqs.slice ? poolReqs.slice() : poolReqs,
-      cashBarEnabled: !!(eventCashBarEl && eventCashBarEl.checked)
+      cashBarEnabled: cashBarOn,
+      cashBarStart: cashBarOn && cashBarStartVal ? cashBarStartVal : undefined,
+      cashBarEnd: cashBarOn && cashBarEndVal ? cashBarEndVal : undefined
     };
     const oldEvent = events.find(function(e) { return e.id === editingEventId; });
     Object.assign(oldEvent, data);
@@ -4829,7 +4871,9 @@ function addEvent(){
         eventTypeName: typeName,
         staff: totalStaff,
         laborPoolRequirements: poolReqs.slice ? poolReqs.slice() : poolReqs,
-        cashBarEnabled: !!(eventCashBarEl && eventCashBarEl.checked),
+        cashBarEnabled: cashBarOn,
+        cashBarStart: cashBarOn && cashBarStartVal ? cashBarStartVal : undefined,
+        cashBarEnd: cashBarOn && cashBarEndVal ? cashBarEndVal : undefined,
         recurrenceGroupId: occurrenceDates.length > 1 ? groupId : undefined
       };
       events.push(ev);
@@ -4850,6 +4894,9 @@ function addEvent(){
   if (eventGuestsEl) eventGuestsEl.value="";
   if (eventStaffEl) eventStaffEl.value="";
   if (eventCashBarEl) eventCashBarEl.checked = false;
+  if (eventCashBarStartEl) eventCashBarStartEl.value = '';
+  if (eventCashBarEndEl) eventCashBarEndEl.value = '';
+  toggleCashBarTimeFields();
   var container = document.getElementById('eventLaborPoolReqsContainer');
   if (container) container.innerHTML = '';
   cancelEventEdit();
@@ -5053,6 +5100,11 @@ function editEvent(id){
   }
   var eventCashBarEl = document.getElementById('eventCashBar');
   if (eventCashBarEl) eventCashBarEl.checked = !!e.cashBarEnabled;
+  var eventCashBarStartEl = document.getElementById('eventCashBarStart');
+  var eventCashBarEndEl = document.getElementById('eventCashBarEnd');
+  if (eventCashBarStartEl) eventCashBarStartEl.value = (e.cashBarStart || e.start || '').substring(0, 5) || '';
+  if (eventCashBarEndEl) eventCashBarEndEl.value = (e.cashBarEnd || e.end || '').substring(0, 5) || '';
+  toggleCashBarTimeFields();
   var container = document.getElementById('eventLaborPoolReqsContainer');
   if (container) {
     container.innerHTML = '';
@@ -6093,12 +6145,27 @@ function applyRecommendations(role) {
   days.forEach(function(d) {
     var dateStr = iso(d);
     var recommended = role === 'housemen' ? getRecommendedHousemenForDate(dateStr) : getRecommendedCashiersForDate(dateStr);
-    var dayEvents = events.filter(function(e) { return e.date === dateStr; });
+    var dayEvents = events.filter(function(e) {
+      if (e.date !== dateStr) return false;
+      if (role === 'cashiers') return !!e.cashBarEnabled;
+      return true;
+    });
     dayEvents.sort(function(a, b) { return (a.start || '').localeCompare(b.start || ''); });
     var ev = dayEvents[0];
     if (!ev) return;
-    var s = normalizeHours(ev.start || '09:00', ev.end || '17:00');
-    var t = calculateSmartShift(ev, s.h);
+    var startUse, endUse, evForShift;
+    if (role === 'cashiers' && ev.cashBarEnabled) {
+      startUse = (ev.cashBarStart || ev.start || '09:00').substring(0, 5) || '09:00';
+      endUse = (ev.cashBarEnd || ev.end || '17:00').substring(0, 5) || '17:00';
+      evForShift = { start: startUse, end: endUse, guests: ev.guests };
+    } else {
+      startUse = ev.start || '09:00';
+      endUse = ev.end || '17:00';
+      evForShift = ev;
+    }
+    var s = normalizeHours(startUse, endUse);
+    if (role === 'cashiers' && s.h < MIN_SHIFT_HOURS) s = { h: MIN_SHIFT_HOURS };
+    var t = calculateSmartShift(evForShift, s.h);
     var startStr = timeStr(t.start);
     var endStr = timeStr(t.end);
     recommended.forEach(function(emp) {
