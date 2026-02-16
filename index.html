@@ -278,6 +278,53 @@ body.light-mode .employees-pool-btn:not(.employees-pool-btn-active) .employees-p
   color: #374151;
 }
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 768px) {
+  .employees-table,
+  .employees-table thead,
+  .employees-table tbody,
+  .employees-table tr,
+  .employees-table th,
+  .employees-table td { display: block; }
+  .employees-table thead tr { display: none; }
+  .employees-table tbody tr {
+    margin-bottom: 1rem;
+    padding: 12px;
+    background: var(--brand-bg-elevated);
+    border-radius: 8px;
+    border: 1px solid var(--brand-border);
+  }
+  .employees-table tbody tr.status-retired { opacity: 0.7; }
+  .employees-table td {
+    padding: 6px 0;
+    border: none;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .employees-table td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    min-width: 100px;
+    color: var(--brand-text-muted);
+  }
+  .employees-table td.email-cell-td::before { content: 'Email'; }
+  #employeesPoolSelector { flex-direction: column; }
+  #employeesTab > div[style*="margin-bottom: 15px"][style*="display: flex"] { flex-direction: column; align-items: stretch; }
+}
+
 /* INPUTS */
 input, select, button {
   margin: 4px;
@@ -1459,18 +1506,37 @@ body.light-mode .email-cell-input { background: #fff; color: #1a1f26; border-col
 </div>
 
 <div style="margin-bottom: 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px;">
-  <input type="text" id="employeesSearchInput" placeholder="Search by name..." oninput="renderEmployees()" style="padding: 8px 12px; width: 220px; border-radius: 6px; border: 1px solid var(--brand-border);" />
+  <input type="text" id="employeesSearchInput" placeholder="Search by name..." oninput="renderEmployees()" style="padding: 8px 12px; width: 220px; border-radius: 6px; border: 1px solid var(--brand-border);" aria-label="Search employees by name, pool, or type" />
   <label style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px; color: var(--brand-text-muted);">
-    <input type="checkbox" id="employeesShowRetired" onchange="renderEmployees()" />
+    <input type="checkbox" id="employeesShowRetired" onchange="renderEmployees()" aria-label="Show retired employees" />
     Show retired
   </label>
+  <div id="employeesBulkToolbar" style="display: none; align-items: center; gap: 8px;">
+    <span id="employeesBulkCount" style="font-size: 13px; color: var(--brand-text-muted);"></span>
+    <button type="button" id="employeesBulkRetire" style="background: #8e44ad; padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; color: #fff;" aria-label="Retire selected employees">Retire selected</button>
+    <button type="button" id="employeesBulkPool" style="background: #16a085; padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; color: #fff;" aria-label="Change labor pool for selected employees">Change pool</button>
+    <button type="button" id="employeesBulkClear" style="background: #7f8c8d; padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; color: #fff;" aria-label="Clear selection">Clear selection</button>
+  </div>
 </div>
 
-<table class="employees-table">
+<table class="employees-table" role="table" aria-label="Employees list">
+<caption class="sr-only">List of employees with name, pool, seniority, type, email, preferences, and actions</caption>
 <thead>
 <tr>
-  <th>Name</th><th>Type</th><th>Email</th><th>Pref</th>
-  <th>Max Days/Wk</th><th>Day Prefs</th><th>Sick</th><th>Vac</th><th>Unpaid</th><th>Off</th><th>Actions</th>
+  <th scope="col" style="width: 36px;"><input type="checkbox" id="employeesSelectAll" aria-label="Select all employees in this list" title="Select all" /></th>
+  <th scope="col">Name</th>
+  <th scope="col">Pool</th>
+  <th scope="col">Sr</th>
+  <th scope="col">Type</th>
+  <th scope="col">Email</th>
+  <th scope="col">Pref</th>
+  <th scope="col">Max Days/Wk</th>
+  <th scope="col">Day Prefs</th>
+  <th scope="col">Sick</th>
+  <th scope="col">Vac</th>
+  <th scope="col">Unpaid</th>
+  <th scope="col">Off</th>
+  <th scope="col">Actions</th>
 </tr>
 </thead>
 <tbody id="employeesTable"></tbody>
@@ -1508,6 +1574,7 @@ body.light-mode .email-cell-input { background: #fff; color: #1a1f26; border-col
       <input type="number" id="employeeEditSeniority" min="1" style="width: 80px;" />
       <small class="edit-helper">Override will be logged in the audit log.</small>
     </div>
+    <p id="employeeEditLastModified" style="font-size: 12px; color: #95a5a6; margin: 8px 0 0 0;"></p>
     <p style="font-size: 12px; color: #95a5a6; margin: 12px 0 0 0;">Check Sick, Vac, Unpaid, or Off to mark an employee as that absence type until you uncheck it; they won't be scheduled. <strong>Uncheck when the employee is available again.</strong></p>
     <div class="edit-actions">
       <button type="button" class="save-btn btn-primary" id="employeeEditSaveBtn">Save Changes</button>
@@ -3009,6 +3076,10 @@ function addEmployee(){
     return;
   }
   var poolId = empLaborPoolEl.value;
+  var newName = (empNameEl.value || '').trim();
+  if (!newName) return;
+  var isDup = employees.some(function(o) { return (o.name || '').trim().toLowerCase() === newName.toLowerCase(); });
+  if (isDup && !confirm('Another employee already has this name. Continue anyway?')) return;
   var suggested = getNextSeniority(poolId);
   var empSeniorityEl = document.getElementById('empSeniority');
   var rawSeniority = (empSeniorityEl && empSeniorityEl.value || '').trim();
@@ -3025,7 +3096,7 @@ function addEmployee(){
   seniorityByPool[poolId] = seniorityVal;
   const newEmp = {
     id: crypto.randomUUID(),
-    name: empNameEl.value,
+    name: newName,
     laborPoolId: poolId,
     seniorityByPool: seniorityByPool,
     seniority: seniorityVal,
@@ -3039,7 +3110,8 @@ function addEmployee(){
     maxDaysPerWeek: 5,
     dayPreferences: {
       0: null, 1: null, 2: null, 3: null, 4: null, 5: null, 6: null
-    }
+    },
+    lastModified: new Date().toISOString()
   };
   employees.push(newEmp);
   empNameEl.value = "";
@@ -3053,6 +3125,7 @@ function addEmployee(){
   save(); 
   renderEmployeesPoolSelector();
   renderEmployees();
+  setTimeout(function() { var el = document.getElementById('empName'); if (el) el.focus(); }, 50);
 }
 
 /* IMPORT FUNCTIONS */
@@ -3300,6 +3373,7 @@ function retireEmployee(id){
   const emp = employees.find(e=>e.id===id);
   if (!emp) return;
   emp.retired = true;
+  emp.lastModified = new Date().toISOString();
   rebalanceSeniority();
   
   addAuditEntry('Employee Retired', id, null, 'Active', 'Retired');
@@ -3332,26 +3406,34 @@ function renderEmployees(){
   filtered.sort(function(a, b) {
     return (getSeniorityForEmployee(a) || 999) - (getSeniorityForEmployee(b) || 999);
   });
+  if (typeof window.employeesSelectedIds === 'undefined') window.employeesSelectedIds = new Set();
+  var selectedIds = window.employeesSelectedIds;
+
   filtered.forEach(function(e) {
     const row = document.createElement('tr');
     row.className = e.retired ? 'status-retired' : '';
     
     const maxDays = e.maxDaysPerWeek !== undefined ? e.maxDaysPerWeek : 5;
+    var sr = getSeniorityForEmployee(e);
+    var poolLabel = (getLaborPoolById(e.laborPoolId) && getLaborPoolById(e.laborPoolId).name) ? getLaborPoolById(e.laborPoolId).name : (e.laborPoolId || '-');
     
     row.innerHTML = `
-      <td>${e.name}</td>
-      <td>${e.type}</td>
-      <td class="email-cell-td" data-emp-id="${e.id}" title="${e.email ? 'Click to edit' : 'Click to add email'}"></td>
-      <td>${e.pref || "-"}</td>
-      <td><input type="number" class="max-days-input" value="${maxDays}" min="1" max="5" placeholder="5" style="width:50px;" ${e.retired ? 'disabled' : ''}></td>
-      <td><button type="button" class="dayprefs-btn" style="background:#9b59b6; padding:4px 8px;">Day Prefs</button></td>
-      <td><input type="checkbox" class="sick-check" ${e.status === 'sick' ? "checked" : ""} title="Mark as Sick until unmarked. Uncheck when available."></td>
-      <td><input type="checkbox" class="vacation-check" ${e.status === 'vacation' ? "checked" : ""} title="Mark as Vacation until unmarked. Uncheck when available."></td>
-      <td><input type="checkbox" class="unpaid-vacation-check" ${e.status === 'unpaid_vacation' ? "checked" : ""} title="Mark as Unpaid vacation until unmarked. Uncheck when available."></td>
-      <td><input type="checkbox" class="off-check" ${e.status === 'requested_off' ? "checked" : ""} title="Mark as Off until unmarked. Uncheck when available."></td>
-      <td>
-        <button type="button" class="info-btn" style="background:#27ae60; padding:4px 8px;" title="View/Edit Info">Info</button>
-        ${e.retired ? "-" : '<button type="button" class="retire">Retire</button>'}
+      <td data-label="Select"><input type="checkbox" class="row-select-cb" data-emp-id="${e.id}" aria-label="Select ${(e.name || '').replace(/"/g, '&quot;')}" ${selectedIds.has(e.id) ? 'checked' : ''} ${e.retired ? 'disabled' : ''}></td>
+      <td data-label="Name">${(e.name || '').replace(/</g, '&lt;')}</td>
+      <td data-label="Pool">${(poolLabel || '').replace(/</g, '&lt;')}</td>
+      <td data-label="Sr">${sr != null ? sr : '-'}</td>
+      <td data-label="Type">${(e.type || '').replace(/</g, '&lt;')}</td>
+      <td class="email-cell-td" data-label="Email" data-emp-id="${e.id}" title="${e.email ? 'Click to edit' : 'Click to add email'}"></td>
+      <td data-label="Pref">${e.pref || "-"}</td>
+      <td data-label="Max Days/Wk"><input type="number" class="max-days-input" value="${maxDays}" min="1" max="5" placeholder="5" style="width:50px;" ${e.retired ? 'disabled' : ''} aria-label="Max days per week"></td>
+      <td data-label="Day Prefs"><button type="button" class="dayprefs-btn" style="background:#9b59b6; padding:4px 8px;" title="Edit day preferences" aria-label="Edit day preferences">Day Prefs</button></td>
+      <td data-label="Sick"><input type="checkbox" class="sick-check" ${e.status === 'sick' ? "checked" : ""} title="Mark as Sick until unmarked. Uncheck when available." aria-label="Mark as sick"></td>
+      <td data-label="Vac"><input type="checkbox" class="vacation-check" ${e.status === 'vacation' ? "checked" : ""} title="Mark as Vacation until unmarked. Uncheck when available." aria-label="Mark as vacation"></td>
+      <td data-label="Unpaid"><input type="checkbox" class="unpaid-vacation-check" ${e.status === 'unpaid_vacation' ? "checked" : ""} title="Mark as Unpaid vacation until unmarked. Uncheck when available." aria-label="Mark as unpaid vacation"></td>
+      <td data-label="Off"><input type="checkbox" class="off-check" ${e.status === 'requested_off' ? "checked" : ""} title="Mark as Off until unmarked. Uncheck when available." aria-label="Mark as requested off"></td>
+      <td data-label="Actions">
+        <button type="button" class="info-btn" style="background:#27ae60; padding:4px 8px;" title="View/Edit Info" aria-label="View or edit employee info">Info</button>
+        ${e.retired ? "-" : '<button type="button" class="retire" title="Retire this employee" aria-label="Retire this employee">Retire</button>'}
       </td>
     `;
     
@@ -3364,8 +3446,16 @@ function renderEmployees(){
         emailTd.innerHTML = '';
         const wrap = document.createElement('span');
         wrap.className = 'email-cell-wrap' + (display ? '' : ' email-cell-placeholder');
-        wrap.textContent = display || 'Add email';
         wrap.title = display ? 'Click to edit' : 'Click to add email';
+        if (val) {
+          var a = document.createElement('a');
+          a.href = 'mailto:' + val.replace(/"/g, '&quot;').replace(/</g, '&lt;');
+          a.textContent = display;
+          a.onclick = function(ev) { ev.stopPropagation(); };
+          wrap.appendChild(a);
+        } else {
+          wrap.textContent = 'Add email';
+        }
         wrap.onclick = function() {
           const inp = document.createElement('input');
           inp.type = 'email';
@@ -3383,6 +3473,7 @@ function renderEmployees(){
               const oldVal = emp.email || null;
               if (oldVal !== newVal) {
                 emp.email = newVal;
+                emp.lastModified = new Date().toISOString();
                 addAuditEntry('Email Updated', e.id, null, oldVal || '(none)', newVal || '(none)');
                 save();
               }
@@ -3446,11 +3537,100 @@ function renderEmployees(){
     
     tableEl.appendChild(row);
   });
-  var poolName = getLaborPoolById(selectedPoolId) ? getLaborPoolById(selectedPoolId).name : 'this pool';
   if (filtered.length === 0) {
     const emptyRow = document.createElement('tr');
-    emptyRow.innerHTML = '<td colspan="12" style="text-align:center;padding:1.5rem;color:#7f8c8d;">No ' + poolName + ' yet. Add an employee above to get started.</td>';
+    var emptyMsg = employees.length === 0
+      ? 'No employees yet. Add an employee above to get started.'
+      : 'No matches. Try a different search or pool.';
+    emptyRow.innerHTML = '<td colspan="14" data-label="" style="text-align:center;padding:1.5rem;color:#7f8c8d;">' + emptyMsg + '</td>';
     tableEl.appendChild(emptyRow);
+  }
+
+  var selectAllEl = document.getElementById('employeesSelectAll');
+  if (selectAllEl) {
+    selectAllEl.checked = filtered.length > 0 && filtered.every(function(x) { return selectedIds.has(x.id); });
+    selectAllEl.indeterminate = filtered.length > 0 && selectedIds.size > 0 && !selectAllEl.checked;
+    selectAllEl.onchange = function() {
+      filtered.forEach(function(x) {
+        if (x.retired) return;
+        if (selectAllEl.checked) selectedIds.add(x.id); else selectedIds.delete(x.id);
+      });
+      updateBulkToolbar();
+      renderEmployees();
+    };
+  }
+  tableEl.querySelectorAll('.row-select-cb').forEach(function(cb) {
+    cb.onchange = function() {
+      var id = cb.getAttribute('data-emp-id');
+      if (cb.checked) selectedIds.add(id); else selectedIds.delete(id);
+      updateBulkToolbar();
+      var sa = document.getElementById('employeesSelectAll');
+      if (sa) { sa.checked = filtered.every(function(x) { return selectedIds.has(x.id); }); sa.indeterminate = selectedIds.size > 0 && !sa.checked; }
+    };
+  });
+  updateBulkToolbar();
+}
+
+function updateBulkToolbar() {
+  var ids = typeof window.employeesSelectedIds !== 'undefined' ? window.employeesSelectedIds : new Set();
+  var toolbar = document.getElementById('employeesBulkToolbar');
+  var countEl = document.getElementById('employeesBulkCount');
+  if (!toolbar || !countEl) return;
+  if (ids.size === 0) {
+    toolbar.style.display = 'none';
+    return;
+  }
+  toolbar.style.display = 'flex';
+  countEl.textContent = ids.size + ' selected';
+  var retireBtn = document.getElementById('employeesBulkRetire');
+  var poolBtn = document.getElementById('employeesBulkPool');
+  var clearBtn = document.getElementById('employeesBulkClear');
+  if (retireBtn && !retireBtn._wired) {
+    retireBtn._wired = true;
+    retireBtn.onclick = function() {
+      var n = ids.size;
+      if (!confirm('Retire ' + n + ' selected employee(s)?')) return;
+      ids.forEach(function(id) {
+        var emp = employees.find(function(e) { return e.id === id; });
+        if (emp) { emp.retired = true; emp.lastModified = new Date().toISOString(); }
+      });
+      rebalanceSeniority();
+      ids.clear();
+      addAuditEntry('Bulk Retire', null, null, n + ' employees', 'Retired');
+      save();
+      renderEmployeesPoolSelector();
+      renderEmployees();
+      displaySchedule();
+      updateBulkToolbar();
+    };
+  }
+  if (poolBtn && !poolBtn._wired) {
+    poolBtn._wired = true;
+    poolBtn.onclick = function() {
+      var n = ids.size;
+      var poolOptions = laborPools.map(function(p) { return p.id + ': ' + (p.name || p.id); }).join('\n');
+      var choice = prompt('Change pool for ' + n + ' employee(s). Enter pool id or name:\n' + poolOptions);
+      if (choice == null || !choice.trim()) return;
+      var choiceTrim = choice.trim();
+      var newPool = laborPools.find(function(p) { return p.id === choiceTrim; }) || laborPools.find(function(p) { return (p.name || '').toLowerCase() === choiceTrim.toLowerCase(); });
+      if (!newPool) { alert('Pool not found.'); return; }
+      ids.forEach(function(id) {
+        var emp = employees.find(function(e) { return e.id === id; });
+        if (emp) { emp.laborPoolId = newPool.id; emp.lastModified = new Date().toISOString(); }
+      });
+      rebalanceSeniority();
+      ids.clear();
+      addAuditEntry('Bulk Change Pool', null, null, n + ' employees', newPool.name);
+      save();
+      renderEmployeesPoolSelector();
+      renderEmployees();
+      displaySchedule();
+      updateBulkToolbar();
+    };
+  }
+  if (clearBtn && !clearBtn._wired) {
+    clearBtn._wired = true;
+    clearBtn.onclick = function() { ids.clear(); updateBulkToolbar(); renderEmployees(); };
   }
 }
 
@@ -3500,6 +3680,7 @@ function saveDayPrefsModal() {
     else if (v === 'off') { emp.dayPreferences[i] = false; prefersOff.push(dayNames[i]); }
   }
   var auditMsg = (prefersWork.length ? 'Work: ' + prefersWork.join(', ') : '') + (prefersOff.length ? (prefersWork.length ? '; ' : '') + 'Off: ' + prefersOff.join(', ') : '');
+  emp.lastModified = new Date().toISOString();
   addAuditEntry('Day Preferences Set', dayPrefsEmployeeId, null, null, auditMsg || 'Cleared');
   save();
   renderEmployees();
@@ -3507,6 +3688,7 @@ function saveDayPrefsModal() {
 }
 
 function onStatusCheckboxClick(emp, statusName) {
+  emp.lastModified = new Date().toISOString();
   if (emp.status === statusName) {
     emp.status = null;
   } else {
@@ -3555,6 +3737,7 @@ function setMaxDaysPerWeek(empId, maxDays) {
   
   const oldValue = emp.maxDaysPerWeek || 5;
   emp.maxDaysPerWeek = maxDays;
+  emp.lastModified = new Date().toISOString();
   
   addAuditEntry('Max Days Changed', empId, null, `${oldValue} days/week`, `${maxDays} days/week`);
   save();
@@ -3576,6 +3759,16 @@ function viewEmployeeInfo(empId) {
   document.getElementById('employeeEditLaborPool').value = emp.laborPoolId || (laborPools[0] ? laborPools[0].id : '');
   document.getElementById('employeeEditPref').value = emp.pref || '';
   document.getElementById('employeeEditSeniority').value = getSeniorityForEmployee(emp) != null ? getSeniorityForEmployee(emp) : '';
+  var lastModEl = document.getElementById('employeeEditLastModified');
+  if (lastModEl) {
+    if (emp.lastModified) {
+      try {
+        var d = new Date(emp.lastModified);
+        lastModEl.textContent = 'Last updated: ' + d.toLocaleString();
+        lastModEl.style.display = '';
+      } catch (err) { lastModEl.style.display = 'none'; }
+    } else { lastModEl.textContent = ''; lastModEl.style.display = 'none'; }
+  }
   var overlay = document.getElementById('employeeEditModalOverlay');
   overlay.classList.add('employee-edit-visible');
   setTimeout(function(){ var el = document.getElementById('employeeEditType'); if(el) el.focus(); }, 50);
@@ -3612,6 +3805,8 @@ function saveEmployeeEdit() {
     alert('Name cannot be empty.');
     return;
   }
+  var isDup = employees.some(function(o) { return o.id !== editingEmployeeId && (o.name || '').trim().toLowerCase() === newName.toLowerCase(); });
+  if (isDup && !confirm('Another employee already has this name. Continue anyway?')) return;
   var poolId = poolEl && poolEl.value ? poolEl.value : emp.laborPoolId;
   if (!poolId) {
     alert('Please select a labor pool to continue.');
@@ -3637,6 +3832,7 @@ function saveEmployeeEdit() {
   emp.seniorityByPool[poolId] = check.value;
   emp.seniority = check.value;
   emp.pref = prefEl.value || null;
+  emp.lastModified = new Date().toISOString();
   
   var changes = [];
   if (oldName !== emp.name) changes.push('name ' + (oldName || '') + ' → ' + emp.name);
