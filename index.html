@@ -4675,6 +4675,7 @@ function renderEventsWeekView() {
   tbl.appendChild(tbody);
   wrap.innerHTML = '';
   wrap.appendChild(tbl);
+  updateEventsConflictBanner();
 }
 function populateEventServiceDropdown(){
   var sel = document.getElementById('eventService');
@@ -4806,8 +4807,10 @@ function addEvent(){
   }
   var eventName = (eventNameEl && eventNameEl.value) ? eventNameEl.value.trim() : '';
   var wasEditing = !!editingEventId;
+  var data = null;
+  var addedEvents = [];
   if (editingEventId) {
-    const data = {
+    data = {
       id: editingEventId,
       name: eventName || 'Event',
       date: eventDateEl.value,
@@ -4877,6 +4880,7 @@ function addEvent(){
         recurrenceGroupId: occurrenceDates.length > 1 ? groupId : undefined
       };
       events.push(ev);
+      addedEvents.push(ev);
       addAuditEntry('Event Created', null, dateStr, null, (ev.name || 'Event') + ' (' + (ev.staff || 0) + ' staff)');
     });
     var recurTypeEl = document.getElementById('eventRecurrenceType');
@@ -4903,11 +4907,20 @@ function addEvent(){
   
   save(); 
   renderEvents();
+  var viewModeEl = document.getElementById('eventsViewMode');
+  if (viewModeEl && viewModeEl.value === 'week') renderEventsWeekView();
   var liveEl = document.getElementById('eventsLiveRegion');
-  if (liveEl) liveEl.textContent = wasEditing ? 'Event ' + data.name + ' updated.' : 'Event ' + data.name + ' added.';
+  var scrollId = wasEditing && data ? data.id : (addedEvents.length ? addedEvents[0].id : null);
+  if (liveEl) {
+    if (wasEditing && data) liveEl.textContent = 'Event ' + (data.name || '') + ' updated.';
+    else if (addedEvents.length === 1) liveEl.textContent = 'Event ' + (addedEvents[0].name || 'Event') + ' added.';
+    else if (addedEvents.length > 1) liveEl.textContent = addedEvents.length + ' events added.';
+    else liveEl.textContent = '';
+  }
   setTimeout(function() {
+    if (!scrollId) return;
     var tbl = document.getElementById('eventsTable');
-    var firstRow = tbl ? tbl.querySelector('tr[data-event-id="' + data.id + '"]') : null;
+    var firstRow = tbl ? tbl.querySelector('tr[data-event-id="' + scrollId + '"]') : null;
     if (firstRow) {
       firstRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       var editBtn = firstRow.querySelector('.edit-btn');
@@ -5041,20 +5054,22 @@ function renderEvents(){
       };
     });
   }
+  updateEventsConflictBanner();
+}
+function updateEventsConflictBanner() {
   var overlaps = getEventOverlaps();
   var conflictBanner = document.getElementById('eventsConflictBanner');
-  if (conflictBanner) {
-    if (overlaps.length === 0) {
-      conflictBanner.style.display = 'none';
-      conflictBanner.textContent = '';
-    } else {
-      var msg = overlaps.slice(0, 3).map(function(o) {
-        return o.pairs.map(function(p) { return (p[0].name || 'Event') + ' & ' + (p[1].name || 'Event') + ' on ' + o.date; }).join('; ');
-      }).join('. ');
-      if (overlaps.length > 3) msg += ' (and more).';
-      conflictBanner.textContent = 'Overlap: ' + msg;
-      conflictBanner.style.display = 'block';
-    }
+  if (!conflictBanner) return;
+  if (overlaps.length === 0) {
+    conflictBanner.style.display = 'none';
+    conflictBanner.textContent = '';
+  } else {
+    var msg = overlaps.slice(0, 3).map(function(o) {
+      return o.pairs.map(function(p) { return (p[0].name || 'Event') + ' & ' + (p[1].name || 'Event') + ' on ' + o.date; }).join('; ');
+    }).join('. ');
+    if (overlaps.length > 3) msg += ' (and more).';
+    conflictBanner.textContent = 'Overlap: ' + msg;
+    conflictBanner.style.display = 'block';
   }
 }
 
@@ -5130,6 +5145,8 @@ function duplicateEvent(id) {
   addAuditEntry('Event Duplicated', null, copy.date, ev.name || '', copy.name || '');
   save();
   renderEvents();
+  var viewModeEl = document.getElementById('eventsViewMode');
+  if (viewModeEl && viewModeEl.value === 'week') renderEventsWeekView();
   var liveEl = document.getElementById('eventsLiveRegion');
   if (liveEl) liveEl.textContent = 'Event duplicated: ' + (copy.name || '').replace(/"/g, "'");
   setTimeout(function() {
@@ -5149,6 +5166,8 @@ function deleteEvent(id){
   save();
   if (editingEventId === id) cancelEventEdit();
   renderEvents();
+  var viewModeEl = document.getElementById('eventsViewMode');
+  if (viewModeEl && viewModeEl.value === 'week') renderEventsWeekView();
 }
 
 /* HELPER FUNCTIONS */
